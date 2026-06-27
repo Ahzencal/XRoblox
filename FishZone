@@ -212,6 +212,23 @@ local POSITION_MODE = "pick"
 local FIXED_X, FIXED_Y = nil, nil
 local FISHING_ZONE_PATH = workspace:WaitForChild("Main"):WaitForChild("FishingZone")
 local FLOAT_HEIGHT = 5
+
+-- Blacklisted zone positions (skipped for ESP and Auto TP)
+-- Add more Vector3 entries to block additional zones
+local BLACKLISTED_POSITIONS = {
+    Vector3.new(-198, 16.5000153, -5079),
+}
+local BLACKLIST_THRESHOLD = 2  -- studs tolerance
+
+local function isBlacklisted(part)
+    for _, bpos in ipairs(BLACKLISTED_POSITIONS) do
+        if (part.Position - bpos).Magnitude <= BLACKLIST_THRESHOLD then
+            return true
+        end
+    end
+    return false
+end
+
 local PLAYER_LIST_VISIBLE_ROWS = 5
 
 local THEME = {
@@ -276,7 +293,7 @@ local function lower(s)
 end
 
 local function isActiveZone(part)
-    return part and part:IsA("BasePart") and part:GetAttribute("IsActive") == true
+    return part and part:IsA("BasePart") and part:GetAttribute("IsActive") == true and not isBlacklisted(part)
 end
 
 local function getZoneParts()
