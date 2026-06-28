@@ -22,7 +22,7 @@ local DEFAULT_CPS = 20
 local POSITION_MODE = "pick"
 local FIXED_X, FIXED_Y = nil, nil
 local FISHING_ZONE_PATH = workspace:WaitForChild("Main"):WaitForChild("FishingZone")
-local FLOAT_HEIGHT = 15
+local FLOAT_HEIGHT = 10
 local BLACKLISTED_POSITIONS = {
     Vector3.new(-198, 16.5000153, -5079),
     Vector3.new(-629.866821, 19.5, 4640.11377)
