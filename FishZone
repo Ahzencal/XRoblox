@@ -1,4 +1,4 @@
--- AhzencalESP v3
+-- AhzencalESP v5
 -- Player ESP / Zone ESP / Auto TP / Silent AutoClicker / Settings
 
 -- ============================================================
@@ -393,14 +393,11 @@ local function unfreezeCharacter()
     local hum = getHum(char)
     local hrp = getHRP(char)
     if hum then hum.PlatformStand = false end
-    -- reset rotation so character doesnt stay stuck facing 89 degrees
-    if hrp then
-        task.defer(function()
-            if hrp and hrp.Parent then
-                hrp.CFrame = CFrame.new(hrp.Position)
-            end
-        end)
-    end
+    -- respawn character to fully reset stuck rotation state
+    task.spawn(function()
+        task.wait(0.1)
+        lp:LoadCharacter()
+    end)
 end
 
 local frozenGyro = nil  -- BodyGyro to lock rotation
