@@ -1,4 +1,4 @@
--- AhzencalESP V.JujurJanggal
+-- AhzencalESP v10. ini terkahir please
 -- Player ESP / Zone ESP / Auto TP / Silent AutoClicker / Settings
 
 -- ============================================================
@@ -212,13 +212,13 @@ local DEFAULT_CPS = 20
 local POSITION_MODE = "pick"
 local FIXED_X, FIXED_Y = nil, nil
 local FISHING_ZONE_PATH = workspace:WaitForChild("Main"):WaitForChild("FishingZone")
-local FLOAT_HEIGHT = 15
+local FLOAT_HEIGHT = 10
 
 -- Blacklisted zone positions (skipped for ESP and Auto TP)
 -- Add more Vector3 entries to block additional zones
 local BLACKLISTED_POSITIONS = {
     Vector3.new(-198, 16.5000153, -5079),
-    Vector3.new(-629.866821, 19.5, 4640.11377)
+    Vector3.new(-629.866821, 19.5, 4640.11377),
 }
 local BLACKLIST_THRESHOLD = 2  -- studs tolerance
 
@@ -922,7 +922,7 @@ ZoneInfo.Size = UDim2.new(1, -16, 0, 76)
 ZoneInfo.Position = UDim2.new(0,8,0,170)
 ZoneInfo.BackgroundTransparency = 1
 ZoneInfo.TextColor3 = THEME.dim
-ZoneInfo.Text = "• Only parts with attribute IsActive = enabled are used\n• ESP only shows active parts\n• Auto TP freezes above the active FishZone\n• Refresh Character runs !refresh or /refresh via Adonis\n• Use Refresh if Roblox keeps bugged rotation/state"
+ZoneInfo.Text = "• Only parts with attribute IsActive = enabled are used\n• ESP only shows active parts\n• Auto TP freezes above the active FishZone\n• Refresh Character sends !refresh and /refresh via chat fallbacks\n• Use Refresh if Roblox keeps bugged rotation/state"
 ZoneInfo.Font = Enum.Font.Gotham
 ZoneInfo.TextSize = 11
 ZoneInfo.TextWrapped = true
@@ -1022,17 +1022,48 @@ RefreshCharBtn.MouseButton1Click:Connect(function()
     RefreshCharBtn.Text = "Refreshing..."
     unfreezeCharacter()
     task.spawn(function()
-        task.wait(0.1)
+        task.wait(0.15)
         pcall(function()
+            local msg1, msg2 = "!refresh", "/refresh"
+
+            -- Legacy default chat
             local RS = game:GetService("ReplicatedStorage")
             local defaultEvent = RS:FindFirstChild("DefaultChatSystemChatEvents")
             local sayEvent = defaultEvent and defaultEvent:FindFirstChild("SayMessageRequest")
             if sayEvent then
-                sayEvent:FireServer("!refresh", "All")
-                task.wait(0.35)
-                sayEvent:FireServer("/refresh", "All")
+                sayEvent:FireServer(msg1, "All")
+                task.wait(0.4)
+                sayEvent:FireServer(msg2, "All")
+            end
+
+            -- New text chat service fallback
+            local TextChatService = game:FindService("TextChatService")
+            if TextChatService and TextChatService.TextChannels then
+                local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+                if channel then
+                    pcall(function() channel:SendAsync(msg1) end)
+                    task.wait(0.4)
+                    pcall(function() channel:SendAsync(msg2) end)
+                end
+            end
+
+            -- Executor/legacy chat fallback
+            if game.Players.LocalPlayer and game.Players.LocalPlayer.Character then
+                pcall(function()
+                    game:GetService("Players"):Chat(msg1)
+                end)
+                task.wait(0.4)
+                pcall(function()
+                    game:GetService("Players"):Chat(msg2)
+                end)
             end
         end)
+        task.wait(1)
+        if RefreshCharBtn and RefreshCharBtn.Parent then
+            RefreshCharBtn.Text = "Refresh Character"
+        end
+    end)
+end)
         task.wait(1)
         if RefreshCharBtn and RefreshCharBtn.Parent then
             RefreshCharBtn.Text = "Refresh Character"
