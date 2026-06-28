@@ -1,9 +1,11 @@
--- AhzencalESP v11 clean rewrite
--- Full rewrite based on latest v10 reference
--- Player ESP / FishZone ESP / Auto TP / Silent AutoClicker / Settings
+-- AhzencalESP LATES WORKING
+-- Player ESP / Zone ESP / Auto TP / Silent AutoClicker / Settings
 
+-- ============================================================
+-- SINGLETON GUARD: destroy previous instance before running
+-- ============================================================
 if _G.__AhzencalESP_Destroy then
-    pcall(function() _G.__AhzencalESP_Destroy() end)
+    pcall(_G.__AhzencalESP_Destroy)
 end
 _G.__AhzencalESP_Destroy = nil
 
@@ -11,25 +13,223 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TextChatService = game:FindService("TextChatService")
+
+-- ============================================================
+-- LOADING SCREEN
+-- ============================================================
+local lp_early = Players.LocalPlayer
+local LoadGui = Instance.new("ScreenGui")
+LoadGui.Name = "AhzencalLoader"
+LoadGui.ResetOnSpawn = false
+LoadGui.DisplayOrder = 9999
+LoadGui.IgnoreGuiInset = false
+pcall(function() LoadGui.Parent = game:GetService("CoreGui") end)
+if not LoadGui.Parent then LoadGui.Parent = lp_early:WaitForChild("PlayerGui") end
+
+local LoadBG = Instance.new("Frame")
+LoadBG.Size = UDim2.new(0, 390, 0, 470)
+LoadBG.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadBG.Position = UDim2.new(0.5, 0, 0.5, 0)
+LoadBG.BackgroundColor3 = Color3.fromRGB(8, 10, 18)
+LoadBG.BorderSizePixel = 0
+LoadBG.Parent = LoadGui
+Instance.new("UICorner", LoadBG).CornerRadius = UDim.new(0, 16)
+local LoadStroke = Instance.new("UIStroke", LoadBG)
+LoadStroke.Color = Color3.fromRGB(0, 170, 255)
+LoadStroke.Thickness = 1.2
+
+-- Scanline overlay effect
+local Scan = Instance.new("Frame")
+Scan.Size = UDim2.new(1,0,1,0)
+Scan.BackgroundTransparency = 0.94
+Scan.BackgroundColor3 = Color3.fromRGB(0,180,255)
+Scan.BorderSizePixel = 0
+Scan.ClipsDescendants = false
+Scan.Parent = LoadBG
+Instance.new("UICorner", Scan).CornerRadius = UDim.new(0, 16)
+
+-- Glow orb center
+local Orb = Instance.new("Frame")
+Orb.Size = UDim2.new(0,220,0,220)
+Orb.AnchorPoint = Vector2.new(0.5,0.5)
+Orb.Position = UDim2.new(0.5,0,0.45,0)
+Orb.BackgroundColor3 = Color3.fromRGB(0,130,255)
+Orb.BackgroundTransparency = 0.72
+Orb.BorderSizePixel = 0
+Orb.Parent = LoadBG
+Instance.new("UICorner", Orb).CornerRadius = UDim.new(1,0)
+
+local OrbInner = Instance.new("Frame")
+OrbInner.Size = UDim2.new(0,110,0,110)
+OrbInner.AnchorPoint = Vector2.new(0.5,0.5)
+OrbInner.Position = UDim2.new(0.5,0,0.5,0)
+OrbInner.BackgroundColor3 = Color3.fromRGB(0,200,255)
+OrbInner.BackgroundTransparency = 0.5
+OrbInner.BorderSizePixel = 0
+OrbInner.Parent = Orb
+Instance.new("UICorner", OrbInner).CornerRadius = UDim.new(1,0)
+
+-- Title
+local LoadTitle = Instance.new("TextLabel")
+LoadTitle.Text = "AHZENCAL HUB"
+LoadTitle.Size = UDim2.new(0,400,0,44)
+LoadTitle.AnchorPoint = Vector2.new(0.5,0.5)
+LoadTitle.Position = UDim2.new(0.5,0,0.38,0)
+LoadTitle.BackgroundTransparency = 1
+LoadTitle.TextColor3 = Color3.fromRGB(0,210,255)
+LoadTitle.Font = Enum.Font.GothamBold
+LoadTitle.TextSize = 32
+LoadTitle.TextTransparency = 1
+LoadTitle.Parent = LoadBG
+
+-- Quote
+local LoadQuote = Instance.new("TextLabel")
+LoadQuote.Text = "Beware of the staff, and welcome to the dark side"
+LoadQuote.Size = UDim2.new(0,540,0,30)
+LoadQuote.AnchorPoint = Vector2.new(0.5,0.5)
+LoadQuote.Position = UDim2.new(0.5,0,0.56,0)
+LoadQuote.BackgroundTransparency = 1
+LoadQuote.TextColor3 = Color3.fromRGB(180,210,255)
+LoadQuote.Font = Enum.Font.GothamBold
+LoadQuote.TextSize = 15
+LoadQuote.TextTransparency = 1
+LoadQuote.TextWrapped = true
+LoadQuote.Parent = LoadBG
+
+-- Progress bar track
+local BarTrack = Instance.new("Frame")
+BarTrack.Size = UDim2.new(0,320,0,6)
+BarTrack.AnchorPoint = Vector2.new(0.5,0.5)
+BarTrack.Position = UDim2.new(0.5,0,0.66,0)
+BarTrack.BackgroundColor3 = Color3.fromRGB(30,40,60)
+BarTrack.BorderSizePixel = 0
+BarTrack.BackgroundTransparency = 0.5
+BarTrack.Parent = LoadBG
+Instance.new("UICorner", BarTrack).CornerRadius = UDim.new(1,0)
+
+local BarFill = Instance.new("Frame")
+BarFill.Size = UDim2.new(0,0,1,0)
+BarFill.BackgroundColor3 = Color3.fromRGB(0,200,255)
+BarFill.BorderSizePixel = 0
+BarFill.Parent = BarTrack
+Instance.new("UICorner", BarFill).CornerRadius = UDim.new(1,0)
+
+local BarGlow = Instance.new("Frame")
+BarGlow.Size = UDim2.new(0,30,3,0)
+BarGlow.AnchorPoint = Vector2.new(0,0.5)
+BarGlow.Position = UDim2.new(1,-15,0.5,0)
+BarGlow.BackgroundColor3 = Color3.fromRGB(160,240,255)
+BarGlow.BackgroundTransparency = 0.5
+BarGlow.BorderSizePixel = 0
+BarGlow.ZIndex = 2
+BarGlow.Parent = BarFill
+Instance.new("UICorner", BarGlow).CornerRadius = UDim.new(1,0)
+
+-- Status text
+local LoadStatus = Instance.new("TextLabel")
+LoadStatus.Text = "Initializing..."
+LoadStatus.Size = UDim2.new(0,320,0,20)
+LoadStatus.AnchorPoint = Vector2.new(0.5,0.5)
+LoadStatus.Position = UDim2.new(0.5,0,0.71,0)
+LoadStatus.BackgroundTransparency = 1
+LoadStatus.TextColor3 = Color3.fromRGB(100,160,220)
+LoadStatus.Font = Enum.Font.Gotham
+LoadStatus.TextSize = 12
+LoadStatus.TextTransparency = 0
+LoadStatus.Parent = LoadBG
+
+-- Version
+local LoadVer = Instance.new("TextLabel")
+LoadVer.Text = "v3 • by Ahzencal"
+LoadVer.Size = UDim2.new(0,200,0,18)
+LoadVer.AnchorPoint = Vector2.new(0.5,1)
+LoadVer.Position = UDim2.new(0.5,0,1,-18)
+LoadVer.BackgroundTransparency = 1
+LoadVer.TextColor3 = Color3.fromRGB(60,80,110)
+LoadVer.Font = Enum.Font.Gotham
+LoadVer.TextSize = 11
+LoadVer.Parent = LoadBG
+
+-- Animate loader
+local function tweenProp(obj, props, t, style, dir)
+    style = style or Enum.EasingStyle.Quart
+    dir = dir or Enum.EasingDirection.Out
+    TweenService:Create(obj, TweenInfo.new(t, style, dir), props):Play()
+end
+
+local loadStages = {
+    {text = "Loading modules...",      pct = 0.20},
+    {text = "Setting up ESP...",       pct = 0.45},
+    {text = "Connecting FishZone...",  pct = 0.65},
+    {text = "Building GUI...",         pct = 0.85},
+    {text = "Welcome.",                pct = 1.00},
+}
+
+task.spawn(function()
+    task.wait(0.1)
+    -- fade in title + quote
+    tweenProp(LoadTitle, {TextTransparency = 0}, 0.7)
+    tweenProp(Orb, {BackgroundTransparency = 0.55}, 0.9)
+    task.wait(0.5)
+    tweenProp(LoadQuote, {TextTransparency = 0}, 0.8)
+    task.wait(0.3)
+
+    for _, stage in ipairs(loadStages) do
+        LoadStatus.Text = stage.text
+        tweenProp(BarFill, {Size = UDim2.new(stage.pct, 0, 1, 0)}, 0.45, Enum.EasingStyle.Quint)
+        task.wait(0.38)
+    end
+
+    task.wait(0.3)
+    -- fade out whole loader
+    tweenProp(LoadBG, {BackgroundTransparency = 1}, 0.55)
+    tweenProp(LoadTitle, {TextTransparency = 1}, 0.45)
+    tweenProp(LoadQuote, {TextTransparency = 1}, 0.45)
+    tweenProp(LoadStatus, {TextTransparency = 1}, 0.35)
+    tweenProp(BarTrack, {BackgroundTransparency = 1}, 0.4)
+    tweenProp(BarFill, {BackgroundTransparency = 1}, 0.4)
+    tweenProp(Orb, {BackgroundTransparency = 1}, 0.5)
+    tweenProp(OrbInner, {BackgroundTransparency = 1}, 0.5)
+    tweenProp(Scan, {BackgroundTransparency = 1}, 0.5)
+    task.wait(0.6)
+    LoadGui:Destroy()
+end)
+-- ============================================================
+-- END LOADING SCREEN
+-- ============================================================
 
 local lp = Players.LocalPlayer
 local mouse = lp:GetMouse()
 local cam = workspace.CurrentCamera
 
+-- ============================================================
+-- CONFIG
+-- ============================================================
 local TOGGLE_KEY = Enum.KeyCode.F
-local HIDE_KEY = Enum.KeyCode.K
+local HIDE_KEY   = Enum.KeyCode.K
 local DEFAULT_CPS = 20
 local POSITION_MODE = "pick"
 local FIXED_X, FIXED_Y = nil, nil
 local FISHING_ZONE_PATH = workspace:WaitForChild("Main"):WaitForChild("FishingZone")
-local FLOAT_HEIGHT = 10
+local FLOAT_HEIGHT = 15
+
+-- Blacklisted zone positions (skipped for ESP and Auto TP)
+-- Add more Vector3 entries to block additional zones
 local BLACKLISTED_POSITIONS = {
     Vector3.new(-198, 16.5000153, -5079),
-    Vector3.new(-629.866821, 19.5, 4640.11377),
+    Vector3.new(-629.866821, 19.5, 4640.11377)
 }
-local BLACKLIST_THRESHOLD = 2
+local BLACKLIST_THRESHOLD = 2  -- studs tolerance
+
+local function isBlacklisted(part)
+    for _, bpos in ipairs(BLACKLISTED_POSITIONS) do
+        if (part.Position - bpos).Magnitude <= BLACKLIST_THRESHOLD then
+            return true
+        end
+    end
+    return false
+end
+
 local PLAYER_LIST_VISIBLE_ROWS = 5
 
 local THEME = {
@@ -43,58 +243,39 @@ local THEME = {
     success = Color3.fromRGB(67, 214, 125),
     danger = Color3.fromRGB(255, 92, 117),
     warn = Color3.fromRGB(255, 191, 71),
-    beam = Color3.fromRGB(255, 120, 84),
-    tp = Color3.fromRGB(132, 97, 255),
 }
 
+-- ============================================================
+-- STATE
+-- ============================================================
 local clicking = false
 local destroyed = false
 local clickCPS = DEFAULT_CPS
 local clickDelay = 1 / DEFAULT_CPS
 local savedX, savedY = FIXED_X, FIXED_Y
+
 local autoTPEnabled = false
 local currentZone = nil
-local frozenHRP = nil
+local frozenAnchor = nil
+local dragConnection = nil
 local hideUI = false
 local zoneESPOn = false
-local playerSearchText = ""
-local minimized = false
-local draggingSlider = false
-local draggingUI = false
-local dragStart, startPos
-local lastClick = 0
 
 local espObjects = {}
 local zoneObjects = {}
 local playerRows = {}
 local beamStates = {}
-local uiConnections = {}
-local zoneConnections = {}
-local playerConnections = {}
+local playerSearchText = ""
 
-local function connect(signal, fn)
-    local c = signal:Connect(fn)
-    table.insert(uiConnections, c)
-    return c
-end
-
-local function disconnectAll(list)
-    for _, c in ipairs(list) do
-        pcall(function() c:Disconnect() end)
-    end
-    table.clear(list)
-end
-
+-- ============================================================
+-- HELPERS
+-- ============================================================
 local function getHRP(char)
     return char and char:FindFirstChild("HumanoidRootPart")
 end
 
 local function getHum(char)
     return char and char:FindFirstChildOfClass("Humanoid")
-end
-
-local function lower(s)
-    return string.lower(tostring(s or ""))
 end
 
 local function resolvePosition()
@@ -108,13 +289,8 @@ local function resolvePosition()
     end
 end
 
-local function isBlacklisted(part)
-    for _, bpos in ipairs(BLACKLISTED_POSITIONS) do
-        if (part.Position - bpos).Magnitude <= BLACKLIST_THRESHOLD then
-            return true
-        end
-    end
-    return false
+local function lower(s)
+    return string.lower(tostring(s or ""))
 end
 
 local function isActiveZone(part)
@@ -174,6 +350,13 @@ local function nearestActiveZonePart()
     return best
 end
 
+local function setText(btn, txt)
+    if btn then btn.Text = txt end
+end
+
+-- ============================================================
+-- SILENT CLICK
+-- ============================================================
 local VIM = pcall(function()
     return cloneref(game:GetService("VirtualInputManager"))
 end) and cloneref(game:GetService("VirtualInputManager")) or game:GetService("VirtualInputManager")
@@ -195,236 +378,83 @@ local function silentClick(x, y)
     end
 end
 
+-- ============================================================
+-- FREEZE / TP
+-- ============================================================
 local function unfreezeCharacter()
-    local char = lp.Character
-    local hum = getHum(char)
-    local hrp = getHRP(char)
-    if hrp and hrp.Parent then
-        hrp.Anchored = false
-        hrp.AssemblyLinearVelocity = Vector3.zero
-        hrp.AssemblyAngularVelocity = Vector3.zero
+    if frozenAnchor and frozenAnchor.Parent then
+        frozenAnchor:Destroy()
     end
-    frozenHRP = nil
-    if hum then
-        hum.PlatformStand = false
-        hum.AutoRotate = true
-        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+    frozenAnchor = nil
+    if frozenGyro and frozenGyro.Parent then
+        frozenGyro:Destroy()
     end
+    frozenGyro = nil
+    local hum = getHum(lp.Character)
+    if hum then hum.PlatformStand = false end
 end
+
+local frozenGyro = nil  -- BodyGyro to lock rotation
 
 local function freezeAt(pos)
     local char = lp.Character
     local hrp = getHRP(char)
     local hum = getHum(char)
-    if not hrp then return false end
+    if not hrp then return end
 
-    hrp.Anchored = false
-    hrp.CFrame = CFrame.new(pos) * CFrame.Angles(0, math.rad(89), 0)
-    hrp.AssemblyLinearVelocity = Vector3.zero
-    hrp.AssemblyAngularVelocity = Vector3.zero
+    -- Rotation: Y = 89 degrees (facing fishing direction)
+    local rotCF = CFrame.new(pos) * CFrame.Angles(0, math.rad(89), 0)
+    hrp.CFrame = rotCF
+    if hum then hum.PlatformStand = true end
 
-    if hum then
-        hum.AutoRotate = false
-        hum.PlatformStand = true
-        hum:ChangeState(Enum.HumanoidStateType.Physics)
+    -- BodyPosition: lock world position
+    if frozenAnchor and frozenAnchor.Parent then
+        frozenAnchor:Destroy()
     end
+    local bp = Instance.new("BodyPosition")
+    bp.Name = "AhzencalZoneFreeze"
+    bp.Position = pos
+    bp.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+    bp.P = 2e4
+    bp.D = 1200
+    bp.Parent = hrp
+    frozenAnchor = bp
 
-    hrp.Anchored = true
-    frozenHRP = hrp
-    return true
+    -- BodyGyro: lock rotation to 0, 89, 0
+    if frozenGyro and frozenGyro.Parent then
+        frozenGyro:Destroy()
+    end
+    local bg = Instance.new("BodyGyro")
+    bg.Name = "AhzencalZoneGyro"
+    bg.CFrame = CFrame.Angles(0, math.rad(89), 0)
+    bg.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
+    bg.P = 1e5
+    bg.D = 500
+    bg.Parent = hrp
+    frozenGyro = bg
 end
 
 local function tpToZone(part)
     if not isActiveZone(part) then return false end
     local pos = part.Position + Vector3.new(0, part.Size.Y / 2 + FLOAT_HEIGHT, 0)
+    freezeAt(pos)
     currentZone = part
-    return freezeAt(pos)
+    return true
 end
 
 local function tpToPlayer(target)
     local hrp = getHRP(lp.Character)
     local targetHRP = getHRP(target.Character)
     if hrp and targetHRP then
-        unfreezeCharacter()
         hrp.CFrame = targetHRP.CFrame + targetHRP.CFrame.LookVector * 3
     end
 end
 
-local function sendRefreshCommand(msg)
-    pcall(function()
-        local defaultEvent = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
-        local sayEvent = defaultEvent and defaultEvent:FindFirstChild("SayMessageRequest")
-        if sayEvent then
-            sayEvent:FireServer(msg, "All")
-        end
-    end)
-
-    pcall(function()
-        local channels = TextChatService and TextChatService:FindFirstChild("TextChannels")
-        local channel = channels and channels:FindFirstChild("RBXGeneral")
-        if channel then
-            channel:SendAsync(msg)
-        end
-    end)
-
-    pcall(function()
-        game:GetService("Players"):Chat(msg)
-    end)
-end
-
-local function runRefresh()
-    unfreezeCharacter()
-    task.spawn(function()
-        task.wait(0.15)
-        sendRefreshCommand("!refresh")
-        task.wait(0.4)
-        sendRefreshCommand("/refresh")
-    end)
-end
-
-local lpEarly = Players.LocalPlayer
-local LoadGui = Instance.new("ScreenGui")
-LoadGui.Name = "AhzencalLoader"
-LoadGui.ResetOnSpawn = false
-LoadGui.DisplayOrder = 9999
-pcall(function() LoadGui.Parent = game:GetService("CoreGui") end)
-if not LoadGui.Parent then LoadGui.Parent = lpEarly:WaitForChild("PlayerGui") end
-
-local LoadBG = Instance.new("Frame")
-LoadBG.Size = UDim2.new(0, 390, 0, 470)
-LoadBG.AnchorPoint = Vector2.new(0.5, 0.5)
-LoadBG.Position = UDim2.new(0.5, 0, 0.5, 0)
-LoadBG.BackgroundColor3 = Color3.fromRGB(8, 10, 18)
-LoadBG.BorderSizePixel = 0
-LoadBG.Parent = LoadGui
-LoadBG.ClipsDescendants = true
-Instance.new("UICorner", LoadBG).CornerRadius = UDim.new(0, 16)
-local LoadStroke = Instance.new("UIStroke", LoadBG)
-LoadStroke.Color = THEME.accent
-LoadStroke.Thickness = 1.2
-
-local Scan = Instance.new("Frame")
-Scan.Size = UDim2.new(1,0,1,0)
-Scan.BackgroundTransparency = 0.94
-Scan.BackgroundColor3 = Color3.fromRGB(0,180,255)
-Scan.BorderSizePixel = 0
-Scan.Parent = LoadBG
-Instance.new("UICorner", Scan).CornerRadius = UDim.new(0,16)
-
-local Orb = Instance.new("Frame")
-Orb.Size = UDim2.new(0,220,0,220)
-Orb.AnchorPoint = Vector2.new(0.5,0.5)
-Orb.Position = UDim2.new(0.5,0,0.45,0)
-Orb.BackgroundColor3 = Color3.fromRGB(0,130,255)
-Orb.BackgroundTransparency = 0.72
-Orb.BorderSizePixel = 0
-Orb.Parent = LoadBG
-Instance.new("UICorner", Orb).CornerRadius = UDim.new(1,0)
-
-local OrbInner = Instance.new("Frame")
-OrbInner.Size = UDim2.new(0,110,0,110)
-OrbInner.AnchorPoint = Vector2.new(0.5,0.5)
-OrbInner.Position = UDim2.new(0.5,0,0.5,0)
-OrbInner.BackgroundColor3 = Color3.fromRGB(0,200,255)
-OrbInner.BackgroundTransparency = 0.5
-OrbInner.BorderSizePixel = 0
-OrbInner.Parent = Orb
-Instance.new("UICorner", OrbInner).CornerRadius = UDim.new(1,0)
-
-local LoadTitle = Instance.new("TextLabel")
-LoadTitle.Text = "AHZENCAL HUB"
-LoadTitle.Size = UDim2.new(0,400,0,44)
-LoadTitle.AnchorPoint = Vector2.new(0.5,0.5)
-LoadTitle.Position = UDim2.new(0.5,0,0.38,0)
-LoadTitle.BackgroundTransparency = 1
-LoadTitle.TextColor3 = Color3.fromRGB(0,210,255)
-LoadTitle.Font = Enum.Font.GothamBold
-LoadTitle.TextSize = 32
-LoadTitle.TextTransparency = 1
-LoadTitle.Parent = LoadBG
-
-local LoadQuote = Instance.new("TextLabel")
-LoadQuote.Text = "Beware of the staff, and welcome to the dark side"
-LoadQuote.Size = UDim2.new(0,540,0,30)
-LoadQuote.AnchorPoint = Vector2.new(0.5,0.5)
-LoadQuote.Position = UDim2.new(0.5,0,0.56,0)
-LoadQuote.BackgroundTransparency = 1
-LoadQuote.TextColor3 = Color3.fromRGB(180,210,255)
-LoadQuote.Font = Enum.Font.GothamBold
-LoadQuote.TextSize = 15
-LoadQuote.TextTransparency = 1
-LoadQuote.TextWrapped = true
-LoadQuote.Parent = LoadBG
-
-local BarTrack = Instance.new("Frame")
-BarTrack.Size = UDim2.new(0,320,0,6)
-BarTrack.AnchorPoint = Vector2.new(0.5,0.5)
-BarTrack.Position = UDim2.new(0.5,0,0.66,0)
-BarTrack.BackgroundColor3 = Color3.fromRGB(30,40,60)
-BarTrack.BorderSizePixel = 0
-BarTrack.BackgroundTransparency = 0.5
-BarTrack.Parent = LoadBG
-Instance.new("UICorner", BarTrack).CornerRadius = UDim.new(1,0)
-
-local BarFill = Instance.new("Frame")
-BarFill.Size = UDim2.new(0,0,1,0)
-BarFill.BackgroundColor3 = Color3.fromRGB(0,200,255)
-BarFill.BorderSizePixel = 0
-BarFill.Parent = BarTrack
-Instance.new("UICorner", BarFill).CornerRadius = UDim.new(1,0)
-
-local LoadStatus = Instance.new("TextLabel")
-LoadStatus.Text = "Initializing..."
-LoadStatus.Size = UDim2.new(0,320,0,20)
-LoadStatus.AnchorPoint = Vector2.new(0.5,0.5)
-LoadStatus.Position = UDim2.new(0.5,0,0.71,0)
-LoadStatus.BackgroundTransparency = 1
-LoadStatus.TextColor3 = Color3.fromRGB(100,160,220)
-LoadStatus.Font = Enum.Font.Gotham
-LoadStatus.TextSize = 12
-LoadStatus.Parent = LoadBG
-
-local function tweenProp(obj, props, t, style, dir)
-    style = style or Enum.EasingStyle.Quart
-    dir = dir or Enum.EasingDirection.Out
-    TweenService:Create(obj, TweenInfo.new(t, style, dir), props):Play()
-end
-
-task.spawn(function()
-    local loadStages = {
-        {text = "Loading modules...", pct = 0.20},
-        {text = "Setting up ESP...", pct = 0.45},
-        {text = "Connecting FishZone...", pct = 0.65},
-        {text = "Building GUI...", pct = 0.85},
-        {text = "Welcome.", pct = 1.00},
-    }
-    task.wait(0.1)
-    tweenProp(LoadTitle, {TextTransparency = 0}, 0.7)
-    tweenProp(Orb, {BackgroundTransparency = 0.55}, 0.9)
-    task.wait(0.5)
-    tweenProp(LoadQuote, {TextTransparency = 0}, 0.8)
-    task.wait(0.3)
-    for _, stage in ipairs(loadStages) do
-        LoadStatus.Text = stage.text
-        tweenProp(BarFill, {Size = UDim2.new(stage.pct,0,1,0)}, 0.45, Enum.EasingStyle.Quint)
-        task.wait(0.38)
-    end
-    task.wait(0.3)
-    tweenProp(LoadBG, {BackgroundTransparency = 1}, 0.55)
-    tweenProp(LoadTitle, {TextTransparency = 1}, 0.45)
-    tweenProp(LoadQuote, {TextTransparency = 1}, 0.45)
-    tweenProp(LoadStatus, {TextTransparency = 1}, 0.35)
-    tweenProp(BarTrack, {BackgroundTransparency = 1}, 0.4)
-    tweenProp(BarFill, {BackgroundTransparency = 1}, 0.4)
-    tweenProp(Orb, {BackgroundTransparency = 1}, 0.5)
-    tweenProp(OrbInner, {BackgroundTransparency = 1}, 0.5)
-    tweenProp(Scan, {BackgroundTransparency = 1}, 0.5)
-    task.wait(0.6)
-    pcall(function() LoadGui:Destroy() end)
-end)
-
+-- ============================================================
+-- GUI CREATION
+-- ============================================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AhzencalESPv11"
+ScreenGui.Name = "AhzencalESPv3"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.DisplayOrder = 999
@@ -432,23 +462,24 @@ pcall(function() ScreenGui.Parent = game:GetService("CoreGui") end)
 if not ScreenGui.Parent then ScreenGui.Parent = lp:WaitForChild("PlayerGui") end
 
 local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0,390,0,470)
-Main.Position = UDim2.new(0.5,-195,0.5,-235)
+Main.Name = "Main"
+Main.Size = UDim2.new(0, 390, 0, 470)
+Main.Position = UDim2.new(0.5, -195, 0.5, -235)
 Main.BackgroundColor3 = THEME.bg
 Main.BorderSizePixel = 0
 Main.Parent = ScreenGui
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0,16)
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 16)
 local MainStroke = Instance.new("UIStroke", Main)
-MainStroke.Color = Color3.fromRGB(60,70,95)
+MainStroke.Color = Color3.fromRGB(60, 70, 95)
 MainStroke.Thickness = 1.2
 
+
 local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1,0,0,54)
+Header.Size = UDim2.new(1, 0, 0, 54)
 Header.BackgroundColor3 = THEME.bg2
 Header.BorderSizePixel = 0
 Header.Parent = Main
-Instance.new("UICorner", Header).CornerRadius = UDim.new(0,16)
-
+Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 16)
 local HeaderMask = Instance.new("Frame")
 HeaderMask.Size = UDim2.new(1,0,0,16)
 HeaderMask.Position = UDim2.new(0,0,1,-16)
@@ -458,8 +489,8 @@ HeaderMask.Parent = Header
 
 local Title = Instance.new("TextLabel")
 Title.Text = "Ahzencal Hub"
-Title.Size = UDim2.new(0,130,1,0)
-Title.Position = UDim2.new(0,16,0,0)
+Title.Size = UDim2.new(0, 130, 1, 0)
+Title.Position = UDim2.new(0, 16, 0, 0)
 Title.BackgroundTransparency = 1
 Title.TextColor3 = THEME.text
 Title.Font = Enum.Font.GothamBold
@@ -469,8 +500,8 @@ Title.Parent = Header
 
 local Sub = Instance.new("TextLabel")
 Sub.Text = "ESP • FishZone • AutoClicker"
-Sub.Size = UDim2.new(0,200,0,14)
-Sub.Position = UDim2.new(0,16,0,31)
+Sub.Size = UDim2.new(0, 200, 0, 14)
+Sub.Position = UDim2.new(0, 16, 0, 31)
 Sub.BackgroundTransparency = 1
 Sub.TextColor3 = THEME.dim
 Sub.Font = Enum.Font.Gotham
@@ -481,54 +512,56 @@ Sub.Parent = Header
 local function makeTopBtn(txt, x, color)
     local b = Instance.new("TextButton")
     b.Text = txt
-    b.Size = UDim2.new(0,28,0,28)
-    b.Position = UDim2.new(1,x,0,13)
+    b.Size = UDim2.new(0, 28, 0, 28)
+    b.Position = UDim2.new(1, x, 0, 13)
     b.BackgroundColor3 = color
     b.TextColor3 = Color3.new(1,1,1)
     b.Font = Enum.Font.GothamBold
     b.TextSize = 14
     b.BorderSizePixel = 0
     b.Parent = Header
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
     return b
 end
 
-local MinBtn = makeTopBtn("-", -66, Color3.fromRGB(64,74,102))
+local MinBtn = makeTopBtn("-", -66, Color3.fromRGB(64, 74, 102))
 local CloseBtn = makeTopBtn("×", -32, THEME.danger)
 
 local TabsBar = Instance.new("Frame")
-TabsBar.Size = UDim2.new(1,-20,0,42)
-TabsBar.Position = UDim2.new(0,10,0,62)
+TabsBar.Size = UDim2.new(1, -20, 0, 42)
+TabsBar.Position = UDim2.new(0, 10, 0, 62)
 TabsBar.BackgroundColor3 = THEME.panel
 TabsBar.BorderSizePixel = 0
 TabsBar.Parent = Main
-Instance.new("UICorner", TabsBar).CornerRadius = UDim.new(0,14)
+Instance.new("UICorner", TabsBar).CornerRadius = UDim.new(0, 14)
 
 local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1,-20,1,-132)
-Content.Position = UDim2.new(0,10,0,112)
+Content.Size = UDim2.new(1, -20, 1, -132)
+Content.Position = UDim2.new(0, 10, 0, 112)
 Content.BackgroundColor3 = THEME.panel
 Content.BorderSizePixel = 0
 Content.Parent = Main
-Instance.new("UICorner", Content).CornerRadius = UDim.new(0,14)
+Instance.new("UICorner", Content).CornerRadius = UDim.new(0, 14)
 local ContentStroke = Instance.new("UIStroke", Content)
-ContentStroke.Color = Color3.fromRGB(48,58,82)
+ContentStroke.Color = Color3.fromRGB(48, 58, 82)
 
+-- bottom outside drag line
 local DragBar = Instance.new("Frame")
-DragBar.Size = UDim2.new(0,120,0,8)
-DragBar.AnchorPoint = Vector2.new(0.5,0)
-DragBar.Position = UDim2.new(0.5,0,1,10)
-DragBar.BackgroundColor3 = Color3.fromRGB(95,108,142)
+DragBar.Name = "DragBar"
+DragBar.Size = UDim2.new(0, 120, 0, 8)
+DragBar.AnchorPoint = Vector2.new(0.5, 0)
+DragBar.Position = UDim2.new(0.5, 0, 1, 10)
+DragBar.BackgroundColor3 = Color3.fromRGB(95, 108, 142)
 DragBar.BorderSizePixel = 0
 DragBar.Parent = Main
 Instance.new("UICorner", DragBar).CornerRadius = UDim.new(1,0)
 
 local DragHit = Instance.new("TextButton")
-DragHit.Size = UDim2.new(0,150,0,20)
-DragHit.AnchorPoint = Vector2.new(0.5,0)
-DragHit.Position = UDim2.new(0.5,0,1,4)
-DragHit.BackgroundTransparency = 1
+DragHit.Size = UDim2.new(0, 150, 0, 20)
+DragHit.AnchorPoint = Vector2.new(0.5, 0)
+DragHit.Position = UDim2.new(0.5, 0, 1, 4)
 DragHit.Text = ""
+DragHit.BackgroundTransparency = 1
 DragHit.Parent = Main
 
 local function makeTabButton(name, order)
@@ -536,15 +569,15 @@ local function makeTabButton(name, order)
     local gap = 8
     local btn = Instance.new("TextButton")
     btn.Text = name
-    btn.Size = UDim2.new(0,width,0,30)
-    btn.Position = UDim2.new(0,8 + (order-1)*(width+gap),0,6)
+    btn.Size = UDim2.new(0, width, 0, 30)
+    btn.Position = UDim2.new(0, 8 + (order-1)*(width+gap), 0, 6)
     btn.BackgroundColor3 = THEME.panel2
     btn.TextColor3 = THEME.dim
     btn.Font = Enum.Font.GothamBold
     btn.TextSize = 12
     btn.BorderSizePixel = 0
     btn.Parent = TabsBar
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,10)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
     return btn
 end
 
@@ -552,8 +585,9 @@ local tabNames = {"Players","FishZone","Clicker","Settings"}
 local tabButtons = {}
 local tabs = {}
 local activeTab = 1
-for i, name in ipairs(tabNames) do
-    tabButtons[i] = makeTabButton(name, i)
+for i, name in ipairs(tabNames) do tabButtons[i] = makeTabButton(name, i) end
+
+for i = 1, #tabNames do
     local f = Instance.new("Frame")
     f.Size = UDim2.new(1,0,1,0)
     f.BackgroundTransparency = 1
@@ -562,11 +596,17 @@ for i, name in ipairs(tabNames) do
     tabs[i] = f
 end
 
+-- ============================================================
+-- THEME APPLIER
+-- ============================================================
 local themedButtons = {}
+local tabAccentObjects = {}
 local colorPreviewTargets = {}
 
 local function styleButton(btn, accent)
     table.insert(themedButtons, {btn = btn, accent = accent})
+    btn.BackgroundColor3 = accent and THEME.accent or THEME.panel2
+    btn.TextColor3 = THEME.text
 end
 
 local function applyTheme()
@@ -590,60 +630,29 @@ local function applyTheme()
         if obj and obj.Parent then obj.BackgroundColor3 = THEME.accent end
     end
     for i, btn in ipairs(tabButtons) do
-        if i == activeTab then
-            btn.BackgroundColor3 = THEME.accent
-            btn.TextColor3 = Color3.new(1,1,1)
-        else
-            btn.BackgroundColor3 = THEME.panel2
-            btn.TextColor3 = THEME.dim
+        if btn then
+            if i == activeTab then
+                btn.BackgroundColor3 = THEME.accent
+                btn.TextColor3 = Color3.new(1,1,1)
+            else
+                btn.BackgroundColor3 = THEME.panel2
+                btn.TextColor3 = THEME.dim
+            end
         end
-    end
-    for _, obj in pairs(espObjects) do
-        if obj.box then obj.box.Color3 = THEME.accent end
-        if obj.billboard and obj.billboard:FindFirstChildOfClass("TextLabel") then
-            obj.billboard:FindFirstChildOfClass("TextLabel").TextColor3 = THEME.accent
-        end
-    end
-    for _, obj in pairs(zoneObjects) do
-        if obj.highlight then
-            obj.highlight.Color3 = THEME.accent
-            obj.highlight.SurfaceColor3 = THEME.accent
-        end
-        if obj.billboard and obj.billboard:FindFirstChildOfClass("TextLabel") then
-            obj.billboard:FindFirstChildOfClass("TextLabel").TextColor3 = THEME.accent
-        end
-    end
-    for _, st in pairs(beamStates) do
-        if st.beam then st.beam.Color = ColorSequence.new(THEME.accent) end
     end
 end
 
+-- ============================================================
+-- TAB: PLAYERS
+-- ============================================================
 local PlayersTab = tabs[1]
-local ZonesTab = tabs[2]
-local ClickerTab = tabs[3]
-local SettingsTab = tabs[4]
-
-local function makeActionButton(parent, text, y, accent)
-    local b = Instance.new("TextButton")
-    b.Text = text
-    b.Size = UDim2.new(1,-16,0,36)
-    b.Position = UDim2.new(0,8,0,y)
-    b.BackgroundColor3 = accent
-    b.TextColor3 = Color3.new(1,1,1)
-    b.Font = Enum.Font.GothamBold
-    b.TextSize = 12
-    b.BorderSizePixel = 0
-    b.Parent = parent
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0,10)
-    return b
-end
 
 local SearchBox = Instance.new("TextBox")
 SearchBox.PlaceholderText = "Search player..."
 SearchBox.Text = ""
 SearchBox.ClearTextOnFocus = false
-SearchBox.Size = UDim2.new(1,-16,0,34)
-SearchBox.Position = UDim2.new(0,8,0,8)
+SearchBox.Size = UDim2.new(1, -16, 0, 34)
+SearchBox.Position = UDim2.new(0, 8, 0, 8)
 SearchBox.BackgroundColor3 = THEME.panel2
 SearchBox.TextColor3 = THEME.text
 SearchBox.PlaceholderColor3 = THEME.dim
@@ -651,25 +660,25 @@ SearchBox.Font = Enum.Font.Gotham
 SearchBox.TextSize = 13
 SearchBox.BorderSizePixel = 0
 SearchBox.Parent = PlayersTab
-Instance.new("UICorner", SearchBox).CornerRadius = UDim.new(0,10)
+Instance.new("UICorner", SearchBox).CornerRadius = UDim.new(0, 10)
 
 local PlayerList = Instance.new("ScrollingFrame")
-PlayerList.Size = UDim2.new(1,-16,0,5 * 44 + 8)
-PlayerList.Position = UDim2.new(0,8,0,50)
+PlayerList.Size = UDim2.new(1, -16, 0, 5 * 44 + 8)
+PlayerList.Position = UDim2.new(0, 8, 0, 50)
 PlayerList.BackgroundColor3 = THEME.bg2
 PlayerList.BorderSizePixel = 0
 PlayerList.ScrollBarThickness = 4
-PlayerList.AutomaticCanvasSize = Enum.AutomaticSize.Y
 PlayerList.CanvasSize = UDim2.new(0,0,0,0)
+PlayerList.AutomaticCanvasSize = Enum.AutomaticSize.Y
 PlayerList.Parent = PlayersTab
-Instance.new("UICorner", PlayerList).CornerRadius = UDim.new(0,12)
+Instance.new("UICorner", PlayerList).CornerRadius = UDim.new(0, 12)
 local listLayout = Instance.new("UIListLayout", PlayerList)
-listLayout.Padding = UDim.new(0,6)
+listLayout.Padding = UDim.new(0, 6)
 
 local PlayerHint = Instance.new("TextLabel")
 PlayerHint.Text = "Showing 5 rows, scroll for more"
-PlayerHint.Size = UDim2.new(1,-16,0,18)
-PlayerHint.Position = UDim2.new(0,8,0,276)
+PlayerHint.Size = UDim2.new(1, -16, 0, 18)
+PlayerHint.Position = UDim2.new(0, 8, 0, 276)
 PlayerHint.BackgroundTransparency = 1
 PlayerHint.TextColor3 = THEME.dim
 PlayerHint.Font = Enum.Font.Gotham
@@ -722,10 +731,8 @@ local function makeESPForPlayer(player)
     end
 
     if player.Character then attach(player.Character) end
+    player.CharacterAdded:Connect(attach)
     espObjects[player] = {box = box, billboard = bb}
-    local c = player.CharacterAdded:Connect(attach)
-    playerConnections[player] = playerConnections[player] or {}
-    table.insert(playerConnections[player], c)
 end
 
 local function stopBeam(player)
@@ -784,17 +791,18 @@ end
 
 local function makePlayerRow(player)
     if player == lp or playerRows[player] then return end
+
     local row = Instance.new("Frame")
-    row.Size = UDim2.new(1,-8,0,38)
+    row.Size = UDim2.new(1, -8, 0, 38)
     row.BackgroundColor3 = THEME.panel2
     row.BorderSizePixel = 0
     row.Parent = PlayerList
-    Instance.new("UICorner", row).CornerRadius = UDim.new(0,10)
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 10)
 
     local name = Instance.new("TextLabel")
     name.Text = player.Name
-    name.Size = UDim2.new(0,104,1,0)
-    name.Position = UDim2.new(0,10,0,0)
+    name.Size = UDim2.new(0, 104, 1, 0)
+    name.Position = UDim2.new(0, 10, 0, 0)
     name.BackgroundTransparency = 1
     name.TextColor3 = THEME.text
     name.TextXAlignment = Enum.TextXAlignment.Left
@@ -805,26 +813,26 @@ local function makePlayerRow(player)
     local function miniBtn(txt, x, color)
         local b = Instance.new("TextButton")
         b.Text = txt
-        b.Size = UDim2.new(0,54,0,24)
-        b.Position = UDim2.new(0,x,0.5,-12)
+        b.Size = UDim2.new(0, 54, 0, 24)
+        b.Position = UDim2.new(0, x, 0.5, -12)
         b.BackgroundColor3 = color
         b.TextColor3 = Color3.new(1,1,1)
         b.Font = Enum.Font.GothamBold
         b.TextSize = 11
         b.BorderSizePixel = 0
         b.Parent = row
-        Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
         return b
     end
 
     local espBtn = miniBtn("ESP", 118, THEME.accent)
-    local tpBtn = miniBtn("TP", 176, THEME.tp)
-    local beamBtn = miniBtn("Beam", 234, THEME.beam)
+    local tpBtn = miniBtn("TP", 176, Color3.fromRGB(132, 97, 255))
+    local beamBtn = miniBtn("Beam", 234, Color3.fromRGB(255, 120, 84))
 
     local espOn = false
     local beamOn = false
 
-    connect(espBtn.MouseButton1Click, function()
+    espBtn.MouseButton1Click:Connect(function()
         espOn = not espOn
         if espOn then
             makeESPForPlayer(player)
@@ -837,11 +845,11 @@ local function makePlayerRow(player)
         end
     end)
 
-    connect(tpBtn.MouseButton1Click, function()
+    tpBtn.MouseButton1Click:Connect(function()
         tpToPlayer(player)
     end)
 
-    connect(beamBtn.MouseButton1Click, function()
+    beamBtn.MouseButton1Click:Connect(function()
         beamOn = not beamOn
         if beamOn then
             startBeam(player)
@@ -850,7 +858,7 @@ local function makePlayerRow(player)
         else
             stopBeam(player)
             beamBtn.Text = "Beam"
-            beamBtn.BackgroundColor3 = THEME.beam
+            beamBtn.BackgroundColor3 = Color3.fromRGB(255, 120, 84)
         end
     end)
 
@@ -865,28 +873,44 @@ local function removePlayerRow(player)
     end
     removeESPForPlayer(player)
     stopBeam(player)
-    if playerConnections[player] then
-        disconnectAll(playerConnections[player])
-        playerConnections[player] = nil
-    end
 end
 
-connect(SearchBox:GetPropertyChangedSignal("Text"), function()
+SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
     playerSearchText = SearchBox.Text
     refreshPlayerRows()
 end)
 
 for _, p in ipairs(Players:GetPlayers()) do makePlayerRow(p) end
-connect(Players.PlayerAdded, makePlayerRow)
-connect(Players.PlayerRemoving, removePlayerRow)
+Players.PlayerAdded:Connect(makePlayerRow)
+Players.PlayerRemoving:Connect(removePlayerRow)
+
+-- ============================================================
+-- TAB: ZONES
+-- ============================================================
+local ZonesTab = tabs[2]
+
+local function makeActionButton(parent, text, y, accent)
+    local b = Instance.new("TextButton")
+    b.Text = text
+    b.Size = UDim2.new(1, -16, 0, 36)
+    b.Position = UDim2.new(0, 8, 0, y)
+    b.BackgroundColor3 = accent
+    b.TextColor3 = Color3.new(1,1,1)
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 12
+    b.BorderSizePixel = 0
+    b.Parent = parent
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
+    return b
+end
 
 local ZoneESPBtn = makeActionButton(ZonesTab, "FishZone ESP: OFF", 10, THEME.accent)
-local AutoTPBtn = makeActionButton(ZonesTab, "Auto TP Active FishZone: OFF", 54, THEME.tp)
-local RefreshCharBtn = makeActionButton(ZonesTab, "Refresh Character", 98, THEME.danger)
+local AutoTPBtn = makeActionButton(ZonesTab, "Auto TP Active FishZone: OFF", 54, Color3.fromRGB(132, 97, 255))
+local ManualTPBtn = makeActionButton(ZonesTab, "TP to Nearest FishZone", 98, Color3.fromRGB(255, 120, 84))
 
 local ZoneStatus = Instance.new("TextLabel")
-ZoneStatus.Size = UDim2.new(1,-16,0,22)
-ZoneStatus.Position = UDim2.new(0,8,0,142)
+ZoneStatus.Size = UDim2.new(1, -16, 0, 22)
+ZoneStatus.Position = UDim2.new(0,8,0,146)
 ZoneStatus.BackgroundTransparency = 1
 ZoneStatus.TextColor3 = THEME.text
 ZoneStatus.Text = "Status: Idle"
@@ -896,11 +920,11 @@ ZoneStatus.TextXAlignment = Enum.TextXAlignment.Left
 ZoneStatus.Parent = ZonesTab
 
 local ZoneInfo = Instance.new("TextLabel")
-ZoneInfo.Size = UDim2.new(1,-16,0,86)
-ZoneInfo.Position = UDim2.new(0,8,0,170)
+ZoneInfo.Size = UDim2.new(1, -16, 0, 76)
+ZoneInfo.Position = UDim2.new(0,8,0,174)
 ZoneInfo.BackgroundTransparency = 1
 ZoneInfo.TextColor3 = THEME.dim
-ZoneInfo.Text = "• Only parts with attribute IsActive = enabled are used\n• Blacklisted positions are ignored\n• ESP only shows active parts\n• Auto TP freezes above the active FishZone\n• Refresh Character sends !refresh and /refresh via chat fallbacks"
+ZoneInfo.Text = "• Only parts with attribute IsActive = enabled are used\n• ESP only shows active parts\n• Auto TP only teleports to nearest active part\n• If active zone changes, it automatically re-locks to nearest active zone"
 ZoneInfo.Font = Enum.Font.Gotham
 ZoneInfo.TextSize = 11
 ZoneInfo.TextWrapped = true
@@ -918,6 +942,7 @@ end
 
 local function addZoneESP(part)
     if zoneObjects[part] or not isActiveZone(part) then return end
+
     local sb = Instance.new("SelectionBox")
     sb.Adornee = part
     sb.Color3 = THEME.accent
@@ -929,7 +954,7 @@ local function addZoneESP(part)
     local bb = Instance.new("BillboardGui")
     bb.Adornee = part
     bb.AlwaysOnTop = true
-    bb.Size = UDim2.new(0,140,0,28)
+    bb.Size = UDim2.new(0, 140, 0, 28)
     bb.StudsOffset = Vector3.new(0, part.Size.Y/2 + 4, 0)
     bb.Parent = workspace
 
@@ -956,10 +981,18 @@ local function refreshZoneESP()
     end
 end
 
-local function moveToActiveZone()
+ZoneESPBtn.MouseButton1Click:Connect(function()
+    zoneESPOn = not zoneESPOn
+    ZoneESPBtn.Text = zoneESPOn and "FishZone ESP: ON" or "FishZone ESP: OFF"
+    ZoneESPBtn.BackgroundColor3 = zoneESPOn and THEME.success or THEME.accent
+    refreshZoneESP()
+end)
+
+local function moveToNearestActiveZone()
     local nearest = nearestActiveZonePart()
     if nearest then
-        return tpToZone(nearest), nearest
+        tpToZone(nearest)
+        return true, nearest
     end
     return false, nil
 end
@@ -969,60 +1002,68 @@ local function stopAutoTP()
     currentZone = nil
     unfreezeCharacter()
     AutoTPBtn.Text = "Auto TP Active FishZone: OFF"
-    AutoTPBtn.BackgroundColor3 = THEME.tp
+    AutoTPBtn.BackgroundColor3 = Color3.fromRGB(132, 97, 255)
 end
 
 local function startAutoTP()
     autoTPEnabled = true
     AutoTPBtn.Text = "Auto TP Active FishZone: ON"
     AutoTPBtn.BackgroundColor3 = THEME.success
-    moveToActiveZone()
 end
 
-connect(ZoneESPBtn.MouseButton1Click, function()
-    zoneESPOn = not zoneESPOn
-    ZoneESPBtn.Text = zoneESPOn and "FishZone ESP: ON" or "FishZone ESP: OFF"
-    ZoneESPBtn.BackgroundColor3 = zoneESPOn and THEME.success or THEME.accent
-    refreshZoneESP()
-end)
-
-connect(AutoTPBtn.MouseButton1Click, function()
+AutoTPBtn.MouseButton1Click:Connect(function()
     if autoTPEnabled then
         stopAutoTP()
     else
         startAutoTP()
+        moveToNearestActiveZone()
     end
 end)
 
-connect(RefreshCharBtn.MouseButton1Click, function()
-    RefreshCharBtn.Text = "Refreshing..."
-    runRefresh()
-    task.delay(1, function()
-        if RefreshCharBtn and RefreshCharBtn.Parent then
-            RefreshCharBtn.Text = "Refresh Character"
-        end
-    end)
+ManualTPBtn.MouseButton1Click:Connect(function()
+    local ok, part = moveToNearestActiveZone()
+    if ok then
+        ManualTPBtn.Text = "Teleported: " .. part.Name
+        task.delay(1.2, function()
+            if ManualTPBtn and ManualTPBtn.Parent then
+                ManualTPBtn.Text = "TP to Nearest FishZone"
+            end
+        end)
+    else
+        ManualTPBtn.Text = "No active zone found"
+        task.delay(1.2, function()
+            if ManualTPBtn and ManualTPBtn.Parent then
+                ManualTPBtn.Text = "TP to Nearest FishZone"
+            end
+        end)
+    end
 end)
 
 for _, part in ipairs(getZoneParts()) do
-    local c = part:GetAttributeChangedSignal("IsActive"):Connect(function()
+    part:GetAttributeChangedSignal("IsActive"):Connect(function()
         refreshZoneESP()
         if autoTPEnabled then
             local hrp = getHRP(lp.Character)
             local currentStillActive = isActiveZone(currentZone)
             local insideActive, insidePart = isInsideAnyActiveZone(hrp)
             if not currentStillActive then
+                unfreezeCharacter()
                 currentZone = nil
-                moveToActiveZone()
+                moveToNearestActiveZone()
             elseif insideActive and insidePart ~= currentZone then
+                currentZone = insidePart
                 tpToZone(insidePart)
             elseif not insideActive then
-                moveToActiveZone()
+                moveToNearestActiveZone()
             end
         end
     end)
-    table.insert(zoneConnections, c)
 end
+
+-- ============================================================
+-- TAB: CLICKER
+-- ============================================================
+local ClickerTab = tabs[3]
 
 local StatusLbl = Instance.new("TextLabel")
 StatusLbl.Size = UDim2.new(1,-16,0,24)
@@ -1092,6 +1133,7 @@ SliderKnob.Parent = SliderTrack
 Instance.new("UICorner", SliderKnob).CornerRadius = UDim.new(1,0)
 
 local ToggleBtn = makeActionButton(ClickerTab, "Start [F]", 134, THEME.accent)
+local draggingSlider = false
 
 local function updateClickerUI()
     if clicking then
@@ -1105,6 +1147,7 @@ local function updateClickerUI()
         ToggleBtn.Text = "Start [F]"
         ToggleBtn.BackgroundColor3 = THEME.accent
     end
+
     local x, y = resolvePosition()
     if x and y then
         PosLbl.Text = string.format("Target: (%d, %d)", math.floor(x), math.floor(y))
@@ -1125,15 +1168,15 @@ local function toggleClicker()
     clicking = not clicking
     updateClickerUI()
 end
+ToggleBtn.MouseButton1Click:Connect(toggleClicker)
 
-connect(ToggleBtn.MouseButton1Click, toggleClicker)
-connect(SliderKnob.InputBegan, function(i)
+SliderKnob.InputBegan:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 then draggingSlider = true end
 end)
-connect(UserInputService.InputEnded, function(i)
+UserInputService.InputEnded:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 then draggingSlider = false end
 end)
-connect(UserInputService.InputChanged, function(i)
+UserInputService.InputChanged:Connect(function(i)
     if draggingSlider and i.UserInputType == Enum.UserInputType.MouseMovement then
         local ratio = math.clamp((i.Position.X - SliderTrack.AbsolutePosition.X) / SliderTrack.AbsoluteSize.X, 0, 1)
         clickCPS = math.max(1, math.floor(ratio * 100))
@@ -1143,6 +1186,11 @@ connect(UserInputService.InputChanged, function(i)
         CPSLbl.Text = "CPS: " .. clickCPS
     end
 end)
+
+-- ============================================================
+-- TAB: SETTINGS
+-- ============================================================
+local SettingsTab = tabs[4]
 
 local HideKeyLbl = Instance.new("TextLabel")
 HideKeyLbl.Size = UDim2.new(1,-16,0,22)
@@ -1169,8 +1217,8 @@ ColorTitle.TextXAlignment = Enum.TextXAlignment.Left
 ColorTitle.Parent = SettingsTab
 
 local preview = Instance.new("Frame")
-preview.Size = UDim2.new(0,26,0,26)
-preview.Position = UDim2.new(1,-34,0,84)
+preview.Size = UDim2.new(0, 26, 0, 26)
+preview.Position = UDim2.new(1, -34, 0, 84)
 preview.BackgroundColor3 = THEME.accent
 preview.BorderSizePixel = 0
 preview.Parent = SettingsTab
@@ -1189,16 +1237,25 @@ local colorPresets = {
 for i, color in ipairs(colorPresets) do
     local sw = Instance.new("TextButton")
     sw.Text = ""
-    sw.Size = UDim2.new(0,34,0,34)
-    sw.Position = UDim2.new(0,8 + ((i-1)%3)*42,0,118 + math.floor((i-1)/3)*42)
+    sw.Size = UDim2.new(0, 34, 0, 34)
+    sw.Position = UDim2.new(0, 8 + ((i-1)%3)*42, 0, 118 + math.floor((i-1)/3)*42)
     sw.BackgroundColor3 = color
     sw.BorderSizePixel = 0
     sw.Parent = SettingsTab
     Instance.new("UICorner", sw).CornerRadius = UDim.new(0,10)
-    connect(sw.MouseButton1Click, function()
+    sw.MouseButton1Click:Connect(function()
         THEME.accent = color
         applyTheme()
         refreshZoneESP()
+        for _, st in pairs(beamStates) do
+            if st.beam then st.beam.Color = ColorSequence.new(THEME.accent) end
+        end
+        for _, obj in pairs(espObjects) do
+            if obj.box then obj.box.Color3 = THEME.accent end
+            if obj.billboard and obj.billboard:FindFirstChildOfClass("TextLabel") then
+                obj.billboard:FindFirstChildOfClass("TextLabel").TextColor3 = THEME.accent
+            end
+        end
         updateClickerUI()
     end)
 end
@@ -1216,6 +1273,9 @@ SettingsInfo.TextXAlignment = Enum.TextXAlignment.Left
 SettingsInfo.TextYAlignment = Enum.TextYAlignment.Top
 SettingsInfo.Parent = SettingsTab
 
+-- ============================================================
+-- TAB SWITCH
+-- ============================================================
 local function switchTab(idx)
     activeTab = idx
     for i, f in ipairs(tabs) do
@@ -1223,10 +1283,13 @@ local function switchTab(idx)
     end
     applyTheme()
 end
+for i, btn in ipairs(tabButtons) do btn.MouseButton1Click:Connect(function() switchTab(i) end) end
 
-for i, btn in ipairs(tabButtons) do
-    connect(btn.MouseButton1Click, function() switchTab(i) end)
-end
+-- ============================================================
+-- DRAG BY OUTSIDE LINE ONLY
+-- ============================================================
+local draggingUI = false
+local dragStart, startPos
 
 local function beginDrag(input)
     draggingUI = true
@@ -1237,50 +1300,118 @@ local function beginDrag(input)
     end)
 end
 
-connect(DragHit.InputBegan, function(input)
+DragHit.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         beginDrag(input)
     end
 end)
 
-connect(UserInputService.InputChanged, function(input)
+UserInputService.InputChanged:Connect(function(input)
     if draggingUI and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - dragStart
         Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
+-- ============================================================
+-- UNLOAD / WINDOW BUTTONS / HOTKEYS
+-- ============================================================
 local function destroyAll()
     clicking = false
     destroyed = true
     autoTPEnabled = false
     _G.__AhzencalESP_Destroy = nil
     unfreezeCharacter()
-    disconnectAll(uiConnections)
-    disconnectAll(zoneConnections)
     for player in pairs(espObjects) do removeESPForPlayer(player) end
     for part in pairs(zoneObjects) do removeZoneESP(part) end
     for player in pairs(beamStates) do stopBeam(player) end
-    for player, list in pairs(playerConnections) do
-        disconnectAll(list)
-        playerConnections[player] = nil
-    end
-    pcall(function() LoadGui:Destroy() end)
+    -- closing animation
+    task.spawn(function()
+        local CloseGui = Instance.new("ScreenGui")
+        CloseGui.Name = "AhzencalClose"
+        CloseGui.ResetOnSpawn = false
+        CloseGui.DisplayOrder = 9999
+CloseGui.IgnoreGuiInset = false
+                pcall(function() CloseGui.Parent = game:GetService("CoreGui") end)
+        if not CloseGui.Parent then CloseGui.Parent = lp:WaitForChild("PlayerGui") end
+
+        local CloseFrame = Instance.new("Frame")
+        CloseFrame.Size = UDim2.new(0,390,0,470)
+        CloseFrame.AnchorPoint = Vector2.new(0.5,0.5)
+        CloseFrame.Position = UDim2.new(0.5,0,0.5,0)
+        CloseFrame.BackgroundColor3 = Color3.fromRGB(8,10,18)
+        CloseFrame.BackgroundTransparency = 1
+        CloseFrame.BorderSizePixel = 0
+        CloseFrame.ClipsDescendants = true
+        CloseFrame.Parent = CloseGui
+        Instance.new("UICorner", CloseFrame).CornerRadius = UDim.new(0,16)
+        local CloseStroke = Instance.new("UIStroke", CloseFrame)
+        CloseStroke.Color = Color3.fromRGB(0,180,255)
+        CloseStroke.Thickness = 1.2
+
+        local CloseLines = {}
+        for i = 1, 6 do
+            local line = Instance.new("Frame")
+            line.Size = UDim2.new(1,0,0,2)
+            line.Position = UDim2.new(0,0,i/7,0)
+            line.BackgroundColor3 = Color3.fromRGB(0,180,255)
+            line.BackgroundTransparency = 0.6
+            line.BorderSizePixel = 0
+            line.Parent = CloseFrame
+            table.insert(CloseLines, line)
+        end
+
+        local CloseText = Instance.new("TextLabel")
+        CloseText.Text = "Unloaded. Stay safe."
+        CloseText.Size = UDim2.new(0,400,0,40)
+        CloseText.AnchorPoint = Vector2.new(0.5,0.5)
+        CloseText.Position = UDim2.new(0.5,0,0.5,0)
+        CloseText.BackgroundTransparency = 1
+        CloseText.TextColor3 = Color3.fromRGB(0,210,255)
+        CloseText.Font = Enum.Font.GothamBold
+        CloseText.TextSize = 24
+        CloseText.TextTransparency = 1
+        CloseText.Parent = CloseFrame
+
+        -- flash in
+        TweenService:Create(CloseFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart), {BackgroundTransparency = 0.08}):Play()
+        task.wait(0.15)
+        TweenService:Create(CloseText, TweenInfo.new(0.35, Enum.EasingStyle.Quart), {TextTransparency = 0}):Play()
+        for _, line in ipairs(CloseLines) do
+            TweenService:Create(line, TweenInfo.new(0.4, Enum.EasingStyle.Quart), {BackgroundTransparency = 0.85}):Play()
+        end
+        task.wait(0.7)
+        -- shrink lines out
+        for _, line in ipairs(CloseLines) do
+            TweenService:Create(line, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,2)}):Play()
+        end
+        TweenService:Create(CloseText, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {TextTransparency = 1, Position = UDim2.new(0.5,0,0.42,0)}):Play()
+        task.wait(0.35)
+        TweenService:Create(CloseFrame, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {BackgroundTransparency = 1}):Play()
+        task.wait(0.5)
+        CloseGui:Destroy()
+    end)
+    task.wait(0.05)
     pcall(function() ScreenGui:Destroy() end)
 end
 
+-- register destroy handle for singleton guard
 _G.__AhzencalESP_Destroy = destroyAll
-connect(UnloadBtn.MouseButton1Click, destroyAll)
-connect(CloseBtn.MouseButton1Click, destroyAll)
-connect(MinBtn.MouseButton1Click, function()
+
+UnloadBtn.MouseButton1Click:Connect(destroyAll)
+CloseBtn.MouseButton1Click:Connect(destroyAll)
+
+local minimized = false
+MinBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     TabsBar.Visible = not minimized
     Content.Visible = not minimized
+    -- DragBar stays visible always so user can drag when minimized
     Main.Size = minimized and UDim2.new(0,390,0,54) or UDim2.new(0,390,0,470)
     MinBtn.Text = minimized and "▢" or "-"
 end)
 
-connect(UserInputService.InputBegan, function(input, gp)
+UserInputService.InputBegan:Connect(function(input, gp)
     if gp or destroyed then return end
     if input.KeyCode == TOGGLE_KEY then toggleClicker() end
     if input.KeyCode == Enum.KeyCode.P then
@@ -1294,30 +1425,36 @@ connect(UserInputService.InputBegan, function(input, gp)
     end
 end)
 
-connect(RunService.Heartbeat, function()
+-- ============================================================
+-- RUNTIME LOOPS
+-- ============================================================
+RunService.Heartbeat:Connect(function()
     if destroyed then return end
 
+    -- autoclicker
     if clicking then
+        if not _G.__AhzencalLastClick then _G.__AhzencalLastClick = 0 end
         local now = tick()
-        if now - lastClick >= clickDelay then
-            lastClick = now
+        if now - _G.__AhzencalLastClick >= clickDelay then
+            _G.__AhzencalLastClick = now
             local x, y = resolvePosition()
             if x and y then silentClick(x, y) end
         end
     end
 
+    -- auto tp maintain / zone rollover handling
     if autoTPEnabled then
         local hrp = getHRP(lp.Character)
         local insideActive, insidePart = isInsideAnyActiveZone(hrp)
         local currentStillActive = isActiveZone(currentZone)
         if not currentStillActive then
-            moveToActiveZone()
+            moveToNearestActiveZone()
         elseif not insideActive then
-            moveToActiveZone()
+            moveToNearestActiveZone()
         elseif currentZone ~= insidePart then
             tpToZone(insidePart)
-        elseif frozenHRP and frozenHRP.Parent and currentZone then
-            frozenHRP.Position = currentZone.Position + Vector3.new(0, currentZone.Size.Y/2 + FLOAT_HEIGHT, 0)
+        elseif frozenAnchor and frozenAnchor.Parent then
+            frozenAnchor.Position = currentZone.Position + Vector3.new(0, currentZone.Size.Y/2 + FLOAT_HEIGHT, 0)
         end
 
         if currentZone and isActiveZone(currentZone) then
@@ -1340,6 +1477,9 @@ connect(RunService.Heartbeat, function()
     end
 end)
 
+-- ============================================================
+-- INIT
+-- ============================================================
 styleButton(ZoneESPBtn, true)
 styleButton(ToggleBtn, true)
 styleButton(SearchBox, false)
