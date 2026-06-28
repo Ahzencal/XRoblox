@@ -1,11 +1,11 @@
--- AhzencalESP V5.5
+-- AhzencalESP v7
 -- Player ESP / Zone ESP / Auto TP / Silent AutoClicker / Settings
 
 -- ============================================================
 -- SINGLETON GUARD: destroy previous instance before running
 -- ============================================================
 if _G.__AhzencalESP_Destroy then
-    pcall(_G.__AhzencalESP_Destroy)
+    pcall(function() _G.__AhzencalESP_Destroy() end)
 end
 _G.__AhzencalESP_Destroy = nil
 
@@ -33,6 +33,7 @@ LoadBG.Position = UDim2.new(0.5, 0, 0.5, 0)
 LoadBG.BackgroundColor3 = Color3.fromRGB(8, 10, 18)
 LoadBG.BorderSizePixel = 0
 LoadBG.Parent = LoadGui
+LoadBG.ClipsDescendants = true
 Instance.new("UICorner", LoadBG).CornerRadius = UDim.new(0, 16)
 local LoadStroke = Instance.new("UIStroke", LoadBG)
 LoadStroke.Color = Color3.fromRGB(0, 170, 255)
@@ -211,7 +212,7 @@ local DEFAULT_CPS = 20
 local POSITION_MODE = "pick"
 local FIXED_X, FIXED_Y = nil, nil
 local FISHING_ZONE_PATH = workspace:WaitForChild("Main"):WaitForChild("FishingZone")
-local FLOAT_HEIGHT = 15
+local FLOAT_HEIGHT = 10
 
 -- Blacklisted zone positions (skipped for ESP and Auto TP)
 -- Add more Vector3 entries to block additional zones
@@ -385,16 +386,19 @@ local function unfreezeCharacter()
         frozenAnchor:Destroy()
     end
     frozenAnchor = nil
-    if frozenGyro and frozenGyro.Parent then
-        frozenGyro:Destroy()
-    end
-    frozenGyro = nil
     local char = lp.Character
     local hum = getHum(char)
-    if hum then hum.PlatformStand = false end
+    local hrp = getHRP(char)
+    if hum then
+        hum.PlatformStand = false
+        hum.AutoRotate = true
+    end
+    if hrp and hrp.Parent then
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+    end
 end
 
-local frozenGyro = nil  -- BodyGyro to lock rotation
 
 local function freezeAt(pos)
     local char = lp.Character
@@ -402,12 +406,16 @@ local function freezeAt(pos)
     local hum = getHum(char)
     if not hrp then return end
 
-    -- Rotation: Y = 89 degrees (facing fishing direction)
+    if hum then
+        hum.PlatformStand = true
+        hum.AutoRotate = false
+    end
+
     local rotCF = CFrame.new(pos) * CFrame.Angles(0, math.rad(89), 0)
     hrp.CFrame = rotCF
-    if hum then hum.PlatformStand = true end
+    hrp.AssemblyLinearVelocity = Vector3.zero
+    hrp.AssemblyAngularVelocity = Vector3.zero
 
-    -- BodyPosition: lock world position
     if frozenAnchor and frozenAnchor.Parent then
         frozenAnchor:Destroy()
     end
@@ -419,19 +427,6 @@ local function freezeAt(pos)
     bp.D = 1200
     bp.Parent = hrp
     frozenAnchor = bp
-
-    -- BodyGyro: lock rotation to 0, 89, 0
-    if frozenGyro and frozenGyro.Parent then
-        frozenGyro:Destroy()
-    end
-    local bg = Instance.new("BodyGyro")
-    bg.Name = "AhzencalZoneGyro"
-    bg.CFrame = CFrame.Angles(0, math.rad(89), 0)
-    bg.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
-    bg.P = 1e5
-    bg.D = 500
-    bg.Parent = hrp
-    frozenGyro = bg
 end
 
 local function tpToZone(part)
@@ -1003,7 +998,7 @@ local function stopAutoTP()
     unfreezeCharacter()
     AutoTPBtn.Text = "Auto TP Active FishZone: OFF"
     AutoTPBtn.BackgroundColor3 = Color3.fromRGB(132, 97, 255)
-    -- hard refresh character to fully clear any stuck BodyGyro/physics state
+    -- hard refresh character to fully clear any stuck /physics state
     task.spawn(function()
         task.wait(0.15)
         pcall(function()
