@@ -389,8 +389,18 @@ local function unfreezeCharacter()
         frozenGyro:Destroy()
     end
     frozenGyro = nil
-    local hum = getHum(lp.Character)
+    local char = lp.Character
+    local hum = getHum(char)
+    local hrp = getHRP(char)
     if hum then hum.PlatformStand = false end
+    -- reset rotation so character doesnt stay stuck facing 89 degrees
+    if hrp then
+        task.defer(function()
+            if hrp and hrp.Parent then
+                hrp.CFrame = CFrame.new(hrp.Position)
+            end
+        end)
+    end
 end
 
 local frozenGyro = nil  -- BodyGyro to lock rotation
