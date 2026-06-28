@@ -1,4 +1,4 @@
--- AhzencalESP v5
+-- AhzencalESP V5.5
 -- Player ESP / Zone ESP / Auto TP / Silent AutoClicker / Settings
 
 -- ============================================================
@@ -211,7 +211,7 @@ local DEFAULT_CPS = 20
 local POSITION_MODE = "pick"
 local FIXED_X, FIXED_Y = nil, nil
 local FISHING_ZONE_PATH = workspace:WaitForChild("Main"):WaitForChild("FishingZone")
-local FLOAT_HEIGHT = 15
+local FLOAT_HEIGHT = 10
 
 -- Blacklisted zone positions (skipped for ESP and Auto TP)
 -- Add more Vector3 entries to block additional zones
@@ -391,13 +391,7 @@ local function unfreezeCharacter()
     frozenGyro = nil
     local char = lp.Character
     local hum = getHum(char)
-    local hrp = getHRP(char)
     if hum then hum.PlatformStand = false end
-    -- respawn character to fully reset stuck rotation state
-    task.spawn(function()
-        task.wait(0.1)
-        lp:LoadCharacter()
-    end)
 end
 
 local frozenGyro = nil  -- BodyGyro to lock rotation
@@ -1009,6 +1003,13 @@ local function stopAutoTP()
     unfreezeCharacter()
     AutoTPBtn.Text = "Auto TP Active FishZone: OFF"
     AutoTPBtn.BackgroundColor3 = Color3.fromRGB(132, 97, 255)
+    -- hard refresh character to fully clear any stuck BodyGyro/physics state
+    task.spawn(function()
+        task.wait(0.15)
+        pcall(function()
+            lp:LoadCharacter()
+        end)
+    end)
 end
 
 local function startAutoTP()
