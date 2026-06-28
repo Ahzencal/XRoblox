@@ -1,4 +1,4 @@
--- AhzencalESP CapeGwBang
+-- AhzencalESP V.JujurJanggal
 -- Player ESP / Zone ESP / Auto TP / Silent AutoClicker / Settings
 
 -- ============================================================
@@ -212,12 +212,13 @@ local DEFAULT_CPS = 20
 local POSITION_MODE = "pick"
 local FIXED_X, FIXED_Y = nil, nil
 local FISHING_ZONE_PATH = workspace:WaitForChild("Main"):WaitForChild("FishingZone")
-local FLOAT_HEIGHT = 10
+local FLOAT_HEIGHT = 15
 
 -- Blacklisted zone positions (skipped for ESP and Auto TP)
 -- Add more Vector3 entries to block additional zones
 local BLACKLISTED_POSITIONS = {
     Vector3.new(-198, 16.5000153, -5079),
+    Vector3.new(-629.866821, 19.5, 4640.11377)
 }
 local BLACKLIST_THRESHOLD = 2  -- studs tolerance
 
@@ -391,15 +392,15 @@ local function unfreezeCharacter()
     local char = lp.Character
     local hum = getHum(char)
     local hrp = getHRP(char)
-    if hum then
-        hum.PlatformStand = false
-        hum.AutoRotate = true
-        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-    end
     if hrp and hrp.Parent then
         hrp.Anchored = false
         hrp.AssemblyLinearVelocity = Vector3.zero
         hrp.AssemblyAngularVelocity = Vector3.zero
+    end
+    if hum then
+        hum.PlatformStand = false
+        hum.AutoRotate = true
+        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
     end
 end
 
@@ -410,9 +411,10 @@ local function freezeAt(pos)
     local hum = getHum(char)
     if not hrp then return end
 
-    if frozenAnchor and frozenAnchor.Parent then
-        frozenAnchor:Destroy()
+    if frozenAnchor and frozenAnchor.Parent and frozenAnchor:IsA("BasePart") then
+        frozenAnchor.Anchored = false
     end
+    frozenAnchor = nil
 
     local rotCF = CFrame.new(pos) * CFrame.Angles(0, math.rad(89), 0)
     hrp.Anchored = false
@@ -421,11 +423,11 @@ local function freezeAt(pos)
     hrp.AssemblyAngularVelocity = Vector3.zero
 
     if hum then
-        hum.PlatformStand = false
         hum.AutoRotate = false
+        hum.PlatformStand = true
+        hum:ChangeState(Enum.HumanoidStateType.Physics)
     end
 
-    -- Anchor HRP directly instead of using Body movers; this avoids stuck rotation bugs
     hrp.Anchored = true
     frozenAnchor = hrp
 end
@@ -902,12 +904,11 @@ end
 
 local ZoneESPBtn = makeActionButton(ZonesTab, "FishZone ESP: OFF", 10, THEME.accent)
 local AutoTPBtn = makeActionButton(ZonesTab, "Auto TP Active FishZone: OFF", 54, Color3.fromRGB(132, 97, 255))
-local ManualTPBtn = makeActionButton(ZonesTab, "TP to Active FishZone", 98, Color3.fromRGB(255, 120, 84))
-local RefreshCharBtn = makeActionButton(ZonesTab, "Refresh Character", 142, THEME.danger)
+local RefreshCharBtn = makeActionButton(ZonesTab, "Refresh Character", 98, THEME.danger)
 
 local ZoneStatus = Instance.new("TextLabel")
 ZoneStatus.Size = UDim2.new(1, -16, 0, 22)
-ZoneStatus.Position = UDim2.new(0,8,0,188)
+ZoneStatus.Position = UDim2.new(0,8,0,142)
 ZoneStatus.BackgroundTransparency = 1
 ZoneStatus.TextColor3 = THEME.text
 ZoneStatus.Text = "Status: Idle"
@@ -918,10 +919,10 @@ ZoneStatus.Parent = ZonesTab
 
 local ZoneInfo = Instance.new("TextLabel")
 ZoneInfo.Size = UDim2.new(1, -16, 0, 76)
-ZoneInfo.Position = UDim2.new(0,8,0,216)
+ZoneInfo.Position = UDim2.new(0,8,0,170)
 ZoneInfo.BackgroundTransparency = 1
 ZoneInfo.TextColor3 = THEME.dim
-ZoneInfo.Text = "• Only parts with attribute IsActive = enabled are used\n• ESP only shows active parts\n• Auto TP only teleports to the active FishZone\n• TP button sends you to the active FishZone\n• Refresh Character can reset bugged rotation/state"
+ZoneInfo.Text = "• Only parts with attribute IsActive = enabled are used\n• ESP only shows active parts\n• Auto TP freezes above the active FishZone\n• Refresh Character runs !refresh or /refresh via Adonis\n• Use Refresh if Roblox keeps bugged rotation/state"
 ZoneInfo.Font = Enum.Font.Gotham
 ZoneInfo.TextSize = 11
 ZoneInfo.TextWrapped = true
@@ -1017,26 +1018,27 @@ AutoTPBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-ManualTPBtn.MouseButton1Click:Connect(function()
-    local ok, part = moveToActiveZone()
-    if ok then
-        ManualTPBtn.Text = "Teleported: " .. part.Name
-        task.delay(1.2, function()
-            if ManualTPBtn and ManualTPBtn.Parent then
-                ManualTPBtn.Text = "TP to Active FishZone"
-            end
-        end)
-    else
-        ManualTPBtn.Text = "No active zone found"
-        task.delay(1.2, function()
-            if ManualTPBtn and ManualTPBtn.Parent then
-                ManualTPBtn.Text = "TP to Active FishZone"
-            end
-        end)
-    end
-end)
-
 RefreshCharBtn.MouseButton1Click:Connect(function()
+    RefreshCharBtn.Text = "Refreshing..."
+    unfreezeCharacter()
+    task.spawn(function()
+        task.wait(0.1)
+        pcall(function()
+            local RS = game:GetService("ReplicatedStorage")
+            local defaultEvent = RS:FindFirstChild("DefaultChatSystemChatEvents")
+            local sayEvent = defaultEvent and defaultEvent:FindFirstChild("SayMessageRequest")
+            if sayEvent then
+                sayEvent:FireServer("!refresh", "All")
+                task.wait(0.35)
+                sayEvent:FireServer("/refresh", "All")
+            end
+        end)
+        task.wait(1)
+        if RefreshCharBtn and RefreshCharBtn.Parent then
+            RefreshCharBtn.Text = "Refresh Character"
+        end
+    end)
+end)
     RefreshCharBtn.Text = "Refreshing..."
     unfreezeCharacter()
     task.spawn(function()
