@@ -1,4 +1,4 @@
--- AhzencalESP v7
+-- AhzencalESP NtahlahCapeGw
 -- Player ESP / Zone ESP / Auto TP / Silent AutoClicker / Settings
 
 -- ============================================================
@@ -382,8 +382,10 @@ end
 -- FREEZE / TP
 -- ============================================================
 local function unfreezeCharacter()
-    if frozenAnchor and frozenAnchor.Parent then
+    if frozenAnchor and frozenAnchor.Parent and frozenAnchor:IsA("BodyPosition") then
         frozenAnchor:Destroy()
+    elseif frozenAnchor and frozenAnchor.Parent and frozenAnchor:IsA("BasePart") then
+        frozenAnchor.Anchored = false
     end
     frozenAnchor = nil
     local char = lp.Character
@@ -392,8 +394,10 @@ local function unfreezeCharacter()
     if hum then
         hum.PlatformStand = false
         hum.AutoRotate = true
+        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
     end
     if hrp and hrp.Parent then
+        hrp.Anchored = false
         hrp.AssemblyLinearVelocity = Vector3.zero
         hrp.AssemblyAngularVelocity = Vector3.zero
     end
@@ -406,27 +410,24 @@ local function freezeAt(pos)
     local hum = getHum(char)
     if not hrp then return end
 
-    if hum then
-        hum.PlatformStand = true
-        hum.AutoRotate = false
+    if frozenAnchor and frozenAnchor.Parent then
+        frozenAnchor:Destroy()
     end
 
     local rotCF = CFrame.new(pos) * CFrame.Angles(0, math.rad(89), 0)
+    hrp.Anchored = false
     hrp.CFrame = rotCF
     hrp.AssemblyLinearVelocity = Vector3.zero
     hrp.AssemblyAngularVelocity = Vector3.zero
 
-    if frozenAnchor and frozenAnchor.Parent then
-        frozenAnchor:Destroy()
+    if hum then
+        hum.PlatformStand = false
+        hum.AutoRotate = false
     end
-    local bp = Instance.new("BodyPosition")
-    bp.Name = "AhzencalZoneFreeze"
-    bp.Position = pos
-    bp.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-    bp.P = 2e4
-    bp.D = 1200
-    bp.Parent = hrp
-    frozenAnchor = bp
+
+    -- Anchor HRP directly instead of using Body movers; this avoids stuck rotation bugs
+    hrp.Anchored = true
+    frozenAnchor = hrp
 end
 
 local function tpToZone(part)
