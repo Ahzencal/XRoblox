@@ -258,7 +258,6 @@ local savedX, savedY = FIXED_X, FIXED_Y
 local autoTPEnabled = false
 local currentZone = nil
 local frozenAnchor = nil
-local dragConnection = nil
 local hideUI = false
 local zoneESPOn = false
 
@@ -349,10 +348,6 @@ local function nearestActiveZonePart()
         end
     end
     return best
-end
-
-local function setText(btn, txt)
-    if btn then btn.Text = txt end
 end
 
 -- ============================================================
@@ -1023,10 +1018,9 @@ RefreshCharBtn.MouseButton1Click:Connect(function()
     unfreezeCharacter()
     task.spawn(function()
         task.wait(0.15)
-        pcall(function()
-            local msg1, msg2 = "!refresh", "/refresh"
+        local msg1, msg2 = "!refresh", "/refresh"
 
-            -- Legacy default chat
+        pcall(function()
             local RS = game:GetService("ReplicatedStorage")
             local defaultEvent = RS:FindFirstChild("DefaultChatSystemChatEvents")
             local sayEvent = defaultEvent and defaultEvent:FindFirstChild("SayMessageRequest")
@@ -1035,48 +1029,25 @@ RefreshCharBtn.MouseButton1Click:Connect(function()
                 task.wait(0.4)
                 sayEvent:FireServer(msg2, "All")
             end
-
-            -- New text chat service fallback
-            local TextChatService = game:FindService("TextChatService")
-            if TextChatService and TextChatService.TextChannels then
-                local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
-                if channel then
-                    pcall(function() channel:SendAsync(msg1) end)
-                    task.wait(0.4)
-                    pcall(function() channel:SendAsync(msg2) end)
-                end
-            end
-
-            -- Executor/legacy chat fallback
-            if game.Players.LocalPlayer and game.Players.LocalPlayer.Character then
-                pcall(function()
-                    game:GetService("Players"):Chat(msg1)
-                end)
-                task.wait(0.4)
-                pcall(function()
-                    game:GetService("Players"):Chat(msg2)
-                end)
-            end
         end)
-        task.wait(1)
-        if RefreshCharBtn and RefreshCharBtn.Parent then
-            RefreshCharBtn.Text = "Refresh Character"
-        end
-    end)
-end)
-        task.wait(1)
-        if RefreshCharBtn and RefreshCharBtn.Parent then
-            RefreshCharBtn.Text = "Refresh Character"
-        end
-    end)
-end)
-    RefreshCharBtn.Text = "Refreshing..."
-    unfreezeCharacter()
-    task.spawn(function()
-        task.wait(0.1)
+
         pcall(function()
-            lp:LoadCharacter()
+            local TextChatService = game:GetService("TextChatService")
+            local channels = TextChatService and TextChatService:FindFirstChild("TextChannels")
+            local channel = channels and channels:FindFirstChild("RBXGeneral")
+            if channel then
+                channel:SendAsync(msg1)
+                task.wait(0.4)
+                channel:SendAsync(msg2)
+            end
         end)
+
+        pcall(function()
+            game:GetService("Players"):Chat(msg1)
+            task.wait(0.4)
+            game:GetService("Players"):Chat(msg2)
+        end)
+
         task.wait(1)
         if RefreshCharBtn and RefreshCharBtn.Parent then
             RefreshCharBtn.Text = "Refresh Character"
