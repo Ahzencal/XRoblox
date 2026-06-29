@@ -48,4 +48,8 @@ return {
         Color3.fromRGB(255,170,0),
         Color3.fromRGB(255,120,84),
     },
+
+    AutoSell = {
+        Interval = 60, -- Seconds between sell attempts (prevents server kick for spamming)
+    },
 }

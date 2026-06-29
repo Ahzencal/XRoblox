@@ -339,6 +339,8 @@ return function(config)
     local ZoneESPBtn = makeActionButton(Tabs.FishZone, "FishZone ESP: OFF", 10, THEME.accent)
     local AutoTPBtn = makeActionButton(Tabs.FishZone, "Auto TP Active FishZone: OFF", 54, THEME.tp)
     local RefreshCharBtn = makeActionButton(Tabs.FishZone, "Refresh Character", 98, THEME.danger)
+    local AutoSellBtn = makeActionButton(Tabs.FishZone, "Auto Sell Fish: OFF", 142, THEME.warn) -- [NEW]
+
 
     local ZoneStatus = Instance.new("TextLabel")
     ZoneStatus.Size = UDim2.new(1, -16, 0, 22)
@@ -519,6 +521,7 @@ return function(config)
             ZoneESPBtn = ZoneESPBtn,
             AutoTPBtn = AutoTPBtn,
             RefreshCharBtn = RefreshCharBtn,
+            AutoSellBtn = AutoSellBtn, -- [ADD THIS LINE]
             ZoneStatus = ZoneStatus,
             ZoneInfo = ZoneInfo,
         },
@@ -540,5 +543,6 @@ return function(config)
             ColorButtons = ColorButtons,
             SettingsInfo = SettingsInfo,
         },
+        
     }
 end

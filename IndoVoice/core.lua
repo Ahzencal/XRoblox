@@ -13,6 +13,8 @@ return function(gui, config)
     local mouse = lp:GetMouse()
     local cam = workspace.CurrentCamera
 
+    local AUTO_SELL_INTERVAL = config.AutoSell and config.AutoSell.Interval or 60
+    local autoSellEnabled = false
     local TOGGLE_KEY = config.Keys.ToggleClicker
     local HIDE_KEY = config.Keys.HideUI
     local PICK_KEY = config.Keys.PickPosition
@@ -656,6 +658,7 @@ return function(gui, config)
         clicking = false
         destroyed = true
         autoTPEnabled = false
+        autoSellEnabled = false
         _G.__AhzencalESP_Destroy = nil
         unfreezeCharacter()
         disconnectList(connections)
@@ -841,6 +844,40 @@ return function(gui, config)
                 gui.FishZone.ZoneStatus.Text = "No active zone"
                 gui.FishZone.ZoneStatus.TextColor3 = THEME.danger
             end
+        end
+    end)
+
+    -- Locate remote safely without hanging the script if the game loads it late
+    local SellRemote = nil
+    task.spawn(function()
+        local rf = ReplicatedStorage:WaitForChild("GameRemoteFunctions", 10)
+        if rf then SellRemote = rf:WaitForChild("SellAllFishFunction", 10) end
+    end)
+
+    bind(gui.FishZone.AutoSellBtn.MouseButton1Click, function()
+        autoSellEnabled = not autoSellEnabled
+
+        if autoSellEnabled then
+            gui.FishZone.AutoSellBtn.Text = "Auto Sell Fish: ON"
+            gui.FishZone.AutoSellBtn.BackgroundColor3 = THEME.success
+
+            task.spawn(function()
+                while autoSellEnabled and not destroyed do
+                    if SellRemote then
+                        pcall(function()
+                            if SellRemote:IsA("RemoteFunction") then
+                                SellRemote:InvokeServer()
+                            elseif SellRemote:IsA("RemoteEvent") then
+                                SellRemote:FireServer()
+                            end
+                        end)
+                    end
+                    task.wait(AUTO_SELL_INTERVAL)
+                end
+            end)
+        else
+            gui.FishZone.AutoSellBtn.Text = "Auto Sell Fish: OFF"
+            gui.FishZone.AutoSellBtn.BackgroundColor3 = THEME.warn
         end
     end)
 
