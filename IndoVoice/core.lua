@@ -675,6 +675,124 @@ return function(gui, config)
 
     _G.__AhzencalESP_Destroy = destroyAll
 
+    -- Locate remote safely without hanging the script
+    local SellRemote = nil
+    task.spawn(function()
+        local rf = ReplicatedStorage:WaitForChild("GameRemoteFunctions", 10)
+        if rf then SellRemote = rf:WaitForChild("SellAllFishFunction", 10) end
+    end)
+
+    -- The Split-Second TP & Sell Engine
+    local function performSell()
+        local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return false, "No HumanoidRootPart found" end
+
+        -- Safely search through Map_01, Map_02, and Map_03
+        local shopPart = nil
+        local world = workspace:FindFirstChild("World")
+        
+        if world then
+            local mapNames = {"Map_01", "Map_02", "Map_03"}
+            
+            for _, mapName in ipairs(mapNames) do
+                local currentMap = world:FindFirstChild(mapName)
+                if currentMap then
+                    -- Traverse the path inside the found map
+                    local s = currentMap:FindFirstChild("Asset")
+                    if s then s = s:FindFirstChild("Building") end
+                    if s then s = s:FindFirstChild("Shop") end
+                    if s then s = s:FindFirstChild("Fish Store") end
+                    
+                    if s then
+                        shopPart = s
+                        break -- Found the active store, stop searching!
+                    end
+                end
+            end
+        end
+
+        if not shopPart then return false, "Fish Store not found in any Map!" end
+
+        -- 1. Suspend the AutoTP heartbeat loop momentarily so it doesn't fight our TP
+        local wasAutoTP = autoTPEnabled
+        autoTPEnabled = false 
+        
+        local oldCFrame = hrp.CFrame
+        local oldAnchorPos = frozenAnchor and frozenAnchor.Position
+        local shopTarget = shopPart.Position + Vector3.new(0, 5, 0) -- 5 studs above shop floor
+
+        -- 2. TP to Shop (Move both character and the physics anchor)
+        hrp.CFrame = CFrame.new(shopTarget)
+        if frozenAnchor and frozenAnchor.Parent then
+            frozenAnchor.Position = shopTarget
+        end
+
+        -- 3. Wait for server to register position (Ping/Network buffer is required)
+        task.wait(0.3)
+
+        -- 4. Execute the Sell Remote
+        local result
+        local success, err = pcall(function()
+            if SellRemote:IsA("RemoteFunction") then
+                result = SellRemote:InvokeServer(AUTO_SELL_RARITIES)
+            elseif SellRemote:IsA("RemoteEvent") then
+                SellRemote:FireServer(AUTO_SELL_RARITIES)
+                result = "Fired RemoteEvent Payload"
+            end
+        end)
+
+        -- 5. Snap Back to Original Fishing Spot
+        hrp.CFrame = oldCFrame
+        if frozenAnchor and frozenAnchor.Parent and oldAnchorPos then
+            frozenAnchor.Position = oldAnchorPos
+        end
+
+        -- 6. Restore AutoTP state
+        autoTPEnabled = wasAutoTP
+
+        return success, result or err
+    end
+
+    -- Bind Auto Sell Toggle
+    bind(gui.FishZone.AutoSellBtn.MouseButton1Click, function()
+        autoSellEnabled = not autoSellEnabled
+
+        if autoSellEnabled then
+            gui.FishZone.AutoSellBtn.Text = "Auto Sell Fish: ON"
+            gui.FishZone.AutoSellBtn.BackgroundColor3 = THEME.success
+
+            task.spawn(function()
+                while autoSellEnabled and not destroyed do
+                    if SellRemote then
+                        performSell()
+                    end
+                    task.wait(AUTO_SELL_INTERVAL)
+                end
+            end)
+        else
+            gui.FishZone.AutoSellBtn.Text = "Auto Sell Fish: OFF"
+            gui.FishZone.AutoSellBtn.BackgroundColor3 = THEME.warn
+        end
+    end)
+
+    -- Bind Test Button
+    bind(gui.FishZone.SellNowBtn.MouseButton1Click, function()
+        print("[IndoVoice] Attempting split-second TP & sell...")
+        
+        if not SellRemote then
+            warn("[IndoVoice] Error: Sell remote not loaded yet!")
+            return
+        end
+
+        local success, msg = performSell()
+        if success then
+            print("[IndoVoice] SUCCESS:", msg)
+        else
+            warn("[IndoVoice] FAILED to sell fish:", msg)
+        end
+    end)
+
+
     bind(gui.Players.SearchBox:GetPropertyChangedSignal("Text"), function()
         playerSearchText = gui.Players.SearchBox.Text
         refreshPlayerRows()
@@ -848,63 +966,6 @@ return function(gui, config)
         end
     end)
 
-    -- Locate remote safely without hanging the script if the game loads it late
-    local SellRemote = nil
-    task.spawn(function()
-        local rf = ReplicatedStorage:WaitForChild("GameRemoteFunctions", 10)
-        if rf then SellRemote = rf:WaitForChild("SellAllFishFunction", 10) end
-    end)
-
-    bind(gui.FishZone.AutoSellBtn.MouseButton1Click, function()
-        autoSellEnabled = not autoSellEnabled
-
-        if autoSellEnabled then
-            gui.FishZone.AutoSellBtn.Text = "Auto Sell Fish: ON"
-            gui.FishZone.AutoSellBtn.BackgroundColor3 = THEME.success
-
-            task.spawn(function()
-                while autoSellEnabled and not destroyed do
-                    if SellRemote then
-                        pcall(function()
-                            if SellRemote:IsA("RemoteFunction") then
-                                SellRemote:InvokeServer(AUTO_SELL_RARITIES) -- Now passes the table!
-                            elseif SellRemote:IsA("RemoteEvent") then
-                                SellRemote:FireServer(AUTO_SELL_RARITIES)
-                            end
-                        end)
-                    end
-                    task.wait(AUTO_SELL_INTERVAL)
-                end
-            end)
-        else
-            gui.FishZone.AutoSellBtn.Text = "Auto Sell Fish: OFF"
-            gui.FishZone.AutoSellBtn.BackgroundColor3 = THEME.warn
-        end
-    end)
-    
-    bind(gui.FishZone.SellNowBtn.MouseButton1Click, function()
-        print("[IndoVoice] Attempting manual fish sell...")
-        
-        if not SellRemote then
-            warn("[IndoVoice] Error: Sell remote not loaded yet! Waiting on game...")
-            return
-        end
-
-        -- Wrap in pcall to catch and print server errors safely
-        local success, err = pcall(function()
-            if SellRemote:IsA("RemoteFunction") then
-                local result = SellRemote:InvokeServer(AUTO_SELL_RARITIES)
-                print("[IndoVoice] SUCCESS! Server responded with:", result)
-            elseif SellRemote:IsA("RemoteEvent") then
-                SellRemote:FireServer(AUTO_SELL_RARITIES)
-                print("[IndoVoice] SUCCESS! Fired remote event payload.")
-            end
-        end)
-
-        if not success then
-            warn("[IndoVoice] FAILED to sell fish. Roblox Error:", err)
-        end
-    end)
 
     switchTab("Players")
     updateClickerUI()
