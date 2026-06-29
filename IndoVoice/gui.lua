@@ -339,12 +339,13 @@ return function(config)
     local ZoneESPBtn = makeActionButton(Tabs.FishZone, "FishZone ESP: OFF", 10, THEME.accent)
     local AutoTPBtn = makeActionButton(Tabs.FishZone, "Auto TP Active FishZone: OFF", 54, THEME.tp)
     local RefreshCharBtn = makeActionButton(Tabs.FishZone, "Refresh Character", 98, THEME.danger)
-    local AutoSellBtn = makeActionButton(Tabs.FishZone, "Auto Sell Fish: OFF", 142, THEME.warn) -- [NEW]
+    local AutoSellBtn = makeActionButton(Tabs.FishZone, "Auto Sell Fish: OFF", 142, THEME.warn)
+    local SellNowBtn = makeActionButton(Tabs.FishZone, "Sell All Now (Test)", 186, THEME.accent)
 
 
     local ZoneStatus = Instance.new("TextLabel")
     ZoneStatus.Size = UDim2.new(1, -16, 0, 22)
-    ZoneStatus.Position = UDim2.new(0,8,0,146)
+    ZoneStatus.Position = UDim2.new(0, 8, 0, 234)
     ZoneStatus.BackgroundTransparency = 1
     ZoneStatus.TextColor3 = THEME.text
     ZoneStatus.Text = "Status: Idle"
@@ -355,7 +356,7 @@ return function(config)
 
     local ZoneInfo = Instance.new("TextLabel")
     ZoneInfo.Size = UDim2.new(1, -16, 0, 84)
-    ZoneInfo.Position = UDim2.new(0,8,0,174)
+    ZoneInfo.Position = UDim2.new(0, 8, 0, 262)
     ZoneInfo.BackgroundTransparency = 1
     ZoneInfo.TextColor3 = THEME.dim
     ZoneInfo.Text = "• Active zones only\n• Auto TP keeps latest working rotation/body lock\n• Refresh Character uses Adonis chat commands\n• Main logic is separated into core.lua"
@@ -521,7 +522,8 @@ return function(config)
             ZoneESPBtn = ZoneESPBtn,
             AutoTPBtn = AutoTPBtn,
             RefreshCharBtn = RefreshCharBtn,
-            AutoSellBtn = AutoSellBtn, -- [ADD THIS LINE]
+            AutoSellBtn = AutoSellBtn,
+            SellNowBtn = SellNowBtn,
             ZoneStatus = ZoneStatus,
             ZoneInfo = ZoneInfo,
         },

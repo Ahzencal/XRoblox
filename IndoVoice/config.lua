@@ -50,6 +50,13 @@ return {
     },
 
     AutoSell = {
-        Interval = 60, -- Seconds between sell attempts (prevents server kick for spamming)
+        Interval = 300,
+        Rarities = {
+            "Legend",
+            "Epic",
+            "Rare",
+            "Uncommon",
+            "Common"
+        }
     },
 }

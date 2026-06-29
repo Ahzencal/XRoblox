@@ -13,7 +13,8 @@ return function(gui, config)
     local mouse = lp:GetMouse()
     local cam = workspace.CurrentCamera
 
-    local AUTO_SELL_INTERVAL = config.AutoSell and config.AutoSell.Interval or 60
+    local AUTO_SELL_INTERVAL = config.AutoSell and config.AutoSell.Interval or 300
+    local AUTO_SELL_RARITIES = config.AutoSell and config.AutoSell.Rarities or {"Legend", "Epic", "Rare", "Uncommon", "Common"}
     local autoSellEnabled = false
     local TOGGLE_KEY = config.Keys.ToggleClicker
     local HIDE_KEY = config.Keys.HideUI
@@ -866,9 +867,9 @@ return function(gui, config)
                     if SellRemote then
                         pcall(function()
                             if SellRemote:IsA("RemoteFunction") then
-                                SellRemote:InvokeServer()
+                                SellRemote:InvokeServer(AUTO_SELL_RARITIES) -- Now passes the table!
                             elseif SellRemote:IsA("RemoteEvent") then
-                                SellRemote:FireServer()
+                                SellRemote:FireServer(AUTO_SELL_RARITIES)
                             end
                         end)
                     end
@@ -878,6 +879,30 @@ return function(gui, config)
         else
             gui.FishZone.AutoSellBtn.Text = "Auto Sell Fish: OFF"
             gui.FishZone.AutoSellBtn.BackgroundColor3 = THEME.warn
+        end
+    end)
+    
+    bind(gui.FishZone.SellNowBtn.MouseButton1Click, function()
+        print("[IndoVoice] Attempting manual fish sell...")
+        
+        if not SellRemote then
+            warn("[IndoVoice] Error: Sell remote not loaded yet! Waiting on game...")
+            return
+        end
+
+        -- Wrap in pcall to catch and print server errors safely
+        local success, err = pcall(function()
+            if SellRemote:IsA("RemoteFunction") then
+                local result = SellRemote:InvokeServer(AUTO_SELL_RARITIES)
+                print("[IndoVoice] SUCCESS! Server responded with:", result)
+            elseif SellRemote:IsA("RemoteEvent") then
+                SellRemote:FireServer(AUTO_SELL_RARITIES)
+                print("[IndoVoice] SUCCESS! Fired remote event payload.")
+            end
+        end)
+
+        if not success then
+            warn("[IndoVoice] FAILED to sell fish. Roblox Error:", err)
         end
     end)
 
