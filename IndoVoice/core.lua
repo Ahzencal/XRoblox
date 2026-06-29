@@ -719,7 +719,7 @@ return function(gui, config)
         
         local oldCFrame = hrp.CFrame
         local oldAnchorPos = frozenAnchor and frozenAnchor.Position
-        local shopTarget = shopPart.Position + Vector3.new(0, 5, 0) -- 5 studs above shop floor
+        local shopTarget = (shopPart.CFrame * CFrame.new(0, 5, 12)).Position-- 5 studs above shop floor
 
         -- 2. TP to Shop (Move both character and the physics anchor)
         hrp.CFrame = CFrame.new(shopTarget)
