@@ -687,8 +687,6 @@ return function(gui, config)
         local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
         if not hrp then return false, "No HumanoidRootPart found" end
 
-        -- Safely search through Map_01, Map_02, and Map_03
-        -- 1. Find the Fish Shop using the new ShopNPC path
         local shopPart = nil
         local world = workspace:FindFirstChild("World")
         
@@ -696,7 +694,6 @@ return function(gui, config)
             for _, mapName in ipairs({"Map_01", "Map_02", "Map_03"}) do
                 local currentMap = world:FindFirstChild(mapName)
                 if currentMap then
-                    -- Navigating: Map -> Asset -> ShopNPC -> FishShop
                     local s = currentMap:FindFirstChild("Asset")
                     if s then s = s:FindFirstChild("ShopNPC") end
                     if s then s = s:FindFirstChild("FishShop") end
@@ -709,26 +706,27 @@ return function(gui, config)
             end
         end
 
-        if not shopPart then return false, "FishShop not found in any Map!" end
+        if not shopPart then return false, "FishShop not found!" end
 
-        -- 1. Suspend the AutoTP heartbeat loop momentarily so it doesn't fight our TP
+        -- CORRECTED: Use GetPivot() to get the CFrame of the model
+        local shopPivot = shopPart:GetPivot()
+        
         local wasAutoTP = autoTPEnabled
         autoTPEnabled = false 
         
         local oldCFrame = hrp.CFrame
         local oldAnchorPos = frozenAnchor and frozenAnchor.Position
-        local shopTarget = (shopPart.CFrame * CFrame.new(0, 5, 12)).Position-- 5 studs above shop floor
+        
+        -- Use the pivot CFrame to calculate offset
+        local targetPos = (shopPivot * CFrame.new(0, 3, 12)).Position
 
-        -- 2. TP to Shop (Move both character and the physics anchor)
-        hrp.CFrame = CFrame.new(shopTarget)
+        hrp.CFrame = CFrame.new(targetPos)
         if frozenAnchor and frozenAnchor.Parent then
-            frozenAnchor.Position = shopTarget
+            frozenAnchor.Position = targetPos
         end
 
-        -- 3. Wait for server to register position (Ping/Network buffer is required)
         task.wait(0.3)
 
-        -- 4. Execute the Sell Remote
         local result
         local success, err = pcall(function()
             if SellRemote:IsA("RemoteFunction") then
@@ -739,15 +737,12 @@ return function(gui, config)
             end
         end)
 
-        -- 5. Snap Back to Original Fishing Spot
         hrp.CFrame = oldCFrame
         if frozenAnchor and frozenAnchor.Parent and oldAnchorPos then
             frozenAnchor.Position = oldAnchorPos
         end
 
-        -- 6. Restore AutoTP state
         autoTPEnabled = wasAutoTP
-
         return success, result or err
     end
 
