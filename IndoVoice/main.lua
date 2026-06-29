@@ -1,5 +1,4 @@
 -- IndoVoice/main.lua
--- Safer single-loader with clearer line errors
 
 local BASE_URL = "https://raw.githubusercontent.com/Ahzencal/XRoblox/main/IndoVoice/"
 
@@ -21,14 +20,17 @@ local function compile(source, name)
     return fn
 end
 
-local configSource = fetch(BASE_URL .. "config.lua", "config.lua")
-local guiSource = fetch(BASE_URL .. "gui.lua", "gui.lua")
-local coreSource = fetch(BASE_URL .. "core.lua", "core.lua")
+local configChunk = compile(fetch(BASE_URL .. "config.lua", "config.lua"), "config.lua")
+local guiChunk = compile(fetch(BASE_URL .. "gui.lua", "gui.lua"), "gui.lua")
+local coreChunk = compile(fetch(BASE_URL .. "core.lua", "core.lua"), "core.lua")
 
-local configFactory = compile(configSource, "config.lua")
-local guiFactory = compile(guiSource, "gui.lua")
-local coreFactory = compile(coreSource, "core.lua")
+local config = configChunk()
+local guiFactory = guiChunk()
+local coreFactory = coreChunk()
 
-local config = configFactory()
+assert(type(config) == "table", "config.lua must return a table")
+assert(type(guiFactory) == "function", "gui.lua must return a function")
+assert(type(coreFactory) == "function", "core.lua must return a function")
+
 local gui = guiFactory(config)
-coreFactory()(gui, config)
+coreFactory(gui, config)
