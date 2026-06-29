@@ -688,30 +688,28 @@ return function(gui, config)
         if not hrp then return false, "No HumanoidRootPart found" end
 
         -- Safely search through Map_01, Map_02, and Map_03
+        -- 1. Find the Fish Shop using the new ShopNPC path
         local shopPart = nil
         local world = workspace:FindFirstChild("World")
         
         if world then
-            local mapNames = {"Map_01", "Map_02", "Map_03"}
-            
-            for _, mapName in ipairs(mapNames) do
+            for _, mapName in ipairs({"Map_01", "Map_02", "Map_03"}) do
                 local currentMap = world:FindFirstChild(mapName)
                 if currentMap then
-                    -- Traverse the path inside the found map
+                    -- Navigating: Map -> Asset -> ShopNPC -> FishShop
                     local s = currentMap:FindFirstChild("Asset")
-                    if s then s = s:FindFirstChild("Building") end
-                    if s then s = s:FindFirstChild("Shop") end
-                    if s then s = s:FindFirstChild("Fish Store") end
+                    if s then s = s:FindFirstChild("ShopNPC") end
+                    if s then s = s:FindFirstChild("FishShop") end
                     
                     if s then
                         shopPart = s
-                        break -- Found the active store, stop searching!
+                        break
                     end
                 end
             end
         end
 
-        if not shopPart then return false, "Fish Store not found in any Map!" end
+        if not shopPart then return false, "FishShop not found in any Map!" end
 
         -- 1. Suspend the AutoTP heartbeat loop momentarily so it doesn't fight our TP
         local wasAutoTP = autoTPEnabled
