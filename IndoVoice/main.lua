@@ -1,7 +1,7 @@
 -- FishZone/main.lua
 -- Entry loader for raw GitHub split version with config.lua
 
-local BASE_URL = "https://raw.githubusercontent.com/Ahzencal/XRoblox/refs/heads/main/IndoVoice/"
+local BASE_URL = "https://raw.githubusercontent.com/Ahzencal/XRoblox/main/IndoVoice/"
 
 local function fetch(url)
     return game:HttpGet(url)
