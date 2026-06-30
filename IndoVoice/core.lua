@@ -833,13 +833,19 @@ return function(gui, config)
         if not SessionRewardRemote then
             return false, "Session reward remote not loaded"
         end
-        local ok, a, b = pcall(function()
-            return SessionRewardRemote:InvokeServer()
+        local ok, result = pcall(function()
+            if SessionRewardRemote:IsA("RemoteEvent") then
+                SessionRewardRemote:FireServer()
+                return true
+            elseif SessionRewardRemote:IsA("RemoteFunction") then
+                return SessionRewardRemote:InvokeServer()
+            end
+            return false
         end)
         if not ok then
-            return false, tostring(a)
+            return false, tostring(result)
         end
-        return a, b
+        return result, "Session reward fired"
     end
 
     local function updateRewardButtons()
