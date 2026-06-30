@@ -864,11 +864,82 @@ return function(gui, config)
         end
     end
 
+    local function getCurrentRod()
+        local char = lp.Character
+        if not char then
+            return nil
+        end
+        for _, obj in ipairs(char:GetChildren()) do
+            if obj:IsA("Model") or obj:IsA("Tool") or obj:IsA("Folder") then
+                local castRemote = obj:FindFirstChild("Cast")
+                local catchRemote = obj:FindFirstChild("Catch")
+                if castRemote or catchRemote then
+                    return obj, castRemote, catchRemote
+                end
+            end
+        end
+        return nil, nil, nil
+    end
+
+    local function isFishingCastActive()
+        local rod, castRemote = getCurrentRod()
+        if not rod or not castRemote then
+            return false
+        end
+        local stateSources = {rod, lp.Character}
+        for _, src in ipairs(stateSources) do
+            for _, name in ipairs({"Cast", "IsCast", "Casting", "IsCasting", "Casted"}) do
+                local v = src:FindFirstChild(name)
+                if v and v:IsA("BoolValue") then
+                    return v.Value == true
+                end
+            end
+        end
+        for _, attrName in ipairs({"Cast", "IsCast", "Casting", "IsCasting", "Casted"}) do
+            local ok, value = pcall(function()
+                return rod:GetAttribute(attrName)
+            end)
+            if ok and value ~= nil then
+                return value == true
+            end
+        end
+        return false
+    end
+
+    local function fireCatchTrueIfAvailable()
+        local rod, _, catchRemote = getCurrentRod()
+        if not rod or not catchRemote then
+            return false, "Catch remote not found"
+        end
+        local success, err = pcall(function()
+            if catchRemote:IsA("RemoteEvent") then
+                catchRemote:FireServer(true)
+            elseif catchRemote:IsA("RemoteFunction") then
+                catchRemote:InvokeServer(true)
+            end
+        end)
+        if not success then
+            return false, tostring(err)
+        end
+        return true, rod.Name
+    end
+
     local function performSell()
         local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
         if not hrp then
             return false, "No HumanoidRootPart found"
         end
+
+        if isFishingCastActive() then
+            return false, "Fishing cast still active - skipping sell"
+        end
+
+        local catchSuccess = fireCatchTrueIfAvailable()
+        if not catchSuccess then
+            return false, "Unable to force catch before sell"
+        end
+
+        task.wait(0.2)
 
         local shopPart = nil
         local world = workspace:FindFirstChild("World")
