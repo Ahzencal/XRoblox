@@ -788,9 +788,6 @@ return function(gui, config)
         end
 
         if rodTool then
-            local castRemote = rodTool:FindFirstChild("Cast")
-            local baitLandedRemote = rodTool:FindFirstChild("BaitLanded")
-
             local castState = rodTool:GetAttribute("Catch")
             if castState == nil then castState = rodTool:GetAttribute("IsFishing") end
             if castState == nil then castState = rodTool:GetAttribute("BaitInWater") end
@@ -799,20 +796,6 @@ return function(gui, config)
             if typeof(castState) == "boolean" and castState then
                 isFishing = true
             end
-
-            if not isFishing and castRemote then
-                if castRemote:IsA("RemoteEvent") or castRemote:IsA("BindableEvent") then
-                    isFishing = true
-                end
-            end
-
-            if not isFishing and baitLandedRemote then
-                local temp = workspace:FindFirstChild("Temp")
-                if temp and #temp:GetChildren() > 0 then
-                    isFishing = true
-                end
-            end
-
         end
 
         if isFishing then
