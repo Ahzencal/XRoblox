@@ -14,7 +14,7 @@ return function(gui, config)
 
     local AUTO_SELL_INTERVAL = config.AutoSell and config.AutoSell.Interval or 300
     local AUTO_SELL_RARITIES = config.AutoSell and config.AutoSell.Rarities or
-                                   {"Legend", "Epic", "Rare", "Uncommon", "Common"}
+        { "Legend", "Epic", "Rare", "Uncommon", "Common" }
     local autoSellEnabled = false
     local autoClaimDailyRewardEnabled = false
     local autoClaimSessionRewardEnabled = false
@@ -136,7 +136,7 @@ return function(gui, config)
         local rel = part.CFrame:PointToObjectSpace(hrp.Position)
         local half = part.Size / 2
         return math.abs(rel.X) <= half.X and math.abs(rel.Y) <= half.Y + FLOAT_HEIGHT + 1.5 and math.abs(rel.Z) <=
-                   half.Z
+            half.Z
     end
 
     local function isInsideAnyActiveZone(hrp)
@@ -424,7 +424,7 @@ return function(gui, config)
             return true
         end
         return lower(player.Name):find(lower(playerSearchText), 1, true) ~= nil or
-                   lower(player.DisplayName):find(lower(playerSearchText), 1, true) ~= nil
+            lower(player.DisplayName):find(lower(playerSearchText), 1, true) ~= nil
     end
 
     local function refreshPlayerRows()
@@ -635,7 +635,7 @@ return function(gui, config)
         local x, y = resolvePosition()
         if not x or not y then
             gui.Clicker.PosLbl.Text = "Hover target and press " .. tostring(PICK_KEY):gsub("Enum.KeyCode.", "") ..
-                                          " first"
+                " first"
             gui.Clicker.PosLbl.TextColor3 = THEME.warn
             return
         end
@@ -851,78 +851,20 @@ return function(gui, config)
     local function updateRewardButtons()
         if gui.Settings.AutoClaimDailyRewardBtn then
             gui.Settings.AutoClaimDailyRewardBtn.Text = autoClaimDailyRewardEnabled and "Auto Claim Daily Reward: ON" or
-                                                            "Auto Claim Daily Reward: OFF"
+                "Auto Claim Daily Reward: OFF"
             gui.Settings.AutoClaimDailyRewardBtn.BackgroundColor3 =
                 autoClaimDailyRewardEnabled and THEME.success or THEME.accent
         end
         if gui.Settings.AutoClaimSessionRewardBtn then
             gui.Settings.AutoClaimSessionRewardBtn.Text = autoClaimSessionRewardEnabled and
-                                                              "Auto Claim Session Reward: ON" or
-                                                              "Auto Claim Session Reward: OFF"
+                "Auto Claim Session Reward: ON" or
+                "Auto Claim Session Reward: OFF"
             gui.Settings.AutoClaimSessionRewardBtn.BackgroundColor3 =
                 autoClaimSessionRewardEnabled and THEME.success or THEME.tp
         end
     end
 
-    local function getCurrentRod()
-        local char = lp.Character
-        if not char then
-            return nil
-        end
-        for _, obj in ipairs(char:GetChildren()) do
-            if obj:IsA("Model") or obj:IsA("Tool") or obj:IsA("Folder") then
-                local castRemote = obj:FindFirstChild("Cast")
-                local catchRemote = obj:FindFirstChild("Catch")
-                if castRemote or catchRemote then
-                    return obj, castRemote, catchRemote
-                end
-            end
-        end
-        return nil, nil, nil
-    end
 
-    local function isFishingCastActive()
-        local rod, castRemote = getCurrentRod()
-        if not rod or not castRemote then
-            return false
-        end
-        local stateSources = {rod, lp.Character}
-        for _, src in ipairs(stateSources) do
-            for _, name in ipairs({"Cast", "IsCast", "Casting", "IsCasting", "Casted"}) do
-                local v = src:FindFirstChild(name)
-                if v and v:IsA("BoolValue") then
-                    return v.Value == true
-                end
-            end
-        end
-        for _, attrName in ipairs({"Cast", "IsCast", "Casting", "IsCasting", "Casted"}) do
-            local ok, value = pcall(function()
-                return rod:GetAttribute(attrName)
-            end)
-            if ok and value ~= nil then
-                return value == true
-            end
-        end
-        return false
-    end
-
-    local function fireCatchTrueIfAvailable()
-        local rod, _, catchRemote = getCurrentRod()
-        if not rod or not catchRemote then
-            return false, "Catch remote not found"
-        end
-        local success, err = pcall(function()
-            if catchRemote:IsA("RemoteEvent") then
-                catchRemote:FireServer(true)
-            elseif catchRemote:IsA("RemoteFunction") then
-                catchRemote:InvokeServer(true)
-            end
-        end)
-        if not success then
-            return false, tostring(err)
-        end
-        return true, rod.Name
-    end
 
     local function performSell()
         local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
@@ -930,22 +872,32 @@ return function(gui, config)
             return false, "No HumanoidRootPart found"
         end
 
-        if isFishingCastActive() then
-            return false, "Fishing cast still active - skipping sell"
+        local char = lp.Character
+        local isFishing = false
+        if char then
+            for _, obj in ipairs(char:GetChildren()) do
+                if obj:IsA("Tool") and obj:FindFirstChild("Cast") and obj:FindFirstChild("Catch") then
+                    local state = obj:GetAttribute("Catch")
+                    if state == nil then state = obj:GetAttribute("IsFishing") end
+                    if state == nil then state = obj:GetAttribute("BaitInWater") end
+                    if state == nil then state = obj:GetAttribute("Cast") end
+                    if typeof(state) == "boolean" and state then
+                        isFishing = true
+                        break
+                    end
+                end
+            end
         end
 
-        local catchSuccess = fireCatchTrueIfAvailable()
-        if not catchSuccess then
-            return false, "Unable to force catch before sell"
+        if isFishing then
+            return false, "Cannot sell while bait is still in water"
         end
-
-        task.wait(0.2)
 
         local shopPart = nil
         local world = workspace:FindFirstChild("World")
 
         if world then
-            for _, mapName in ipairs({"Map_01", "Map_02", "Map_03"}) do
+            for _, mapName in ipairs({ "Map_01", "Map_02", "Map_03" }) do
                 local currentMap = world:FindFirstChild(mapName)
                 if currentMap then
                     local s = currentMap:FindFirstChild("Asset")
@@ -999,6 +951,7 @@ return function(gui, config)
         autoTPEnabled = wasAutoTP
         return success, result or err
     end
+
 
     bind(gui.FishZone.AutoSellBtn.MouseButton1Click, function()
         autoSellEnabled = not autoSellEnabled
@@ -1147,7 +1100,7 @@ return function(gui, config)
     bind(UserInputService.InputChanged, function(i)
         if draggingSlider and i.UserInputType == Enum.UserInputType.MouseMovement then
             local ratio = math.clamp((i.Position.X - gui.Clicker.SliderTrack.AbsolutePosition.X) /
-                                         gui.Clicker.SliderTrack.AbsoluteSize.X, 0, 1)
+                gui.Clicker.SliderTrack.AbsoluteSize.X, 0, 1)
             clickCPS = math.max(1, math.floor(ratio * 100))
             clickDelay = 1 / clickCPS
             gui.Clicker.SliderFill.Size = UDim2.new(ratio, 0, 1, 0)
