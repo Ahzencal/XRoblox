@@ -14,7 +14,7 @@ return function(gui, config)
 
     local AUTO_SELL_INTERVAL = config.AutoSell and config.AutoSell.Interval or 300
     local AUTO_SELL_RARITIES = config.AutoSell and config.AutoSell.Rarities or
-    { "Legend", "Epic", "Rare", "Uncommon", "Common" }
+        { "Legend", "Epic", "Rare", "Uncommon", "Common" }
     local autoSellEnabled = false
     local autoClaimDailyRewardEnabled = false
     local autoClaimSessionRewardEnabled = false
@@ -562,15 +562,15 @@ return function(gui, config)
     local function updateRewardButtons()
         if gui.Settings.AutoClaimDailyRewardBtn then
             gui.Settings.AutoClaimDailyRewardBtn.Text = autoClaimDailyRewardEnabled and "Auto Claim Daily Reward: ON" or
-            "Auto Claim Daily Reward: OFF"
+                "Auto Claim Daily Reward: OFF"
             gui.Settings.AutoClaimDailyRewardBtn.BackgroundColor3 = autoClaimDailyRewardEnabled and THEME.success or
-            THEME.accent
+                THEME.accent
         end
         if gui.Settings.AutoClaimSessionRewardBtn then
             gui.Settings.AutoClaimSessionRewardBtn.Text = autoClaimSessionRewardEnabled and
-            "Auto Claim Session Reward: ON" or "Auto Claim Session Reward: OFF"
+                "Auto Claim Session Reward: ON" or "Auto Claim Session Reward: OFF"
             gui.Settings.AutoClaimSessionRewardBtn.BackgroundColor3 = autoClaimSessionRewardEnabled and THEME.success or
-            THEME.tp
+                THEME.tp
         end
     end
 
@@ -578,7 +578,7 @@ return function(gui, config)
         local x, y = resolvePosition()
         if not x or not y then
             gui.Clicker.PosLbl.Text = "Hover target and press " ..
-            tostring(PICK_KEY):gsub("Enum.KeyCode.", "") .. " first"
+                tostring(PICK_KEY):gsub("Enum.KeyCode.", "") .. " first"
             gui.Clicker.PosLbl.TextColor3 = THEME.warn
             return
         end
@@ -775,12 +775,12 @@ return function(gui, config)
         end
 
         local char = lp.Character
-        local isFishing = false
-        local rodTool = nil
+        local rodTool = nils
+        local baitLandedActive = false
 
         if char then
             for _, obj in ipairs(char:GetChildren()) do
-                if obj:IsA("Tool") and obj:FindFirstChild("Cast") then
+                if obj:IsA("Tool") and (obj:FindFirstChild("Cast") or obj:FindFirstChild("BaitLanded")) then
                     rodTool = obj
                     break
                 end
@@ -788,38 +788,24 @@ return function(gui, config)
         end
 
         if rodTool then
-            local castRemote = rodTool:FindFirstChild("Cast")
-            local baitLandedRemote = rodTool:FindFirstChild("BaitLanded")
+            local baitLandedState = rodTool:GetAttribute("BaitLanded")
+            local baitInWater = rodTool:GetAttribute("BaitInWater")
+            local catchState = rodTool:GetAttribute("Catch")
+            local isFishingAttr = rodTool:GetAttribute("IsFishing")
 
-            local castState = rodTool:GetAttribute("Catch")
-            if castState == nil then castState = rodTool:GetAttribute("IsFishing") end
-            if castState == nil then castState = rodTool:GetAttribute("BaitInWater") end
-            if castState == nil then castState = rodTool:GetAttribute("Cast") end
-
-            if typeof(castState) == "boolean" and castState then
-                isFishing = true
-            end
-
-            if not isFishing and castRemote then
-                if castRemote:IsA("RemoteEvent") or castRemote:IsA("BindableEvent") then
-                    isFishing = true
-                end
-            end
-
-            if not isFishing and baitLandedRemote then
-                local temp = workspace:FindFirstChild("Temp")
-                if temp and #temp:GetChildren() > 0 then
-                    isFishing = true
-                end
-            end
-
-            if not isFishing and not castRemote and not baitLandedRemote then
-                isFishing = false
+            if typeof(baitLandedState) == "boolean" then
+                baitLandedActive = baitLandedState
+            elseif typeof(baitInWater) == "boolean" then
+                baitLandedActive = baitInWater
+            elseif typeof(catchState) == "boolean" then
+                baitLandedActive = catchState
+            elseif typeof(isFishingAttr) == "boolean" then
+                baitLandedActive = isFishingAttr
             end
         end
 
-        if isFishing then
-            return false, "Cannot sell while fishing"
+        if baitLandedActive then
+            return false, "Cannot sell while bait is landed"
         end
 
         local shopPart = nil
@@ -1016,7 +1002,8 @@ return function(gui, config)
     bind(UserInputService.InputChanged, function(i)
         if draggingSlider and i.UserInputType == Enum.UserInputType.MouseMovement then
             local ratio = math.clamp(
-            (i.Position.X - gui.Clicker.SliderTrack.AbsolutePosition.X) / gui.Clicker.SliderTrack.AbsoluteSize.X, 0, 1)
+                (i.Position.X - gui.Clicker.SliderTrack.AbsolutePosition.X) / gui.Clicker.SliderTrack.AbsoluteSize.X, 0,
+                1)
             clickCPS = math.max(1, math.floor(ratio * 100))
             clickDelay = 1 / clickCPS
             gui.Clicker.SliderFill.Size = UDim2.new(ratio, 0, 1, 0)
