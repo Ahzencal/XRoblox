@@ -189,7 +189,7 @@ return function(config)
 		return btn
 	end
 
-	local tabNames = { "Players", "FishZone", "Clicker", "Settings" }
+	local tabNames = { "Players", "FishZone", "FunThings", "Settings" }
 	local TabButtons, Tabs = {}, {}
 	for i, name in ipairs(tabNames) do TabButtons[name] = makeTabButton(name, i) end
 	for i, name in ipairs(tabNames) do
