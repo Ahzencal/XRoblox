@@ -14,7 +14,7 @@ return function(gui, config)
 
     local AUTO_SELL_INTERVAL = config.AutoSell and config.AutoSell.Interval or 300
     local AUTO_SELL_RARITIES = config.AutoSell and config.AutoSell.Rarities or
-        { "Legend", "Epic", "Rare", "Uncommon", "Common" }
+    { "Legend", "Epic", "Rare", "Uncommon", "Common" }
     local autoSellEnabled = false
     local autoClaimDailyRewardEnabled = false
     local autoClaimSessionRewardEnabled = false
@@ -55,9 +55,6 @@ return function(gui, config)
     local connections = {}
     local playerConnections = {}
     local zoneAttributeConnections = {}
-    local rodStateConnections = {}
-    local rodTool = nil
-    local isFishing = false
 
     local THEME = gui.Theme
 
@@ -80,66 +77,6 @@ return function(gui, config)
 
     local function getHum(char)
         return char and char:FindFirstChildOfClass("Humanoid")
-    end
-
-    local function clearRodStateConnections()
-        for _, c in ipairs(rodStateConnections) do
-            pcall(function() c:Disconnect() end)
-        end
-        table.clear(rodStateConnections)
-    end
-
-    local function attachRodState(tool)
-        rodTool = tool
-        clearRodStateConnections()
-        isFishing = false
-
-        local function hookRemote(name, fn)
-            local obj = tool:FindFirstChild(name)
-            if obj and obj:IsA("RemoteEvent") then
-                table.insert(rodStateConnections, obj.OnClientEvent:Connect(fn))
-            end
-        end
-
-        hookRemote("BaitLanded", function(...)
-            isFishing = true
-        end)
-
-        hookRemote("FishingCanceled", function(...)
-            isFishing = false
-        end)
-
-        hookRemote("Catch", function(...)
-            isFishing = false
-        end)
-
-        hookRemote("ToolReady", function(...)
-            if not isFishing then
-                isFishing = false
-            end
-        end)
-
-        table.insert(rodStateConnections, tool.AncestryChanged:Connect(function(_, parent)
-            local char = lp.Character
-            if not parent or not char or not tool:IsDescendantOf(char) then
-                rodTool = nil
-                isFishing = false
-                clearRodStateConnections()
-            end
-        end))
-    end
-
-    local function tryAttachCurrentRod()
-        local char = lp.Character
-        if not char then
-            return
-        end
-        for _, obj in ipairs(char:GetChildren()) do
-            if obj:IsA("Tool") and obj:FindFirstChild("Cast") then
-                attachRodState(obj)
-                return
-            end
-        end
     end
 
     local function resolvePosition()
@@ -337,6 +274,7 @@ return function(gui, config)
 
     local function makeESPForPlayer(player)
         if espObjects[player] then return end
+
         local box = Instance.new("BoxHandleAdornment")
         box.Name = "ESP_Box"
         box.Size = Vector3.new(2, 5, 1)
@@ -595,18 +533,31 @@ return function(gui, config)
         gui.FishZone.AutoTPBtn.BackgroundColor3 = THEME.success
     end
 
-    local SellRemote = nil
-    local DailyRewardRemote = nil
-    local SessionRewardRemote = nil
-
-    task.spawn(function()
-        local rf = ReplicatedStorage:WaitForChild("GameRemoteFunctions", 10)
-        if rf then
-            SellRemote = rf:WaitForChild("SellAllFishFunction", 10)
-            DailyRewardRemote = rf:WaitForChild("CollectDailyRewardFunction", 10)
-            SessionRewardRemote = rf:WaitForChild("CollectSessionRewardFunction", 10)
+    local function updateClickerUI()
+        if clicking then
+            gui.Clicker.StatusLbl.Text = "Status: ON"
+            gui.Clicker.StatusLbl.TextColor3 = THEME.success
+            gui.Clicker.ToggleBtn.Text = "Stop [" .. tostring(TOGGLE_KEY):gsub("Enum.KeyCode.", "") .. "]"
+            gui.Clicker.ToggleBtn.BackgroundColor3 = THEME.danger
+        else
+            gui.Clicker.StatusLbl.Text = "Status: OFF"
+            gui.Clicker.StatusLbl.TextColor3 = THEME.danger
+            gui.Clicker.ToggleBtn.Text = "Start [" .. tostring(TOGGLE_KEY):gsub("Enum.KeyCode.", "") .. "]"
+            gui.Clicker.ToggleBtn.BackgroundColor3 = THEME.accent
         end
-    end)
+
+        gui.Clicker.MethodLbl.Text = useVIM and "Mode: Silent" or "Mode: Fallback"
+        gui.Clicker.MethodLbl.TextColor3 = useVIM and THEME.success or THEME.warn
+
+        local x, y = resolvePosition()
+        if x and y then
+            gui.Clicker.PosLbl.Text = string.format("Target: (%d, %d)", math.floor(x), math.floor(y))
+            gui.Clicker.PosLbl.TextColor3 = THEME.success
+        else
+            gui.Clicker.PosLbl.Text = "Target: Not set (press " .. tostring(PICK_KEY):gsub("Enum.KeyCode.", "") .. ")"
+            gui.Clicker.PosLbl.TextColor3 = THEME.dim
+        end
+    end
 
     local function updateRewardButtons()
         if gui.Settings.AutoClaimDailyRewardBtn then
@@ -619,9 +570,171 @@ return function(gui, config)
             gui.Settings.AutoClaimSessionRewardBtn.Text = autoClaimSessionRewardEnabled and
             "Auto Claim Session Reward: ON" or "Auto Claim Session Reward: OFF"
             gui.Settings.AutoClaimSessionRewardBtn.BackgroundColor3 = autoClaimSessionRewardEnabled and THEME.success or
-            THEME.accent
+            THEME.tp
         end
     end
+
+    local function toggleClicker()
+        local x, y = resolvePosition()
+        if not x or not y then
+            gui.Clicker.PosLbl.Text = "Hover target and press " ..
+            tostring(PICK_KEY):gsub("Enum.KeyCode.", "") .. " first"
+            gui.Clicker.PosLbl.TextColor3 = THEME.warn
+            return
+        end
+        clicking = not clicking
+        updateClickerUI()
+    end
+
+    local function applyTheme()
+        gui.Main.BackgroundColor3 = THEME.bg
+        gui.Header.BackgroundColor3 = THEME.bg2
+        gui.HeaderMask.BackgroundColor3 = THEME.bg2
+        gui.TabsBar.BackgroundColor3 = THEME.panel
+        gui.Content.BackgroundColor3 = THEME.panel
+        gui.DragBar.BackgroundColor3 = THEME.accent
+        gui.Title.TextColor3 = THEME.text
+        gui.Subtitle.TextColor3 = THEME.dim
+        gui.MainStroke.Color = THEME.accent:Lerp(Color3.new(1, 1, 1), 0.75)
+        gui.ContentStroke.Color = THEME.accent:Lerp(Color3.new(0, 0, 0), 0.45)
+        gui.Settings.AccentPreview.BackgroundColor3 = THEME.accent
+        gui.Players.SearchBox.BackgroundColor3 = THEME.panel2
+        gui.Players.SearchBox.TextColor3 = THEME.text
+        gui.Clicker.SliderFill.BackgroundColor3 = THEME.accent
+
+        for name, btn in pairs(gui.TabButtons) do
+            if name == activeTab then
+                btn.BackgroundColor3 = THEME.accent
+                btn.TextColor3 = Color3.new(1, 1, 1)
+            else
+                btn.BackgroundColor3 = THEME.panel2
+                btn.TextColor3 = THEME.dim
+            end
+        end
+
+        for _, obj in pairs(espObjects) do
+            if obj.box then obj.box.Color3 = THEME.accent end
+            if obj.billboard and obj.billboard:FindFirstChildOfClass("TextLabel") then
+                obj.billboard:FindFirstChildOfClass("TextLabel").TextColor3 = THEME.accent
+            end
+        end
+
+        for _, obj in pairs(zoneObjects) do
+            if obj.highlight then
+                obj.highlight.Color3 = THEME.accent
+                obj.highlight.SurfaceColor3 = THEME.accent
+            end
+            if obj.billboard and obj.billboard:FindFirstChildOfClass("TextLabel") then
+                obj.billboard:FindFirstChildOfClass("TextLabel").TextColor3 = THEME.accent
+            end
+        end
+
+        updateClickerUI()
+        updateRewardButtons()
+    end
+
+    local function switchTab(name)
+        activeTab = name
+        for tabName, frame in pairs(gui.Tabs) do
+            frame.Visible = (tabName == name)
+        end
+        applyTheme()
+    end
+
+    local function beginDrag(input)
+        draggingUI = true
+        dragStart = input.Position
+        startPos = gui.Main.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                draggingUI = false
+            end
+        end)
+    end
+
+    local function playCloseAnimation()
+        task.spawn(function()
+            local CloseGui = Instance.new("ScreenGui")
+            CloseGui.Name = "AhzencalClose"
+            CloseGui.ResetOnSpawn = false
+            CloseGui.DisplayOrder = 9999
+            pcall(function() CloseGui.Parent = game:GetService("CoreGui") end)
+            if not CloseGui.Parent then CloseGui.Parent = lp:WaitForChild("PlayerGui") end
+
+            local CloseFrame = Instance.new("Frame")
+            CloseFrame.Size = UDim2.new(0, 390, 0, 470)
+            CloseFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+            CloseFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+            CloseFrame.BackgroundColor3 = Color3.fromRGB(8, 10, 18)
+            CloseFrame.BackgroundTransparency = 1
+            CloseFrame.BorderSizePixel = 0
+            CloseFrame.ClipsDescendants = true
+            CloseFrame.Parent = CloseGui
+            Instance.new("UICorner", CloseFrame).CornerRadius = UDim.new(0, 16)
+            local CloseStroke = Instance.new("UIStroke", CloseFrame)
+            CloseStroke.Color = Color3.fromRGB(0, 180, 255)
+            CloseStroke.Thickness = 1.2
+
+            local CloseText = Instance.new("TextLabel")
+            CloseText.Text = "Unloaded. Stay safe."
+            CloseText.Size = UDim2.new(0, 400, 0, 40)
+            CloseText.AnchorPoint = Vector2.new(0.5, 0.5)
+            CloseText.Position = UDim2.new(0.5, 0, 0.5, 0)
+            CloseText.BackgroundTransparency = 1
+            CloseText.TextColor3 = Color3.fromRGB(0, 210, 255)
+            CloseText.Font = Enum.Font.GothamBold
+            CloseText.TextSize = 24
+            CloseText.TextTransparency = 1
+            CloseText.Parent = CloseFrame
+
+            TweenService:Create(CloseFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart),
+                { BackgroundTransparency = 0.08 }):Play()
+            task.wait(0.15)
+            TweenService:Create(CloseText, TweenInfo.new(0.35, Enum.EasingStyle.Quart), { TextTransparency = 0 }):Play()
+            task.wait(0.8)
+            TweenService:Create(CloseFrame, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
+                { BackgroundTransparency = 1 }):Play()
+            TweenService:Create(CloseText, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
+                { TextTransparency = 1 }):Play()
+            task.wait(0.5)
+            CloseGui:Destroy()
+        end)
+    end
+
+    local function destroyAll()
+        clicking = false
+        destroyed = true
+        autoTPEnabled = false
+        autoSellEnabled = false
+        autoClaimDailyRewardEnabled = false
+        autoClaimSessionRewardEnabled = false
+        _G.__AhzencalESP_Destroy = nil
+        unfreezeCharacter()
+        disconnectList(connections)
+        disconnectList(zoneAttributeConnections)
+        for player in pairs(espObjects) do removeESPForPlayer(player) end
+        for part in pairs(zoneObjects) do removeZoneESP(part) end
+        for player in pairs(beamStates) do stopBeam(player) end
+        for _, list in pairs(playerConnections) do disconnectList(list) end
+        playCloseAnimation()
+        task.wait(0.05)
+        pcall(function() gui.MainGui:Destroy() end)
+    end
+
+    _G.__AhzencalESP_Destroy = destroyAll
+
+    local SellRemote = nil
+    local DailyRewardRemote = nil
+    local SessionRewardRemote = nil
+
+    task.spawn(function()
+        local rf = ReplicatedStorage:WaitForChild("GameRemoteFunctions", 10)
+        if rf then
+            SellRemote = rf:WaitForChild("SellAllFishFunction", 10)
+            DailyRewardRemote = rf:WaitForChild("CollectDailyRewardFunction", 10)
+            SessionRewardRemote = rf:WaitForChild("CollectSessionRewardFunction", 10)
+        end
+    end)
 
     local function claimDailyReward()
         if not DailyRewardRemote then
@@ -661,8 +774,49 @@ return function(gui, config)
             return false, "No HumanoidRootPart found"
         end
 
+        local char = lp.Character
+        local isFishing = false
+        local rodTool = nil
+
+        if char then
+            for _, obj in ipairs(char:GetChildren()) do
+                if obj:IsA("Tool") and obj:FindFirstChild("Cast") then
+                    rodTool = obj
+                    break
+                end
+            end
+        end
+
+        if rodTool then
+            local castRemote = rodTool:FindFirstChild("Cast")
+            local baitLandedRemote = rodTool:FindFirstChild("BaitLanded")
+
+            local castState = rodTool:GetAttribute("Catch")
+            if castState == nil then castState = rodTool:GetAttribute("IsFishing") end
+            if castState == nil then castState = rodTool:GetAttribute("BaitInWater") end
+            if castState == nil then castState = rodTool:GetAttribute("Cast") end
+
+            if typeof(castState) == "boolean" and castState then
+                isFishing = true
+            end
+
+            if not isFishing and castRemote then
+                if castRemote:IsA("RemoteEvent") or castRemote:IsA("BindableEvent") then
+                    isFishing = true
+                end
+            end
+
+            if not isFishing and baitLandedRemote then
+                local temp = workspace:FindFirstChild("Temp")
+                if temp and #temp:GetChildren() > 0 then
+                    isFishing = true
+                end
+            end
+
+        end
+
         if isFishing then
-            return false, "Cannot sell while bait is landed"
+            return false, "Cannot sell while still fishing or bait is still in water"
         end
 
         local shopPart = nil
@@ -716,46 +870,6 @@ return function(gui, config)
         end
         autoTPEnabled = wasAutoTP
         return success, result or err
-    end
-
-    bind(lp.CharacterAdded, function(char)
-        clearRodStateConnections()
-        rodTool = nil
-        isFishing = false
-
-        bind(char.ChildAdded, function(obj)
-            if obj:IsA("Tool") and obj:FindFirstChild("Cast") then
-                attachRodState(obj)
-            end
-        end)
-
-        bind(char.ChildRemoved, function(obj)
-            if obj == rodTool then
-                rodTool = nil
-                isFishing = false
-                clearRodStateConnections()
-            end
-        end)
-
-        task.defer(tryAttachCurrentRod)
-    end)
-
-    if lp.Character then
-        bind(lp.Character.ChildAdded, function(obj)
-            if obj:IsA("Tool") and obj:FindFirstChild("Cast") then
-                attachRodState(obj)
-            end
-        end)
-
-        bind(lp.Character.ChildRemoved, function(obj)
-            if obj == rodTool then
-                rodTool = nil
-                isFishing = false
-                clearRodStateConnections()
-            end
-        end)
-
-        tryAttachCurrentRod()
     end
 
     bind(gui.FishZone.AutoSellBtn.MouseButton1Click, function()
@@ -899,8 +1013,7 @@ return function(gui, config)
     bind(UserInputService.InputChanged, function(i)
         if draggingSlider and i.UserInputType == Enum.UserInputType.MouseMovement then
             local ratio = math.clamp(
-                (i.Position.X - gui.Clicker.SliderTrack.AbsolutePosition.X) / gui.Clicker.SliderTrack.AbsoluteSize.X, 0,
-                1)
+            (i.Position.X - gui.Clicker.SliderTrack.AbsolutePosition.X) / gui.Clicker.SliderTrack.AbsoluteSize.X, 0, 1)
             clickCPS = math.max(1, math.floor(ratio * 100))
             clickDelay = 1 / clickCPS
             gui.Clicker.SliderFill.Size = UDim2.new(ratio, 0, 1, 0)
@@ -909,28 +1022,111 @@ return function(gui, config)
         end
     end)
 
-    local function destroyAll()
-        clicking = false
-        destroyed = true
-        autoTPEnabled = false
-        autoSellEnabled = false
-        clearRodStateConnections()
-        rodTool = nil
-        isFishing = false
-        unfreezeCharacter()
-        disconnectList(connections)
-        disconnectList(zoneAttributeConnections)
-        for player in pairs(espObjects) do removeESPForPlayer(player) end
-        for part in pairs(zoneObjects) do removeZoneESP(part) end
-        for player in pairs(beamStates) do stopBeam(player) end
-        for _, list in pairs(playerConnections) do disconnectList(list) end
-        pcall(function() gui.MainGui:Destroy() end)
-    end
-
     bind(gui.Settings.UnloadBtn.MouseButton1Click, destroyAll)
     bind(gui.CloseBtn.MouseButton1Click, destroyAll)
 
+    bind(gui.MinBtn.MouseButton1Click, function()
+        minimized = not minimized
+        gui.TabsBar.Visible = not minimized
+        gui.Content.Visible = not minimized
+        gui.Main.Size = minimized and UDim2.new(0, 390, 0, 54) or UDim2.new(0, 390, 0, 470)
+        gui.MinBtn.Text = minimized and "▢" or "-"
+    end)
+
+    bind(gui.DragHit.InputBegan, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            beginDrag(input)
+        end
+    end)
+
+    bind(UserInputService.InputChanged, function(input)
+        if draggingUI and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            gui.Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    bind(UserInputService.InputBegan, function(input, gp)
+        if gp or destroyed then return end
+        if input.KeyCode == TOGGLE_KEY then toggleClicker() end
+        if input.KeyCode == PICK_KEY then
+            savedX = mouse.X
+            savedY = mouse.Y
+            updateClickerUI()
+        end
+        if input.KeyCode == HIDE_KEY then
+            hideUI = not hideUI
+            gui.Main.Visible = not hideUI
+        end
+    end)
+
+    for i, btn in ipairs(gui.Settings.ColorButtons) do
+        bind(btn.MouseButton1Click, function()
+            THEME.accent = config.ThemePresets[i]
+            applyTheme()
+            refreshZoneESP()
+            updateRewardButtons()
+        end)
+    end
+
+    for name, btn in pairs(gui.TabButtons) do
+        bind(btn.MouseButton1Click, function()
+            switchTab(name)
+        end)
+    end
+
+    bind(RunService.Heartbeat, function()
+        if destroyed then return end
+
+        if clicking then
+            local now = tick()
+            if now - lastClick >= clickDelay then
+                lastClick = now
+                local x, y = resolvePosition()
+                if x and y then silentClick(x, y) end
+            end
+        end
+
+        if autoTPEnabled then
+            local hrp = getHRP(lp.Character)
+            local insideActive, insidePart = isInsideAnyActiveZone(hrp)
+            local currentStillActive = isActiveZone(currentZone)
+
+            if not currentStillActive then
+                moveToNearestActiveZone()
+            elseif not insideActive then
+                moveToNearestActiveZone()
+            elseif currentZone ~= insidePart then
+                tpToZone(insidePart)
+            elseif frozenAnchor and frozenAnchor.Parent then
+                frozenAnchor.Position = currentZone.Position + Vector3.new(0, currentZone.Size.Y / 2 + FLOAT_HEIGHT, 0)
+            end
+
+            if currentZone and isActiveZone(currentZone) then
+                gui.FishZone.ZoneStatus.Text = "Locked: " .. currentZone.Name .. " [ACTIVE]"
+                gui.FishZone.ZoneStatus.TextColor3 = THEME.success
+            else
+                local nearest = nearestActiveZonePart()
+                gui.FishZone.ZoneStatus.Text = nearest and ("Searching → " .. nearest.Name) or "No active zone"
+                gui.FishZone.ZoneStatus.TextColor3 = nearest and THEME.warn or THEME.danger
+            end
+        else
+            local nearest = nearestActiveZonePart()
+            if nearest then
+                gui.FishZone.ZoneStatus.Text = "Nearest active zone: " .. nearest.Name
+                gui.FishZone.ZoneStatus.TextColor3 = THEME.text
+            else
+                gui.FishZone.ZoneStatus.Text = "No active zone"
+                gui.FishZone.ZoneStatus.TextColor3 = THEME.danger
+            end
+        end
+    end)
+
+    switchTab("Players")
+    updateClickerUI()
     updateRewardButtons()
     refreshPlayerRows()
     refreshZoneESP()
+    applyTheme()
 end
