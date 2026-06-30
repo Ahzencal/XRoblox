@@ -17,7 +17,7 @@ return {
 
     FishZone = {
         Path = workspace:WaitForChild("Main"):WaitForChild("FishingZone"),
-        FloatHeight = 15,
+        FloatHeight = 10,
         BlacklistThreshold = 2,
         BlacklistedPositions = {
             Vector3.new(-198, 16.5000153, -5079),
@@ -50,7 +50,7 @@ return {
     },
 
     AutoSell = {
-        Interval = 300,
+        Interval = 3600,
         Rarities = {
             "Legend",
             "Epic",
