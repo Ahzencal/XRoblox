@@ -18,12 +18,6 @@ return function(gui, config)
     local autoSellEnabled = false
     local autoClaimDailyRewardEnabled = false
     local autoClaimSessionRewardEnabled = false
-    local autoBlindBoxEnabled = false
-    local blindBoxStopOnMythic = true
-    local blindBoxType = "Pet"
-    local blindBoxName = "Dino2026"
-    local blindBoxCount = 10
-    local blindBoxDelay = 1.5
     local TOGGLE_KEY = config.Keys.ToggleClicker
     local HIDE_KEY = config.Keys.HideUI
     local PICK_KEY = config.Keys.PickPosition
@@ -637,7 +631,6 @@ return function(gui, config)
 
         updateClickerUI()
         updateRewardButtons()
-        updateBlindBoxButtons()
     end
 
     local function switchTab(name)
@@ -733,7 +726,6 @@ return function(gui, config)
     local SellRemote = nil
     local DailyRewardRemote = nil
     local SessionRewardRemote = nil
-    local BlindBoxRemote = nil
 
     task.spawn(function()
         local rf = ReplicatedStorage:WaitForChild("GameRemoteFunctions", 10)
@@ -741,7 +733,6 @@ return function(gui, config)
             SellRemote = rf:WaitForChild("SellAllFishFunction", 10)
             DailyRewardRemote = rf:WaitForChild("CollectDailyRewardFunction", 10)
             SessionRewardRemote = rf:WaitForChild("CollectSessionRewardFunction", 10)
-            BlindBoxRemote = rf:WaitForChild("BlindBoxRollFunction", 10)
         end
     end)
 
@@ -775,100 +766,6 @@ return function(gui, config)
             return false, tostring(result)
         end
         return result, "Session reward fired"
-    end
-
-    local function claimSessionReward()
-        if not SessionRewardRemote then
-            return false, "Session reward remote not loaded"
-        end
-        local ok, result = pcall(function()
-            if SessionRewardRemote:IsA("RemoteEvent") then
-                SessionRewardRemote:FireServer()
-                return true
-            elseif SessionRewardRemote:IsA("RemoteFunction") then
-                return SessionRewardRemote:InvokeServer()
-            end
-            return false
-        end)
-        if not ok then
-            return false, tostring(result)
-        end
-        return result, "Session reward fired"
-    end
-
-    local function resultHasMythic(result)
-        local s = string.lower(tostring(result))
-        return s:find("mythic", 1, true) ~= nil
-    end
-
-    local function minimizeBlindBoxAnimation()
-        pcall(function()
-            local pg = lp:FindFirstChild("PlayerGui")
-            if not pg then return end
-            for _, ui in ipairs(pg:GetDescendants()) do
-                if ui:IsA("ScreenGui") or ui:IsA("Frame") then
-                    local n = string.lower(ui.Name)
-                    if n:find("blind", 1, true) or n:find("gacha", 1, true) or n:find("roll", 1, true) or n:find("box", 1, true) then
-                        if ui:IsA("ScreenGui") then
-                            ui.Enabled = false
-                        else
-                            ui.Visible = false
-                        end
-                    end
-                end
-            end
-        end)
-    end
-
-    local function rollBlindBoxOnce(boxType, boxName, amount)
-        if not BlindBoxRemote then
-            return false, "BlindBox remote not loaded"
-        end
-        local ok, result = pcall(function()
-            return BlindBoxRemote:InvokeServer(boxType, boxName, amount)
-        end)
-        task.defer(minimizeBlindBoxAnimation)
-        if not ok then
-            return false, tostring(result)
-        end
-        return true, result
-    end
-
-    local function updateBlindBoxButtons()
-        if gui.Clicker and gui.Clicker.SectionTitle then
-            gui.Clicker.SectionTitle.Text = "Fun Things"
-        end
-        if gui.Clicker and gui.Clicker.AutoBlindBoxBtn then
-            gui.Clicker.AutoBlindBoxBtn.Text = autoBlindBoxEnabled and ("Auto BlindBox: ON [" .. blindBoxName .. "]") or
-            ("Auto BlindBox: OFF [" .. blindBoxName .. "]")
-            gui.Clicker.AutoBlindBoxBtn.BackgroundColor3 = autoBlindBoxEnabled and THEME.success or THEME.tp
-        end
-        if gui.Clicker and gui.Clicker.BlindBoxStatus then
-            gui.Clicker.BlindBoxStatus.Text = "BlindBox: " ..
-            blindBoxType ..
-            " / " ..
-            blindBoxName ..
-            " / x" ..
-            tostring(blindBoxCount) ..
-            " / " .. tostring(blindBoxDelay) .. "s" .. (blindBoxStopOnMythic and " / stop on mythic" or "")
-            gui.Clicker.BlindBoxStatus.TextColor3 = THEME.dim
-        end
-        if gui.Clicker and gui.Clicker.BoxTypeInput then
-            gui.Clicker.BoxTypeInput.Text = tostring(blindBoxType)
-        end
-        if gui.Clicker and gui.Clicker.BoxNameInput then
-            gui.Clicker.BoxNameInput.Text = tostring(blindBoxName)
-        end
-        if gui.Clicker and gui.Clicker.BoxCountInput then
-            gui.Clicker.BoxCountInput.Text = tostring(blindBoxCount)
-        end
-        if gui.Clicker and gui.Clicker.BoxDelayInput then
-            gui.Clicker.BoxDelayInput.Text = tostring(blindBoxDelay)
-        end
-        if gui.Clicker and gui.Clicker.StopOnMythicBtn then
-            gui.Clicker.StopOnMythicBtn.Text = blindBoxStopOnMythic and "Stop On Mythic: ON" or "Stop On Mythic: OFF"
-            gui.Clicker.StopOnMythicBtn.BackgroundColor3 = blindBoxStopOnMythic and THEME.success or THEME.warn
-        end
     end
 
     local function performSell()
@@ -915,10 +812,14 @@ return function(gui, config)
                     isFishing = true
                 end
             end
+
+            if not isFishing and not castRemote and not baitLandedRemote then
+                isFishing = false
+            end
         end
 
         if isFishing then
-            return false, "Cannot sell while still fishing or bait is still in water"
+            return false, "Cannot sell while fishing"
         end
 
         local shopPart = nil
@@ -1043,60 +944,6 @@ return function(gui, config)
                     end
                 end)
             end
-        end)
-    end
-
-    if gui.Clicker.AutoBlindBoxBtn then
-        bind(gui.Clicker.AutoBlindBoxBtn.MouseButton1Click, function()
-            autoBlindBoxEnabled = not autoBlindBoxEnabled
-            updateBlindBoxButtons()
-            if autoBlindBoxEnabled then
-                task.spawn(function()
-                    while autoBlindBoxEnabled and not destroyed do
-                        local success, result = rollBlindBoxOnce(blindBoxType, blindBoxName, blindBoxCount)
-                        if success then
-                            gui.Clicker.BlindBoxStatus.Text = "Last roll: " .. tostring(result)
-                            gui.Clicker.BlindBoxStatus.TextColor3 = THEME.text
-                            if blindBoxStopOnMythic and resultHasMythic(result) then
-                                autoBlindBoxEnabled = false
-                                gui.Clicker.BlindBoxStatus.Text = "Mythic found. Auto BlindBox stopped."
-                                gui.Clicker.BlindBoxStatus.TextColor3 = THEME.success
-                                updateBlindBoxButtons()
-                                break
-                            end
-                        else
-                            gui.Clicker.BlindBoxStatus.Text = "BlindBox failed: " .. tostring(result)
-                            gui.Clicker.BlindBoxStatus.TextColor3 = THEME.danger
-                        end
-                        task.wait(blindBoxDelay)
-                    end
-                end)
-            end
-        end)
-    end
-
-    if gui.Clicker.ApplyBlindBoxBtn then
-        bind(gui.Clicker.ApplyBlindBoxBtn.MouseButton1Click, function()
-            local newType = tostring(gui.Clicker.BoxTypeInput.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
-            local newName = tostring(gui.Clicker.BoxNameInput.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
-            local newCount = tonumber(gui.Clicker.BoxCountInput.Text)
-            local newDelay = tonumber(gui.Clicker.BoxDelayInput.Text)
-
-            if newType ~= "" then blindBoxType = newType end
-            if newName ~= "" then blindBoxName = newName end
-            if newCount and newCount >= 1 then blindBoxCount = math.floor(newCount) end
-            if newDelay and newDelay >= 0.1 then blindBoxDelay = newDelay end
-
-            gui.Clicker.BlindBoxStatus.Text = "BlindBox config updated."
-            gui.Clicker.BlindBoxStatus.TextColor3 = THEME.success
-            updateBlindBoxButtons()
-        end)
-    end
-
-    if gui.Clicker.StopOnMythicBtn then
-        bind(gui.Clicker.StopOnMythicBtn.MouseButton1Click, function()
-            blindBoxStopOnMythic = not blindBoxStopOnMythic
-            updateBlindBoxButtons()
         end)
     end
 
@@ -1282,7 +1129,6 @@ return function(gui, config)
     switchTab("Players")
     updateClickerUI()
     updateRewardButtons()
-    updateBlindBoxButtons()
     refreshPlayerRows()
     refreshZoneESP()
     applyTheme()
