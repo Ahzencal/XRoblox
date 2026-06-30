@@ -1,5 +1,5 @@
 -- FishZone/core.lua
--- Actual function logic, reads from config.lua and gui.lua
+-- Unified latest core logic, keeps rewards + sell + ESP + clicker + FishZone
 return function(gui, config)
     local Players = game:GetService("Players")
     local UserInputService = game:GetService("UserInputService")
@@ -14,7 +14,7 @@ return function(gui, config)
 
     local AUTO_SELL_INTERVAL = config.AutoSell and config.AutoSell.Interval or 300
     local AUTO_SELL_RARITIES = config.AutoSell and config.AutoSell.Rarities or
-        { "Legend", "Epic", "Rare", "Uncommon", "Common" }
+    { "Legend", "Epic", "Rare", "Uncommon", "Common" }
     local autoSellEnabled = false
     local autoClaimDailyRewardEnabled = false
     local autoClaimSessionRewardEnabled = false
@@ -66,9 +66,7 @@ return function(gui, config)
 
     local function disconnectList(list)
         for _, c in ipairs(list) do
-            pcall(function()
-                c:Disconnect()
-            end)
+            pcall(function() c:Disconnect() end)
         end
         table.clear(list)
     end
@@ -130,19 +128,16 @@ return function(gui, config)
     end
 
     local function isInsidePart(hrp, part)
-        if not hrp or not part then
-            return false
-        end
+        if not hrp or not part then return false end
         local rel = part.CFrame:PointToObjectSpace(hrp.Position)
         local half = part.Size / 2
-        return math.abs(rel.X) <= half.X and math.abs(rel.Y) <= half.Y + FLOAT_HEIGHT + 1.5 and math.abs(rel.Z) <=
-            half.Z
+        return math.abs(rel.X) <= half.X
+            and math.abs(rel.Y) <= half.Y + FLOAT_HEIGHT + 1.5
+            and math.abs(rel.Z) <= half.Z
     end
 
     local function isInsideAnyActiveZone(hrp)
-        if not hrp then
-            return false, nil
-        end
+        if not hrp then return false, nil end
         for _, part in ipairs(getActiveZoneParts()) do
             if isInsidePart(hrp, part) then
                 return true, part
@@ -153,9 +148,7 @@ return function(gui, config)
 
     local function nearestActiveZonePart()
         local hrp = getHRP(lp.Character)
-        if not hrp then
-            return nil
-        end
+        if not hrp then return nil end
         local best, bestDist = nil, math.huge
         for _, part in ipairs(getActiveZoneParts()) do
             local d = (hrp.Position - part.Position).Magnitude
@@ -189,37 +182,25 @@ return function(gui, config)
     end
 
     local function unfreezeCharacter()
-        if frozenAnchor and frozenAnchor.Parent then
-            frozenAnchor:Destroy()
-        end
+        if frozenAnchor and frozenAnchor.Parent then frozenAnchor:Destroy() end
         frozenAnchor = nil
-        if frozenGyro and frozenGyro.Parent then
-            frozenGyro:Destroy()
-        end
+        if frozenGyro and frozenGyro.Parent then frozenGyro:Destroy() end
         frozenGyro = nil
         local hum = getHum(lp.Character)
-        if hum then
-            hum.PlatformStand = false
-        end
+        if hum then hum.PlatformStand = false end
     end
 
     local function freezeAt(pos)
         local char = lp.Character
         local hrp = getHRP(char)
         local hum = getHum(char)
-        if not hrp then
-            return
-        end
+        if not hrp then return end
 
         local rotCF = CFrame.new(pos) * CFrame.Angles(0, math.rad(89), 0)
         hrp.CFrame = rotCF
-        if hum then
-            hum.PlatformStand = true
-        end
+        if hum then hum.PlatformStand = true end
 
-        if frozenAnchor and frozenAnchor.Parent then
-            frozenAnchor:Destroy()
-        end
+        if frozenAnchor and frozenAnchor.Parent then frozenAnchor:Destroy() end
         local bp = Instance.new("BodyPosition")
         bp.Name = "AhzencalZoneFreeze"
         bp.Position = pos
@@ -229,9 +210,7 @@ return function(gui, config)
         bp.Parent = hrp
         frozenAnchor = bp
 
-        if frozenGyro and frozenGyro.Parent then
-            frozenGyro:Destroy()
-        end
+        if frozenGyro and frozenGyro.Parent then frozenGyro:Destroy() end
         local bg = Instance.new("BodyGyro")
         bg.Name = "AhzencalZoneGyro"
         bg.CFrame = CFrame.Angles(0, math.rad(89), 0)
@@ -243,9 +222,7 @@ return function(gui, config)
     end
 
     local function tpToZone(part)
-        if not isActiveZone(part) then
-            return false
-        end
+        if not isActiveZone(part) then return false end
         local pos = part.Position + Vector3.new(0, part.Size.Y / 2 + FLOAT_HEIGHT, 0)
         freezeAt(pos)
         currentZone = part
@@ -264,16 +241,12 @@ return function(gui, config)
         pcall(function()
             local defaultEvent = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
             local sayEvent = defaultEvent and defaultEvent:FindFirstChild("SayMessageRequest")
-            if sayEvent then
-                sayEvent:FireServer(msg, "All")
-            end
+            if sayEvent then sayEvent:FireServer(msg, "All") end
         end)
         pcall(function()
             if TextChatService and TextChatService.TextChannels then
                 local channel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
-                if channel then
-                    channel:SendAsync(msg)
-                end
+                if channel then channel:SendAsync(msg) end
             end
         end)
         pcall(function()
@@ -293,22 +266,15 @@ return function(gui, config)
 
     local function removeESPForPlayer(player)
         local obj = espObjects[player]
-        if not obj then
-            return
-        end
-        if obj.billboard then
-            obj.billboard:Destroy()
-        end
-        if obj.box then
-            obj.box:Destroy()
-        end
+        if not obj then return end
+        if obj.billboard then obj.billboard:Destroy() end
+        if obj.box then obj.box:Destroy() end
         espObjects[player] = nil
     end
 
     local function makeESPForPlayer(player)
-        if espObjects[player] then
-            return
-        end
+        if espObjects[player] then return end
+
         local box = Instance.new("BoxHandleAdornment")
         box.Name = "ESP_Box"
         box.Size = Vector3.new(2, 5, 1)
@@ -344,40 +310,25 @@ return function(gui, config)
             end
         end
 
-        if player.Character then
-            attach(player.Character)
-        end
+        if player.Character then attach(player.Character) end
         playerConnections[player] = playerConnections[player] or {}
         table.insert(playerConnections[player], player.CharacterAdded:Connect(attach))
-        espObjects[player] = {
-            box = box,
-            billboard = bb
-        }
+        espObjects[player] = { box = box, billboard = bb }
     end
 
     local function stopBeam(player)
         local state = beamStates[player]
-        if not state then
-            return
-        end
+        if not state then return end
         state.enabled = false
-        if state.beam then
-            state.beam:Destroy()
-        end
-        if state.a0 then
-            state.a0:Destroy()
-        end
-        if state.a1 then
-            state.a1:Destroy()
-        end
+        if state.beam then state.beam:Destroy() end
+        if state.a0 then state.a0:Destroy() end
+        if state.a1 then state.a1:Destroy() end
         beamStates[player] = nil
     end
 
     local function startBeam(player)
         stopBeam(player)
-        local state = {
-            enabled = true
-        }
+        local state = { enabled = true }
         beamStates[player] = state
         task.spawn(function()
             while state.enabled and not destroyed do
@@ -385,19 +336,13 @@ return function(gui, config)
                 local targetHRP = getHRP(player.Character)
                 if myHRP and targetHRP then
                     if state.a0 and state.a0.Parent ~= myHRP then
-                        state.a0:Destroy();
-                        state.a0 = nil
+                        state.a0:Destroy(); state.a0 = nil
                     end
                     if state.a1 and state.a1.Parent ~= targetHRP then
-                        state.a1:Destroy();
-                        state.a1 = nil
+                        state.a1:Destroy(); state.a1 = nil
                     end
-                    if not state.a0 then
-                        state.a0 = Instance.new("Attachment", myHRP)
-                    end
-                    if not state.a1 then
-                        state.a1 = Instance.new("Attachment", targetHRP)
-                    end
+                    if not state.a0 then state.a0 = Instance.new("Attachment", myHRP) end
+                    if not state.a1 then state.a1 = Instance.new("Attachment", targetHRP) end
                     if not state.beam or not state.beam.Parent then
                         local beam = Instance.new("Beam")
                         beam.Attachment0 = state.a0
@@ -417,14 +362,10 @@ return function(gui, config)
     end
 
     local function passesSearch(player)
-        if player == lp then
-            return false
-        end
-        if playerSearchText == "" then
-            return true
-        end
-        return lower(player.Name):find(lower(playerSearchText), 1, true) ~= nil or
-            lower(player.DisplayName):find(lower(playerSearchText), 1, true) ~= nil
+        if player == lp then return false end
+        if playerSearchText == "" then return true end
+        return lower(player.Name):find(lower(playerSearchText), 1, true) ~= nil
+            or lower(player.DisplayName):find(lower(playerSearchText), 1, true) ~= nil
     end
 
     local function refreshPlayerRows()
@@ -434,9 +375,8 @@ return function(gui, config)
     end
 
     local function makePlayerRow(player)
-        if player == lp or playerRows[player] then
-            return
-        end
+        if player == lp or playerRows[player] then return end
+
         local row = Instance.new("Frame")
         row.Size = UDim2.new(1, -8, 0, 38)
         row.BackgroundColor3 = THEME.panel2
@@ -512,35 +452,26 @@ return function(gui, config)
 
     local function removePlayerRow(player)
         if playerRows[player] then
-            playerRows[player]:Destroy();
-            playerRows[player] = nil
+            playerRows[player]:Destroy(); playerRows[player] = nil
         end
         removeESPForPlayer(player)
         stopBeam(player)
         if playerConnections[player] then
-            disconnectList(playerConnections[player]);
-            playerConnections[player] = nil
+            disconnectList(playerConnections[player]); playerConnections[player] = nil
         end
     end
 
     local function removeZoneESP(part)
         local obj = zoneObjects[part]
-        if not obj then
-            return
-        end
-        if obj.highlight then
-            obj.highlight:Destroy()
-        end
-        if obj.billboard then
-            obj.billboard:Destroy()
-        end
+        if not obj then return end
+        if obj.highlight then obj.highlight:Destroy() end
+        if obj.billboard then obj.billboard:Destroy() end
         zoneObjects[part] = nil
     end
 
     local function addZoneESP(part)
-        if zoneObjects[part] or not isActiveZone(part) then
-            return
-        end
+        if zoneObjects[part] or not isActiveZone(part) then return end
+
         local sb = Instance.new("SelectionBox")
         sb.Adornee = part
         sb.Color3 = THEME.accent
@@ -566,10 +497,7 @@ return function(gui, config)
         lbl.TextSize = 13
         lbl.Parent = bb
 
-        zoneObjects[part] = {
-            highlight = sb,
-            billboard = bb
-        }
+        zoneObjects[part] = { highlight = sb, billboard = bb }
     end
 
     local function refreshZoneESP()
@@ -585,7 +513,7 @@ return function(gui, config)
     local function moveToNearestActiveZone()
         local nearest = nearestActiveZonePart()
         if nearest then
-            tpToZone(nearest);
+            tpToZone(nearest)
             return true, nearest
         end
         return false, nil
@@ -631,11 +559,26 @@ return function(gui, config)
         end
     end
 
+    local function updateRewardButtons()
+        if gui.Settings.AutoClaimDailyRewardBtn then
+            gui.Settings.AutoClaimDailyRewardBtn.Text = autoClaimDailyRewardEnabled and "Auto Claim Daily Reward: ON" or
+            "Auto Claim Daily Reward: OFF"
+            gui.Settings.AutoClaimDailyRewardBtn.BackgroundColor3 = autoClaimDailyRewardEnabled and THEME.success or
+            THEME.accent
+        end
+        if gui.Settings.AutoClaimSessionRewardBtn then
+            gui.Settings.AutoClaimSessionRewardBtn.Text = autoClaimSessionRewardEnabled and
+            "Auto Claim Session Reward: ON" or "Auto Claim Session Reward: OFF"
+            gui.Settings.AutoClaimSessionRewardBtn.BackgroundColor3 = autoClaimSessionRewardEnabled and THEME.success or
+            THEME.tp
+        end
+    end
+
     local function toggleClicker()
         local x, y = resolvePosition()
         if not x or not y then
-            gui.Clicker.PosLbl.Text = "Hover target and press " .. tostring(PICK_KEY):gsub("Enum.KeyCode.", "") ..
-                " first"
+            gui.Clicker.PosLbl.Text = "Hover target and press " ..
+            tostring(PICK_KEY):gsub("Enum.KeyCode.", "") .. " first"
             gui.Clicker.PosLbl.TextColor3 = THEME.warn
             return
         end
@@ -658,14 +601,7 @@ return function(gui, config)
         gui.Players.SearchBox.BackgroundColor3 = THEME.panel2
         gui.Players.SearchBox.TextColor3 = THEME.text
         gui.Clicker.SliderFill.BackgroundColor3 = THEME.accent
-        if gui.Settings.AutoClaimDailyRewardBtn then
-            gui.Settings.AutoClaimDailyRewardBtn.BackgroundColor3 =
-                autoClaimDailyRewardEnabled and THEME.success or THEME.accent
-        end
-        if gui.Settings.AutoClaimSessionRewardBtn then
-            gui.Settings.AutoClaimSessionRewardBtn.BackgroundColor3 =
-                autoClaimSessionRewardEnabled and THEME.success or THEME.tp
-        end
+
         for name, btn in pairs(gui.TabButtons) do
             if name == activeTab then
                 btn.BackgroundColor3 = THEME.accent
@@ -675,14 +611,14 @@ return function(gui, config)
                 btn.TextColor3 = THEME.dim
             end
         end
+
         for _, obj in pairs(espObjects) do
-            if obj.box then
-                obj.box.Color3 = THEME.accent
-            end
+            if obj.box then obj.box.Color3 = THEME.accent end
             if obj.billboard and obj.billboard:FindFirstChildOfClass("TextLabel") then
                 obj.billboard:FindFirstChildOfClass("TextLabel").TextColor3 = THEME.accent
             end
         end
+
         for _, obj in pairs(zoneObjects) do
             if obj.highlight then
                 obj.highlight.Color3 = THEME.accent
@@ -692,7 +628,9 @@ return function(gui, config)
                 obj.billboard:FindFirstChildOfClass("TextLabel").TextColor3 = THEME.accent
             end
         end
+
         updateClickerUI()
+        updateRewardButtons()
     end
 
     local function switchTab(name)
@@ -720,12 +658,8 @@ return function(gui, config)
             CloseGui.Name = "AhzencalClose"
             CloseGui.ResetOnSpawn = false
             CloseGui.DisplayOrder = 9999
-            pcall(function()
-                CloseGui.Parent = game:GetService("CoreGui")
-            end)
-            if not CloseGui.Parent then
-                CloseGui.Parent = lp:WaitForChild("PlayerGui")
-            end
+            pcall(function() CloseGui.Parent = game:GetService("CoreGui") end)
+            if not CloseGui.Parent then CloseGui.Parent = lp:WaitForChild("PlayerGui") end
 
             local CloseFrame = Instance.new("Frame")
             CloseFrame.Size = UDim2.new(0, 390, 0, 470)
@@ -753,20 +687,15 @@ return function(gui, config)
             CloseText.TextTransparency = 1
             CloseText.Parent = CloseFrame
 
-            TweenService:Create(CloseFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart), {
-                BackgroundTransparency = 0.08
-            }):Play()
+            TweenService:Create(CloseFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart),
+                { BackgroundTransparency = 0.08 }):Play()
             task.wait(0.15)
-            TweenService:Create(CloseText, TweenInfo.new(0.35, Enum.EasingStyle.Quart), {
-                TextTransparency = 0
-            }):Play()
+            TweenService:Create(CloseText, TweenInfo.new(0.35, Enum.EasingStyle.Quart), { TextTransparency = 0 }):Play()
             task.wait(0.8)
-            TweenService:Create(CloseFrame, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
-                BackgroundTransparency = 1
-            }):Play()
-            TweenService:Create(CloseText, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
-                TextTransparency = 1
-            }):Play()
+            TweenService:Create(CloseFrame, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
+                { BackgroundTransparency = 1 }):Play()
+            TweenService:Create(CloseText, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
+                { TextTransparency = 1 }):Play()
             task.wait(0.5)
             CloseGui:Destroy()
         end)
@@ -783,23 +712,13 @@ return function(gui, config)
         unfreezeCharacter()
         disconnectList(connections)
         disconnectList(zoneAttributeConnections)
-        for player in pairs(espObjects) do
-            removeESPForPlayer(player)
-        end
-        for part in pairs(zoneObjects) do
-            removeZoneESP(part)
-        end
-        for player in pairs(beamStates) do
-            stopBeam(player)
-        end
-        for _, list in pairs(playerConnections) do
-            disconnectList(list)
-        end
+        for player in pairs(espObjects) do removeESPForPlayer(player) end
+        for part in pairs(zoneObjects) do removeZoneESP(part) end
+        for player in pairs(beamStates) do stopBeam(player) end
+        for _, list in pairs(playerConnections) do disconnectList(list) end
         playCloseAnimation()
         task.wait(0.05)
-        pcall(function()
-            gui.MainGui:Destroy()
-        end)
+        pcall(function() gui.MainGui:Destroy() end)
     end
 
     _G.__AhzencalESP_Destroy = destroyAll
@@ -807,6 +726,7 @@ return function(gui, config)
     local SellRemote = nil
     local DailyRewardRemote = nil
     local SessionRewardRemote = nil
+
     task.spawn(function()
         local rf = ReplicatedStorage:WaitForChild("GameRemoteFunctions", 10)
         if rf then
@@ -848,24 +768,6 @@ return function(gui, config)
         return result, "Session reward fired"
     end
 
-    local function updateRewardButtons()
-        if gui.Settings.AutoClaimDailyRewardBtn then
-            gui.Settings.AutoClaimDailyRewardBtn.Text = autoClaimDailyRewardEnabled and "Auto Claim Daily Reward: ON" or
-                "Auto Claim Daily Reward: OFF"
-            gui.Settings.AutoClaimDailyRewardBtn.BackgroundColor3 =
-                autoClaimDailyRewardEnabled and THEME.success or THEME.accent
-        end
-        if gui.Settings.AutoClaimSessionRewardBtn then
-            gui.Settings.AutoClaimSessionRewardBtn.Text = autoClaimSessionRewardEnabled and
-                "Auto Claim Session Reward: ON" or
-                "Auto Claim Session Reward: OFF"
-            gui.Settings.AutoClaimSessionRewardBtn.BackgroundColor3 =
-                autoClaimSessionRewardEnabled and THEME.success or THEME.tp
-        end
-    end
-
-
-
     local function performSell()
         local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
         if not hrp then
@@ -874,39 +776,57 @@ return function(gui, config)
 
         local char = lp.Character
         local isFishing = false
+        local rodTool = nil
+
         if char then
             for _, obj in ipairs(char:GetChildren()) do
-                if obj:IsA("Tool") and obj:FindFirstChild("Cast") and obj:FindFirstChild("Catch") then
-                    local state = obj:GetAttribute("Catch")
-                    if state == nil then state = obj:GetAttribute("IsFishing") end
-                    if state == nil then state = obj:GetAttribute("BaitInWater") end
-                    if state == nil then state = obj:GetAttribute("Cast") end
-                    if typeof(state) == "boolean" and state then
-                        isFishing = true
-                        break
-                    end
+                if obj:IsA("Tool") and obj:FindFirstChild("Cast") then
+                    rodTool = obj
+                    break
+                end
+            end
+        end
+
+        if rodTool then
+            local castRemote = rodTool:FindFirstChild("Cast")
+            local baitLandedRemote = rodTool:FindFirstChild("BaitLanded")
+
+            local castState = rodTool:GetAttribute("Catch")
+            if castState == nil then castState = rodTool:GetAttribute("IsFishing") end
+            if castState == nil then castState = rodTool:GetAttribute("BaitInWater") end
+            if castState == nil then castState = rodTool:GetAttribute("Cast") end
+
+            if typeof(castState) == "boolean" and castState then
+                isFishing = true
+            end
+
+            if not isFishing and castRemote then
+                if castRemote:IsA("RemoteEvent") or castRemote:IsA("BindableEvent") then
+                    isFishing = true
+                end
+            end
+
+            if not isFishing and baitLandedRemote then
+                local temp = workspace:FindFirstChild("Temp")
+                if temp and #temp:GetChildren() > 0 then
+                    isFishing = true
                 end
             end
         end
 
         if isFishing then
-            return false, "Cannot sell while bait is still in water"
+            return false, "Cannot sell while still fishing or bait is still in water"
         end
 
         local shopPart = nil
         local world = workspace:FindFirstChild("World")
-
         if world then
             for _, mapName in ipairs({ "Map_01", "Map_02", "Map_03" }) do
                 local currentMap = world:FindFirstChild(mapName)
                 if currentMap then
                     local s = currentMap:FindFirstChild("Asset")
-                    if s then
-                        s = s:FindFirstChild("ShopNPC")
-                    end
-                    if s then
-                        s = s:FindFirstChild("FishShop")
-                    end
+                    if s then s = s:FindFirstChild("ShopNPC") end
+                    if s then s = s:FindFirstChild("FishShop") end
                     if s then
                         shopPart = s
                         break
@@ -947,11 +867,9 @@ return function(gui, config)
         if frozenAnchor and frozenAnchor.Parent and oldAnchorPos then
             frozenAnchor.Position = oldAnchorPos
         end
-
         autoTPEnabled = wasAutoTP
         return success, result or err
     end
-
 
     bind(gui.FishZone.AutoSellBtn.MouseButton1Click, function()
         autoSellEnabled = not autoSellEnabled
@@ -1030,9 +948,7 @@ return function(gui, config)
         refreshPlayerRows()
     end)
 
-    for _, p in ipairs(Players:GetPlayers()) do
-        makePlayerRow(p)
-    end
+    for _, p in ipairs(Players:GetPlayers()) do makePlayerRow(p) end
     bind(Players.PlayerAdded, makePlayerRow)
     bind(Players.PlayerRemoving, removePlayerRow)
 
@@ -1086,21 +1002,17 @@ return function(gui, config)
     bind(gui.Clicker.ToggleBtn.MouseButton1Click, toggleClicker)
 
     bind(gui.Clicker.SliderKnob.InputBegan, function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then
-            draggingSlider = true
-        end
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then draggingSlider = true end
     end)
 
     bind(UserInputService.InputEnded, function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then
-            draggingSlider = false
-        end
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then draggingSlider = false end
     end)
 
     bind(UserInputService.InputChanged, function(i)
         if draggingSlider and i.UserInputType == Enum.UserInputType.MouseMovement then
-            local ratio = math.clamp((i.Position.X - gui.Clicker.SliderTrack.AbsolutePosition.X) /
-                gui.Clicker.SliderTrack.AbsoluteSize.X, 0, 1)
+            local ratio = math.clamp(
+            (i.Position.X - gui.Clicker.SliderTrack.AbsolutePosition.X) / gui.Clicker.SliderTrack.AbsoluteSize.X, 0, 1)
             clickCPS = math.max(1, math.floor(ratio * 100))
             clickDelay = 1 / clickCPS
             gui.Clicker.SliderFill.Size = UDim2.new(ratio, 0, 1, 0)
@@ -1127,8 +1039,7 @@ return function(gui, config)
     end)
 
     bind(UserInputService.InputChanged, function(input)
-        if draggingUI and
-            (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        if draggingUI and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
             gui.Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale,
                 startPos.Y.Offset + delta.Y)
@@ -1136,12 +1047,8 @@ return function(gui, config)
     end)
 
     bind(UserInputService.InputBegan, function(input, gp)
-        if gp or destroyed then
-            return
-        end
-        if input.KeyCode == TOGGLE_KEY then
-            toggleClicker()
-        end
+        if gp or destroyed then return end
+        if input.KeyCode == TOGGLE_KEY then toggleClicker() end
         if input.KeyCode == PICK_KEY then
             savedX = mouse.X
             savedY = mouse.Y
@@ -1169,18 +1076,14 @@ return function(gui, config)
     end
 
     bind(RunService.Heartbeat, function()
-        if destroyed then
-            return
-        end
+        if destroyed then return end
 
         if clicking then
             local now = tick()
             if now - lastClick >= clickDelay then
                 lastClick = now
                 local x, y = resolvePosition()
-                if x and y then
-                    silentClick(x, y)
-                end
+                if x and y then silentClick(x, y) end
             end
         end
 
@@ -1188,6 +1091,7 @@ return function(gui, config)
             local hrp = getHRP(lp.Character)
             local insideActive, insidePart = isInsideAnyActiveZone(hrp)
             local currentStillActive = isActiveZone(currentZone)
+
             if not currentStillActive then
                 moveToNearestActiveZone()
             elseif not insideActive then
