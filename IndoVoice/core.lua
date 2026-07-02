@@ -764,24 +764,23 @@ return function(gui, config)
     end
 
     local function claimSessionReward()
-        if not SessionRewardRemote then
-            return false, "Session reward remote not loaded"
-        end
         local claimed = 0
         for slot = 1, 12 do
             local ok, result = pcall(function()
-                return SessionRewardRemote:InvokeServer(slot)
+                return game:GetService("ReplicatedStorage").GameRemoteFunctions.CollectSessionRewardFunctionEvent:InvokeServer(slot)
             end)
-            if ok and result then
+            if ok then
                 claimed = claimed + 1
-                print("[IndoVoice] Session reward slot " .. slot .. " claimed")
+                print("[IndoVoice] Session reward slot " .. slot .. " claimed:", result) 
+            else
+                print("[IndoVoice] Session reward slot " .. slot .. " failed:", result)
             end
-            task.wait(0.5)
+            task.wait(1)
         end
         if claimed > 0 then
-            return true, "Claimed " .. claimed .. " session reward(s)"
+            return true, "Attempted " .. claimed .. " session reward(s)"
         end
-        return false, "No claimable session rewards"
+        return false, "No session rewards claimed bruh"
     end
 
     local function performSell()

@@ -446,7 +446,7 @@ return function(config)
     local AutoTPBtn = makeActionButton(Tabs.FishZone, "Auto TP Active FishZone: OFF", 48, LYRA.tp)
     local RefreshCharBtn = makeActionButton(Tabs.FishZone, "Refresh Character", 86, LYRA.danger)
     local AutoSellBtn = makeActionButton(Tabs.FishZone, "Auto Sell Fish: OFF", 124, LYRA.warn)
-    local SellNowBtn = makeActionButton(Tabs.FishZone, "Sell All Now (Test)", 162, LYRA.accent)
+    local SellNowBtn = makeActionButton(Tabs.FishZone, "Sell All Now", 162, LYRA.accent)
 
     local ZoneStatus = Instance.new("TextLabel")
     ZoneStatus.Size = UDim2.new(1, -20, 0, 20)
