@@ -48,13 +48,13 @@ return function(config)
     if not LoadGui.Parent then LoadGui.Parent = lp:WaitForChild("PlayerGui") end
 
     local LoadBG = Instance.new("Frame")
-    LoadBG.Size = UDim2.new(0, 420, 0, 260)
+    LoadBG.Size = UDim2.new(0, 620, 0, 420)
     LoadBG.AnchorPoint = Vector2.new(0.5, 0.5)
     LoadBG.Position = UDim2.new(0.5, 0, 0.5, 0)
     LoadBG.BackgroundColor3 = LYRA.bg
     LoadBG.BorderSizePixel = 0
     LoadBG.Parent = LoadGui
-    Instance.new("UICorner", LoadBG).CornerRadius = UDim.new(0, 14)
+    Instance.new("UICorner", LoadBG).CornerRadius = UDim.new(0, 12)
     local LoadStroke = Instance.new("UIStroke", LoadBG)
     LoadStroke.Color = LYRA.accent
     LoadStroke.Thickness = 1.5
@@ -62,7 +62,7 @@ return function(config)
     local LoadTitle = Instance.new("TextLabel")
     LoadTitle.Text = "LYRA HUB"
     LoadTitle.Size = UDim2.new(1, 0, 0, 44)
-    LoadTitle.Position = UDim2.new(0, 0, 0, 40)
+    LoadTitle.Position = UDim2.new(0, 0, 0, 120)
     LoadTitle.BackgroundTransparency = 1
     LoadTitle.TextColor3 = LYRA.accentGlow
     LoadTitle.Font = Enum.Font.GothamBold
@@ -73,7 +73,7 @@ return function(config)
     local LoadQuote = Instance.new("TextLabel")
     LoadQuote.Text = "Precision tools for the bold"
     LoadQuote.Size = UDim2.new(1, 0, 0, 24)
-    LoadQuote.Position = UDim2.new(0, 0, 0, 88)
+    LoadQuote.Position = UDim2.new(0, 0, 0, 170)
     LoadQuote.BackgroundTransparency = 1
     LoadQuote.TextColor3 = LYRA.dim
     LoadQuote.Font = Enum.Font.Gotham
@@ -82,9 +82,9 @@ return function(config)
     LoadQuote.Parent = LoadBG
 
     local BarTrack = Instance.new("Frame")
-    BarTrack.Size = UDim2.new(0, 300, 0, 4)
+    BarTrack.Size = UDim2.new(0, 360, 0, 4)
     BarTrack.AnchorPoint = Vector2.new(0.5, 0)
-    BarTrack.Position = UDim2.new(0.5, 0, 0, 140)
+    BarTrack.Position = UDim2.new(0.5, 0, 0, 230)
     BarTrack.BackgroundColor3 = LYRA.panel2
     BarTrack.BorderSizePixel = 0
     BarTrack.Parent = LoadBG
@@ -100,7 +100,7 @@ return function(config)
     local LoadStatus = Instance.new("TextLabel")
     LoadStatus.Text = "Initializing..."
     LoadStatus.Size = UDim2.new(1, 0, 0, 20)
-    LoadStatus.Position = UDim2.new(0, 0, 0, 155)
+    LoadStatus.Position = UDim2.new(0, 0, 0, 248)
     LoadStatus.BackgroundTransparency = 1
     LoadStatus.TextColor3 = LYRA.dim
     LoadStatus.Font = Enum.Font.Gotham
@@ -254,6 +254,24 @@ return function(config)
     DragHit.BackgroundTransparency = 1
     DragHit.Parent = Main
     DragHit.InputBegan:Connect(beginDrag)
+
+    -- Minimized orb (circular "L" button, hidden by default)
+    local MinimizedOrb = Instance.new("TextButton")
+    MinimizedOrb.Size = UDim2.new(0, 44, 0, 44)
+    MinimizedOrb.Position = UDim2.new(0, 20, 0, 20)
+    MinimizedOrb.AnchorPoint = Vector2.new(0, 0)
+    MinimizedOrb.BackgroundColor3 = LYRA.accent
+    MinimizedOrb.Text = "L"
+    MinimizedOrb.TextColor3 = Color3.new(1, 1, 1)
+    MinimizedOrb.Font = Enum.Font.GothamBold
+    MinimizedOrb.TextSize = 18
+    MinimizedOrb.BorderSizePixel = 0
+    MinimizedOrb.Visible = false
+    MinimizedOrb.Parent = ScreenGui
+    Instance.new("UICorner", MinimizedOrb).CornerRadius = UDim.new(1, 0)
+    local OrbStroke = Instance.new("UIStroke", MinimizedOrb)
+    OrbStroke.Color = LYRA.accentGlow
+    OrbStroke.Thickness = 1.5
 
     -- ═══════════════════════════════════════════
     -- SIDEBAR (wider: 130px)
@@ -544,10 +562,11 @@ return function(config)
     local UnloadBtn = makeActionButton(Tabs.Settings, "Unload Script", 40, LYRA.danger)
     local AutoClaimDailyRewardBtn = makeActionButton(Tabs.Settings, "Auto Claim Daily Reward: OFF", 80, LYRA.accent)
     local AutoClaimSessionRewardBtn = makeActionButton(Tabs.Settings, "Auto Claim Session Reward: OFF", 120, LYRA.tp)
+    local AntiIdleBtn = makeActionButton(Tabs.Settings, "Anti Idle: OFF", 160, LYRA.warn)
 
     local ColorTitle = Instance.new("TextLabel")
     ColorTitle.Size = UDim2.new(1, -20, 0, 20)
-    ColorTitle.Position = UDim2.new(0, 10, 0, 166)
+    ColorTitle.Position = UDim2.new(0, 10, 0, 206)
     ColorTitle.BackgroundTransparency = 1
     ColorTitle.Text = "Accent Color"
     ColorTitle.TextColor3 = LYRA.text
@@ -558,7 +577,7 @@ return function(config)
 
     local AccentPreview = Instance.new("Frame")
     AccentPreview.Size = UDim2.new(0, 22, 0, 22)
-    AccentPreview.Position = UDim2.new(1, -36, 0, 164)
+    AccentPreview.Position = UDim2.new(1, -36, 0, 204)
     AccentPreview.BackgroundColor3 = LYRA.accent
     AccentPreview.BorderSizePixel = 0
     AccentPreview.Parent = Tabs.Settings
@@ -569,7 +588,7 @@ return function(config)
         local sw = Instance.new("TextButton")
         sw.Text = ""
         sw.Size = UDim2.new(0, 28, 0, 28)
-        sw.Position = UDim2.new(0, 10 + ((i - 1) % 5) * 36, 0, 194 + math.floor((i - 1) / 5) * 36)
+        sw.Position = UDim2.new(0, 10 + ((i - 1) % 5) * 36, 0, 234 + math.floor((i - 1) / 5) * 36)
         sw.BackgroundColor3 = color
         sw.BorderSizePixel = 0
         sw.Parent = Tabs.Settings
@@ -605,6 +624,7 @@ return function(config)
         TabsBar = TabsBar,
         DragBar = DragBar,
         DragHit = DragHit,
+        MinimizedOrb = MinimizedOrb,
         Title = Title,
         Subtitle = Subtitle,
         MinBtn = MinBtn,
@@ -640,6 +660,7 @@ return function(config)
             UnloadBtn = UnloadBtn,
             AutoClaimDailyRewardBtn = AutoClaimDailyRewardBtn,
             AutoClaimSessionRewardBtn = AutoClaimSessionRewardBtn,
+            AntiIdleBtn = AntiIdleBtn,
             ColorTitle = ColorTitle,
             AccentPreview = AccentPreview,
             ColorButtons = ColorButtons,

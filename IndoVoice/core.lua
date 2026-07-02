@@ -18,6 +18,8 @@ return function(gui, config)
     local autoSellEnabled = false
     local autoClaimDailyRewardEnabled = false
     local autoClaimSessionRewardEnabled = false
+    local antiIdleEnabled = false
+    local antiIdleConnections = {}
     local TOGGLE_KEY = config.Keys.ToggleClicker
     local HIDE_KEY = config.Keys.HideUI
     local PICK_KEY = config.Keys.PickPosition
@@ -386,33 +388,36 @@ return function(gui, config)
 
         local name = Instance.new("TextLabel")
         name.Text = player.Name
-        name.Size = UDim2.new(0, 104, 1, 0)
+        name.Size = UDim2.new(0, 140, 1, 0)
         name.Position = UDim2.new(0, 10, 0, 0)
         name.BackgroundTransparency = 1
         name.TextColor3 = THEME.text
         name.TextXAlignment = Enum.TextXAlignment.Left
         name.Font = Enum.Font.GothamBold
         name.TextSize = 12
+        name.TextTruncate = Enum.TextTruncate.AtEnd
         name.Parent = row
 
-        local function miniBtn(txt, x, color)
+        -- Buttons positioned from the RIGHT side
+        local function miniBtn(txt, offsetFromRight, color)
             local b = Instance.new("TextButton")
             b.Text = txt
-            b.Size = UDim2.new(0, 54, 0, 24)
-            b.Position = UDim2.new(0, x, 0.5, -12)
+            b.Size = UDim2.new(0, 50, 0, 24)
+            b.Position = UDim2.new(1, -offsetFromRight, 0.5, -12)
             b.BackgroundColor3 = color
             b.TextColor3 = Color3.new(1, 1, 1)
             b.Font = Enum.Font.GothamBold
-            b.TextSize = 11
+            b.TextSize = 10
             b.BorderSizePixel = 0
             b.Parent = row
             Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
             return b
         end
 
-        local espBtn = miniBtn("ESP", 118, THEME.accent)
-        local tpBtn = miniBtn("TP", 176, THEME.tp)
-        local beamBtn = miniBtn("Beam", 234, THEME.beam)
+        local inspectBtn = miniBtn("View", 56, THEME.dim)
+        local beamBtn = miniBtn("Beam", 112, THEME.beam)
+        local tpBtn = miniBtn("TP", 168, THEME.tp)
+        local espBtn = miniBtn("ESP", 224, THEME.accent)
         local espOn = false
         local beamOn = false
 
@@ -444,6 +449,13 @@ return function(gui, config)
                 beamBtn.Text = "Beam"
                 beamBtn.BackgroundColor3 = THEME.beam
             end
+        end)
+
+        bind(inspectBtn.MouseButton1Click, function()
+            -- Open avatar inspect menu for this player
+            pcall(function()
+                game:GetService("GuiService"):InspectPlayerFromUserId(player.UserId)
+            end)
         end)
 
         playerRows[player] = row
@@ -655,25 +667,25 @@ return function(gui, config)
     local function playCloseAnimation()
         task.spawn(function()
             local CloseGui = Instance.new("ScreenGui")
-            CloseGui.Name = "AhzencalClose"
+            CloseGui.Name = "LyraHubClose"
             CloseGui.ResetOnSpawn = false
             CloseGui.DisplayOrder = 9999
             pcall(function() CloseGui.Parent = game:GetService("CoreGui") end)
             if not CloseGui.Parent then CloseGui.Parent = lp:WaitForChild("PlayerGui") end
 
             local CloseFrame = Instance.new("Frame")
-            CloseFrame.Size = UDim2.new(0, 390, 0, 470)
+            CloseFrame.Size = UDim2.new(0, 620, 0, 420)
             CloseFrame.AnchorPoint = Vector2.new(0.5, 0.5)
             CloseFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-            CloseFrame.BackgroundColor3 = Color3.fromRGB(8, 10, 18)
+            CloseFrame.BackgroundColor3 = Color3.fromRGB(12, 10, 20)
             CloseFrame.BackgroundTransparency = 1
             CloseFrame.BorderSizePixel = 0
             CloseFrame.ClipsDescendants = true
             CloseFrame.Parent = CloseGui
-            Instance.new("UICorner", CloseFrame).CornerRadius = UDim.new(0, 16)
+            Instance.new("UICorner", CloseFrame).CornerRadius = UDim.new(0, 12)
             local CloseStroke = Instance.new("UIStroke", CloseFrame)
-            CloseStroke.Color = Color3.fromRGB(0, 180, 255)
-            CloseStroke.Thickness = 1.2
+            CloseStroke.Color = Color3.fromRGB(110, 60, 200)
+            CloseStroke.Thickness = 1
 
             local CloseText = Instance.new("TextLabel")
             CloseText.Text = "Unloaded. Stay safe."
@@ -681,7 +693,7 @@ return function(gui, config)
             CloseText.AnchorPoint = Vector2.new(0.5, 0.5)
             CloseText.Position = UDim2.new(0.5, 0, 0.5, 0)
             CloseText.BackgroundTransparency = 1
-            CloseText.TextColor3 = Color3.fromRGB(0, 210, 255)
+            CloseText.TextColor3 = Color3.fromRGB(180, 130, 255)
             CloseText.Font = Enum.Font.GothamBold
             CloseText.TextSize = 24
             CloseText.TextTransparency = 1
@@ -708,10 +720,12 @@ return function(gui, config)
         autoSellEnabled = false
         autoClaimDailyRewardEnabled = false
         autoClaimSessionRewardEnabled = false
+        antiIdleEnabled = false
         _G.__AhzencalESP_Destroy = nil
         unfreezeCharacter()
         disconnectList(connections)
         disconnectList(zoneAttributeConnections)
+        disconnectList(antiIdleConnections)
         for player in pairs(espObjects) do removeESPForPlayer(player) end
         for part in pairs(zoneObjects) do removeZoneESP(part) end
         for player in pairs(beamStates) do stopBeam(player) end
@@ -732,7 +746,7 @@ return function(gui, config)
         if rf then
             SellRemote = rf:WaitForChild("SellAllFishFunction", 10)
             DailyRewardRemote = rf:WaitForChild("CollectDailyRewardFunction", 10)
-            SessionRewardRemote = rf:WaitForChild("CollectSessionRewardFunction", 10)
+            SessionRewardRemote = rf:WaitForChild("CollectSessionRewardFunctionEvent", 10)
         end
     end)
 
@@ -753,19 +767,21 @@ return function(gui, config)
         if not SessionRewardRemote then
             return false, "Session reward remote not loaded"
         end
-        local ok, result = pcall(function()
-            if SessionRewardRemote:IsA("RemoteEvent") then
-                SessionRewardRemote:FireServer()
-                return true
-            elseif SessionRewardRemote:IsA("RemoteFunction") then
-                return SessionRewardRemote:InvokeServer()
+        local claimed = 0
+        for slot = 1, 12 do
+            local ok, result = pcall(function()
+                return SessionRewardRemote:InvokeServer(slot)
+            end)
+            if ok and result then
+                claimed = claimed + 1
+                print("[IndoVoice] Session reward slot " .. slot .. " claimed")
             end
-            return false
-        end)
-        if not ok then
-            return false, tostring(result)
+            task.wait(0.5)
         end
-        return result, "Session reward fired"
+        if claimed > 0 then
+            return true, "Claimed " .. claimed .. " session reward(s)"
+        end
+        return false, "No claimable session rewards"
     end
 
     local function performSell()
@@ -925,6 +941,56 @@ return function(gui, config)
         end)
     end
 
+    -- Anti Idle
+    local function enableAntiIdle()
+        antiIdleEnabled = true
+        local VirtualUser = game:GetService("VirtualUser")
+        -- Method 1: disconnect Idled connections (getconnections exploit)
+        local success = pcall(function()
+            if getconnections then
+                for _, connection in pairs(getconnections(lp.Idled)) do
+                    if connection["Disable"] then
+                        connection["Disable"](connection)
+                    elseif connection["Disconnect"] then
+                        connection["Disconnect"](connection)
+                    end
+                end
+            end
+        end)
+        -- Method 2: fallback - reconnect Idled to VirtualUser click
+        if not success then
+            local c = lp.Idled:Connect(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new())
+            end)
+            table.insert(antiIdleConnections, c)
+        end
+        gui.Settings.AntiIdleBtn.Text = "Anti Idle: ON"
+        gui.Settings.AntiIdleBtn.BackgroundColor3 = THEME.success
+        print("[IndoVoice] Anti idle enabled")
+    end
+
+    local function disableAntiIdle()
+        antiIdleEnabled = false
+        for _, c in ipairs(antiIdleConnections) do
+            pcall(function() c:Disconnect() end)
+        end
+        table.clear(antiIdleConnections)
+        gui.Settings.AntiIdleBtn.Text = "Anti Idle: OFF"
+        gui.Settings.AntiIdleBtn.BackgroundColor3 = THEME.warn
+        print("[IndoVoice] Anti idle disabled")
+    end
+
+    if gui.Settings.AntiIdleBtn then
+        bind(gui.Settings.AntiIdleBtn.MouseButton1Click, function()
+            if antiIdleEnabled then
+                disableAntiIdle()
+            else
+                enableAntiIdle()
+            end
+        end)
+    end
+
     bind(gui.Players.SearchBox:GetPropertyChangedSignal("Text"), function()
         playerSearchText = gui.Players.SearchBox.Text
         refreshPlayerRows()
@@ -1007,11 +1073,15 @@ return function(gui, config)
     bind(gui.CloseBtn.MouseButton1Click, destroyAll)
 
     bind(gui.MinBtn.MouseButton1Click, function()
-        minimized = not minimized
-        gui.TabsBar.Visible = not minimized
-        gui.Content.Visible = not minimized
-        gui.Main.Size = minimized and UDim2.new(0, 390, 0, 54) or UDim2.new(0, 390, 0, 470)
-        gui.MinBtn.Text = minimized and "▢" or "-"
+        minimized = true
+        gui.Main.Visible = false
+        gui.MinimizedOrb.Visible = true
+    end)
+
+    bind(gui.MinimizedOrb.MouseButton1Click, function()
+        minimized = false
+        gui.Main.Visible = true
+        gui.MinimizedOrb.Visible = false
     end)
 
     bind(gui.DragHit.InputBegan, function(input)
@@ -1038,7 +1108,16 @@ return function(gui, config)
         end
         if input.KeyCode == HIDE_KEY then
             hideUI = not hideUI
-            gui.Main.Visible = not hideUI
+            if hideUI then
+                gui.Main.Visible = false
+                gui.MinimizedOrb.Visible = false
+            else
+                if minimized then
+                    gui.MinimizedOrb.Visible = true
+                else
+                    gui.Main.Visible = true
+                end
+            end
         end
     end)
 
