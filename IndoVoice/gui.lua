@@ -424,10 +424,7 @@ return function(config)
     ZoneInfo.Position = UDim2.new(0, 8, 0, 238)
     ZoneInfo.BackgroundTransparency = 1
     ZoneInfo.TextColor3 = THEME.dim
-    ZoneInfo.Text = "Active zones only
-Auto TP keeps rotation/body lock
-Refresh uses Adonis commands
-Core logic in core.lua"
+    ZoneInfo.Text = "Active zones only\nAuto TP keeps rotation/body lock\nRefresh uses Adonis commands\nCore logic in core.lua"
     ZoneInfo.Font = Enum.Font.Gotham
     ZoneInfo.TextSize = 11
     ZoneInfo.TextWrapped = true
