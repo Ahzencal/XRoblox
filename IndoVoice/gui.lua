@@ -337,8 +337,8 @@ return function(config)
     TabsBar.Parent = Sidebar
 
     -- Sidebar nav buttons (full text, vertical)
-    local tabNames = {"Players", "FishZone", "AutoFish", "Clicker", "Settings", "Logs"}
-    local tabIcons = {"Players", "FishZone", "AutoFish", "Clicker", "Settings", "Logs"}
+    local tabNames = {"Players", "FishZone", "AutoFish", "Fun", "Settings", "Logs"}
+    local tabIcons = {"Players", "FishZone", "AutoFish", "Fun", "Settings", "Logs"}
     local TabButtons = {}
 
     for i, name in ipairs(tabNames) do
@@ -630,58 +630,79 @@ return function(config)
     AFPerfStats.Parent = Tabs.AutoFish
 
     -- ═══════════════════════════════════════════
-    -- CLICKER TAB
+    -- FUN THINGS TAB (Auto Clicker + Auto Gacha)
     -- ═══════════════════════════════════════════
+    local FunScroll = Instance.new("ScrollingFrame")
+    FunScroll.Size = UDim2.new(1, 0, 1, 0)
+    FunScroll.Position = UDim2.new(0, 0, 0, 0)
+    FunScroll.BackgroundTransparency = 1
+    FunScroll.BorderSizePixel = 0
+    FunScroll.ScrollBarThickness = 3
+    FunScroll.CanvasSize = UDim2.new(0, 0, 0, 520)
+    FunScroll.Parent = Tabs.Fun
+
+    -- ── Auto Clicker Section ──
+    local ClickerTitle = Instance.new("TextLabel")
+    ClickerTitle.Size = UDim2.new(1, -20, 0, 18)
+    ClickerTitle.Position = UDim2.new(0, 10, 0, 8)
+    ClickerTitle.BackgroundTransparency = 1
+    ClickerTitle.Text = "🖱 Auto Clicker"
+    ClickerTitle.TextColor3 = LYRA.accentGlow
+    ClickerTitle.Font = Enum.Font.GothamBold
+    ClickerTitle.TextSize = 12
+    ClickerTitle.TextXAlignment = Enum.TextXAlignment.Left
+    ClickerTitle.Parent = FunScroll
+
     local StatusLbl = Instance.new("TextLabel")
-    StatusLbl.Size = UDim2.new(1, -20, 0, 22)
-    StatusLbl.Position = UDim2.new(0, 10, 0, 10)
+    StatusLbl.Size = UDim2.new(1, -20, 0, 18)
+    StatusLbl.Position = UDim2.new(0, 10, 0, 30)
     StatusLbl.BackgroundTransparency = 1
     StatusLbl.Text = "Status: OFF"
     StatusLbl.TextColor3 = LYRA.danger
     StatusLbl.Font = Enum.Font.GothamBold
-    StatusLbl.TextSize = 14
+    StatusLbl.TextSize = 12
     StatusLbl.TextXAlignment = Enum.TextXAlignment.Left
-    StatusLbl.Parent = Tabs.Clicker
+    StatusLbl.Parent = FunScroll
 
     local PosLbl = Instance.new("TextLabel")
-    PosLbl.Size = UDim2.new(1, -20, 0, 20)
-    PosLbl.Position = UDim2.new(0, 10, 0, 36)
+    PosLbl.Size = UDim2.new(1, -20, 0, 16)
+    PosLbl.Position = UDim2.new(0, 10, 0, 50)
     PosLbl.BackgroundTransparency = 1
     PosLbl.Text = "Target: Not set (press P)"
     PosLbl.TextColor3 = LYRA.dim
     PosLbl.Font = Enum.Font.Gotham
-    PosLbl.TextSize = 12
+    PosLbl.TextSize = 11
     PosLbl.TextXAlignment = Enum.TextXAlignment.Left
-    PosLbl.Parent = Tabs.Clicker
+    PosLbl.Parent = FunScroll
 
     local MethodLbl = Instance.new("TextLabel")
-    MethodLbl.Size = UDim2.new(1, -20, 0, 20)
-    MethodLbl.Position = UDim2.new(0, 10, 0, 58)
+    MethodLbl.Size = UDim2.new(1, -20, 0, 16)
+    MethodLbl.Position = UDim2.new(0, 10, 0, 68)
     MethodLbl.BackgroundTransparency = 1
     MethodLbl.Text = "Mode: Loading..."
     MethodLbl.TextColor3 = LYRA.warn
     MethodLbl.Font = Enum.Font.Gotham
-    MethodLbl.TextSize = 12
+    MethodLbl.TextSize = 11
     MethodLbl.TextXAlignment = Enum.TextXAlignment.Left
-    MethodLbl.Parent = Tabs.Clicker
+    MethodLbl.Parent = FunScroll
 
     local CPSLbl = Instance.new("TextLabel")
-    CPSLbl.Size = UDim2.new(1, -20, 0, 20)
-    CPSLbl.Position = UDim2.new(0, 10, 0, 82)
+    CPSLbl.Size = UDim2.new(1, -20, 0, 16)
+    CPSLbl.Position = UDim2.new(0, 10, 0, 86)
     CPSLbl.BackgroundTransparency = 1
     CPSLbl.Text = "CPS: " .. tostring(config.Clicker.DefaultCPS)
     CPSLbl.TextColor3 = LYRA.text
     CPSLbl.Font = Enum.Font.GothamBold
-    CPSLbl.TextSize = 12
+    CPSLbl.TextSize = 11
     CPSLbl.TextXAlignment = Enum.TextXAlignment.Left
-    CPSLbl.Parent = Tabs.Clicker
+    CPSLbl.Parent = FunScroll
 
     local SliderTrack = Instance.new("Frame")
     SliderTrack.Size = UDim2.new(1, -20, 0, 6)
-    SliderTrack.Position = UDim2.new(0, 10, 0, 112)
+    SliderTrack.Position = UDim2.new(0, 10, 0, 108)
     SliderTrack.BackgroundColor3 = LYRA.bg2
     SliderTrack.BorderSizePixel = 0
-    SliderTrack.Parent = Tabs.Clicker
+    SliderTrack.Parent = FunScroll
     Instance.new("UICorner", SliderTrack).CornerRadius = UDim.new(1, 0)
 
     local ratio = math.clamp(config.Clicker.DefaultCPS / 100, 0, 1)
@@ -700,7 +721,133 @@ return function(config)
     SliderKnob.Parent = SliderTrack
     Instance.new("UICorner", SliderKnob).CornerRadius = UDim.new(1, 0)
 
-    local ToggleBtn = makeActionButton(Tabs.Clicker, "Start [F]", 134, LYRA.accent)
+    local ToggleBtn = makeActionButton(FunScroll, "Start [F]", 126, LYRA.accent)
+
+    -- ── Auto Gacha Section ──
+    local GachaSep = Instance.new("Frame")
+    GachaSep.Size = UDim2.new(1, -20, 0, 1)
+    GachaSep.Position = UDim2.new(0, 10, 0, 170)
+    GachaSep.BackgroundColor3 = LYRA.panel2
+    GachaSep.BorderSizePixel = 0
+    GachaSep.Parent = FunScroll
+
+    local GachaTitle = Instance.new("TextLabel")
+    GachaTitle.Size = UDim2.new(1, -20, 0, 18)
+    GachaTitle.Position = UDim2.new(0, 10, 0, 178)
+    GachaTitle.BackgroundTransparency = 1
+    GachaTitle.Text = "🎰 Auto Gacha (10x BlindBox)"
+    GachaTitle.TextColor3 = LYRA.accentGlow
+    GachaTitle.Font = Enum.Font.GothamBold
+    GachaTitle.TextSize = 12
+    GachaTitle.TextXAlignment = Enum.TextXAlignment.Left
+    GachaTitle.Parent = FunScroll
+
+    local GachaToggleBtn = makeActionButton(FunScroll, "Auto Gacha: OFF", 200, LYRA.accent)
+
+    local GachaStatus = Instance.new("TextLabel")
+    GachaStatus.Size = UDim2.new(1, -20, 0, 18)
+    GachaStatus.Position = UDim2.new(0, 10, 0, 240)
+    GachaStatus.BackgroundTransparency = 1
+    GachaStatus.Text = "Status: Idle | Rolls: 0"
+    GachaStatus.TextColor3 = LYRA.dim
+    GachaStatus.Font = Enum.Font.Gotham
+    GachaStatus.TextSize = 11
+    GachaStatus.TextXAlignment = Enum.TextXAlignment.Left
+    GachaStatus.Parent = FunScroll
+
+    local GachaLastResult = Instance.new("TextLabel")
+    GachaLastResult.Size = UDim2.new(1, -20, 0, 18)
+    GachaLastResult.Position = UDim2.new(0, 10, 0, 260)
+    GachaLastResult.BackgroundTransparency = 1
+    GachaLastResult.Text = "Last: -"
+    GachaLastResult.TextColor3 = LYRA.dim
+    GachaLastResult.Font = Enum.Font.Gotham
+    GachaLastResult.TextSize = 11
+    GachaLastResult.TextXAlignment = Enum.TextXAlignment.Left
+    GachaLastResult.Parent = FunScroll
+
+    -- Stop rarity selection
+    local GachaStopTitle = Instance.new("TextLabel")
+    GachaStopTitle.Size = UDim2.new(1, -20, 0, 16)
+    GachaStopTitle.Position = UDim2.new(0, 10, 0, 286)
+    GachaStopTitle.BackgroundTransparency = 1
+    GachaStopTitle.Text = "Stop when rarity obtained:"
+    GachaStopTitle.TextColor3 = LYRA.text
+    GachaStopTitle.Font = Enum.Font.GothamBold
+    GachaStopTitle.TextSize = 10
+    GachaStopTitle.TextXAlignment = Enum.TextXAlignment.Left
+    GachaStopTitle.Parent = FunScroll
+
+    local gachaRarities = {"Common", "Uncommon", "Rare", "Epic", "Legend", "Mythic", "Ancient", "Secret"}
+    local GachaStopButtons = {}
+    for i, rarity in ipairs(gachaRarities) do
+        local btn = Instance.new("TextButton")
+        btn.Text = rarity
+        btn.Size = UDim2.new(0, 62, 0, 22)
+        btn.Position = UDim2.new(0, 10 + ((i - 1) % 4) * 68, 0, 306 + math.floor((i - 1) / 4) * 28)
+        btn.BackgroundColor3 = LYRA.panel2
+        btn.BackgroundTransparency = 0.6
+        btn.TextColor3 = LYRA.dim
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 9
+        btn.BorderSizePixel = 0
+        btn.Parent = FunScroll
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        GachaStopButtons[rarity] = btn
+    end
+
+    -- Box type input
+    local GachaBoxTitle = Instance.new("TextLabel")
+    GachaBoxTitle.Size = UDim2.new(0, 60, 0, 22)
+    GachaBoxTitle.Position = UDim2.new(0, 10, 0, 370)
+    GachaBoxTitle.BackgroundTransparency = 1
+    GachaBoxTitle.Text = "Box:"
+    GachaBoxTitle.TextColor3 = LYRA.dim
+    GachaBoxTitle.Font = Enum.Font.Gotham
+    GachaBoxTitle.TextSize = 10
+    GachaBoxTitle.TextXAlignment = Enum.TextXAlignment.Left
+    GachaBoxTitle.Parent = FunScroll
+
+    local GachaBoxInput = Instance.new("TextBox")
+    GachaBoxInput.Size = UDim2.new(0, 160, 0, 22)
+    GachaBoxInput.Position = UDim2.new(0, 46, 0, 370)
+    GachaBoxInput.BackgroundColor3 = LYRA.bg2
+    GachaBoxInput.TextColor3 = LYRA.text
+    GachaBoxInput.PlaceholderText = "e.g. Dino2026"
+    GachaBoxInput.PlaceholderColor3 = LYRA.dim
+    GachaBoxInput.Text = "Dino2026"
+    GachaBoxInput.Font = Enum.Font.Code
+    GachaBoxInput.TextSize = 10
+    GachaBoxInput.ClearTextOnFocus = false
+    GachaBoxInput.BorderSizePixel = 0
+    GachaBoxInput.Parent = FunScroll
+    Instance.new("UICorner", GachaBoxInput).CornerRadius = UDim.new(0, 4)
+
+    local GachaCategoryTitle = Instance.new("TextLabel")
+    GachaCategoryTitle.Size = UDim2.new(0, 60, 0, 22)
+    GachaCategoryTitle.Position = UDim2.new(0, 10, 0, 398)
+    GachaCategoryTitle.BackgroundTransparency = 1
+    GachaCategoryTitle.Text = "Type:"
+    GachaCategoryTitle.TextColor3 = LYRA.dim
+    GachaCategoryTitle.Font = Enum.Font.Gotham
+    GachaCategoryTitle.TextSize = 10
+    GachaCategoryTitle.TextXAlignment = Enum.TextXAlignment.Left
+    GachaCategoryTitle.Parent = FunScroll
+
+    local GachaCategoryInput = Instance.new("TextBox")
+    GachaCategoryInput.Size = UDim2.new(0, 160, 0, 22)
+    GachaCategoryInput.Position = UDim2.new(0, 46, 0, 398)
+    GachaCategoryInput.BackgroundColor3 = LYRA.bg2
+    GachaCategoryInput.TextColor3 = LYRA.text
+    GachaCategoryInput.PlaceholderText = "e.g. Pet"
+    GachaCategoryInput.PlaceholderColor3 = LYRA.dim
+    GachaCategoryInput.Text = "Pet"
+    GachaCategoryInput.Font = Enum.Font.Code
+    GachaCategoryInput.TextSize = 10
+    GachaCategoryInput.ClearTextOnFocus = false
+    GachaCategoryInput.BorderSizePixel = 0
+    GachaCategoryInput.Parent = FunScroll
+    Instance.new("UICorner", GachaCategoryInput).CornerRadius = UDim.new(0, 4)
 
     -- ═══════════════════════════════════════════
     -- SETTINGS TAB
@@ -1009,6 +1156,14 @@ return function(config)
             SliderFill = SliderFill,
             SliderKnob = SliderKnob,
             ToggleBtn = ToggleBtn,
+        },
+        Gacha = {
+            ToggleBtn = GachaToggleBtn,
+            Status = GachaStatus,
+            LastResult = GachaLastResult,
+            StopButtons = GachaStopButtons,
+            BoxInput = GachaBoxInput,
+            CategoryInput = GachaCategoryInput,
         },
         Settings = {
             HideKeyLbl = HideKeyLbl,

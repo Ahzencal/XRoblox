@@ -779,6 +779,7 @@ return function(gui, config)
         autoTPEnabled = false
         autoSellEnabled = false
         autoFishEnabled = false
+        autoGachaEnabled = false
         autoClaimDailyRewardEnabled = false
         autoClaimSessionRewardEnabled = false
         antiIdleEnabled = false
@@ -1156,7 +1157,7 @@ return function(gui, config)
 
     local function webhookFishCaught(fishName, rarity, weight, price)
         if not shouldLogRarity(rarity) then return end
-        local priceStr = price and ("$" .. tostring(math.floor(tonumber(price) or 0)) .. " Coins") or "?"
+        local priceStr = price and ("Rp." .. tostring(math.floor(tonumber(price) or 0))) or "?"
         local weightStr = weight and (tostring(weight) .. " Kg") or "?"
         local colors = {ancient = 16711680, mythic = 16753920, legend = 16766720, epic = 10494192, secret = 10040115, rare = 3447003}
         local c = colors[string.lower(tostring(rarity))] or 10181631
@@ -1189,7 +1190,7 @@ return function(gui, config)
                 fields = {
                     {name = "Result :", value = "```" .. tostring(serverResult or "OK") .. "```", inline = false},
                     {name = "Rarities Sold :", value = "```" .. tostring(soldRarities or "All") .. "```", inline = false},
-                    {name = "Session Earnings :", value = "```$" .. tostring(math.floor(perfTotalEarnings)) .. " Coins```", inline = true},
+                    {name = "Session Earnings :", value = "```Rp." .. tostring(math.floor(perfTotalEarnings)), inline = true},
                     {name = "Total Sells :", value = "```" .. tostring(perfTotalSellValue) .. "```", inline = true},
                 },
                 footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
@@ -1766,6 +1767,161 @@ return function(gui, config)
                 activeAnimConn:Disconnect()
                 activeAnimConn = nil
             end
+        end
+    end)
+
+    -- ═══════════════════════════════════════════
+    -- AUTO GACHA SYSTEM
+    -- ═══════════════════════════════════════════
+    local autoGachaEnabled = false
+    local autoGachaRolls = 0
+    local gachaStopRarities = {}
+
+    -- Stop rarity toggle buttons
+    for rarity, btn in pairs(gui.Gacha.StopButtons) do
+        bind(btn.MouseButton1Click, function()
+            gachaStopRarities[rarity] = not gachaStopRarities[rarity]
+            if gachaStopRarities[rarity] then
+                btn.BackgroundColor3 = THEME.success
+                btn.BackgroundTransparency = 0.2
+                btn.TextColor3 = Color3.new(1, 1, 1)
+            else
+                btn.BackgroundColor3 = THEME.panel2
+                btn.BackgroundTransparency = 0.6
+                btn.TextColor3 = THEME.dim
+            end
+        end)
+    end
+
+    local function autoGachaLoop()
+        log("AutoGacha: Started", THEME.success)
+        gui.Gacha.Status.Text = "Status: Running | Rolls: 0"
+        gui.Gacha.Status.TextColor3 = THEME.success
+
+        local BlindBoxRoll = game:GetService("ReplicatedStorage"):FindFirstChild("GameRemoteFunctions")
+        BlindBoxRoll = BlindBoxRoll and BlindBoxRoll:FindFirstChild("BlindBoxRollFunctionEvent")
+
+        local BlindBoxComplete = game:GetService("ReplicatedStorage"):FindFirstChild("GameRemoteEvents")
+        BlindBoxComplete = BlindBoxComplete and BlindBoxComplete:FindFirstChild("BlindBoxRollCompletedEventEvent")
+
+        if not BlindBoxRoll then
+            gui.Gacha.Status.Text = "Status: Roll remote not found!"
+            gui.Gacha.Status.TextColor3 = THEME.danger
+            log("AutoGacha: BlindBoxRollFunctionEvent not found", THEME.danger)
+            autoGachaEnabled = false
+            gui.Gacha.ToggleBtn.Text = "Auto Gacha: OFF"
+            gui.Gacha.ToggleBtn.BackgroundColor3 = THEME.accent
+            return
+        end
+
+        while autoGachaEnabled and not destroyed do
+            local category = gui.Gacha.CategoryInput.Text
+            local boxName = gui.Gacha.BoxInput.Text
+
+            if category == "" or boxName == "" then
+                gui.Gacha.Status.Text = "Status: Set Box & Type first!"
+                gui.Gacha.Status.TextColor3 = THEME.warn
+                task.wait(2)
+                continue
+            end
+
+            -- Roll 10x
+            gui.Gacha.Status.Text = "Status: Rolling 10x..."
+            local rollOk, rollResult = pcall(function()
+                return BlindBoxRoll:InvokeServer(category, boxName, 10)
+            end)
+
+            if not rollOk then
+                gui.Gacha.Status.Text = "Status: Roll failed!"
+                gui.Gacha.Status.TextColor3 = THEME.danger
+                log("AutoGacha: Roll error - " .. tostring(rollResult), THEME.danger)
+                task.wait(3)
+                continue
+            end
+
+            autoGachaRolls = autoGachaRolls + 10
+            gui.Gacha.Status.Text = "Status: Running | Rolls: " .. autoGachaRolls
+
+            -- Fire completion event for each result
+            -- The server may return rarity info — check if we got a stop rarity
+            local gotStopRarity = false
+            local lastRarity = "?"
+
+            -- rollResult might be a table of results or a single value
+            if type(rollResult) == "table" then
+                for _, item in ipairs(rollResult) do
+                    local r = type(item) == "table" and (item.Rarity or item.rarity) or tostring(item)
+                    lastRarity = tostring(r)
+                    if gachaStopRarities[lastRarity] then
+                        gotStopRarity = true
+                    end
+                end
+            elseif type(rollResult) == "string" then
+                lastRarity = rollResult
+                if gachaStopRarities[lastRarity] then
+                    gotStopRarity = true
+                end
+            end
+
+            -- Fire BlindBoxRollCompleted for each (if it exists)
+            if BlindBoxComplete then
+                pcall(function()
+                    BlindBoxComplete:FireServer(lastRarity)
+                end)
+            end
+
+            gui.Gacha.LastResult.Text = "Last: " .. lastRarity .. " (roll #" .. autoGachaRolls .. ")"
+            log("AutoGacha: Roll #" .. autoGachaRolls .. " → " .. lastRarity, THEME.dim)
+
+            -- Check stop condition
+            if gotStopRarity then
+                gui.Gacha.Status.Text = "Status: STOPPED! Got " .. lastRarity .. "!"
+                gui.Gacha.Status.TextColor3 = THEME.success
+                log("AutoGacha: STOPPED - obtained " .. lastRarity .. " after " .. autoGachaRolls .. " rolls!", THEME.success)
+                autoGachaEnabled = false
+                gui.Gacha.ToggleBtn.Text = "Auto Gacha: OFF"
+                gui.Gacha.ToggleBtn.BackgroundColor3 = THEME.accent
+
+                -- Send webhook
+                sendWebhookRaw({
+                    embeds = {{
+                        title = "🎰 Gacha Target Obtained!",
+                        description = "**" .. lp.Name .. "** hit the jackpot!",
+                        color = 16766720,
+                        thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
+                        fields = {
+                            {name = "Rarity :", value = "```" .. lastRarity .. "```", inline = true},
+                            {name = "Total Rolls :", value = "```" .. tostring(autoGachaRolls) .. "```", inline = true},
+                            {name = "Box :", value = "```" .. category .. " / " .. boxName .. "```", inline = false},
+                        },
+                        footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
+                        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+                    }}
+                })
+                break
+            end
+
+            -- Delay between rolls
+            task.wait(1.5)
+        end
+
+        if autoGachaEnabled then
+            gui.Gacha.Status.Text = "Status: Idle | Rolls: " .. autoGachaRolls
+            gui.Gacha.Status.TextColor3 = THEME.dim
+        end
+    end
+
+    bind(gui.Gacha.ToggleBtn.MouseButton1Click, function()
+        autoGachaEnabled = not autoGachaEnabled
+        if autoGachaEnabled then
+            gui.Gacha.ToggleBtn.Text = "Auto Gacha: ON"
+            gui.Gacha.ToggleBtn.BackgroundColor3 = THEME.success
+            task.spawn(autoGachaLoop)
+        else
+            gui.Gacha.ToggleBtn.Text = "Auto Gacha: OFF"
+            gui.Gacha.ToggleBtn.BackgroundColor3 = THEME.accent
+            gui.Gacha.Status.Text = "Status: Stopped | Rolls: " .. autoGachaRolls
+            gui.Gacha.Status.TextColor3 = THEME.dim
         end
     end)
 
