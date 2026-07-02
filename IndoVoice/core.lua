@@ -2062,7 +2062,7 @@ return function(gui, config)
             -- Roll 10x
             gui.ShopGacha.Status.Text = "Status: Rolling 10x [" .. shopGachaType .. "]..."
             local rollOk, rollResult = pcall(function()
-                return game:GetService("ReplicatedStorage").GameRemoteFunctions.RollShopFunctionEvent:InvokeServer(shopGachaType, 10)
+                return game:GetService("ReplicatedStorage").GameRemoteFunctions.RollShopFunction:InvokeServer(shopGachaType, 10)
             end)
 
             task.wait(1)
@@ -2163,6 +2163,38 @@ return function(gui, config)
             gui.ShopGacha.Status.TextColor3 = THEME.dim
         end
     end)
+
+    -- ═══════════════════════════════════════════
+    -- ROD SHOP (Buy Rod)
+    -- ═══════════════════════════════════════════
+    for rodName, btn in pairs(gui.RodShop.BuyButtons) do
+        bind(btn.MouseButton1Click, function()
+            btn.Text = "..."
+            btn.BackgroundColor3 = THEME.warn
+            local ok, result = pcall(function()
+                return game:GetService("ReplicatedStorage").GameRemoteFunctions.RodShopPurchaseFunction:InvokeServer(rodName)
+            end)
+            if ok then
+                btn.Text = "OK!"
+                btn.BackgroundColor3 = THEME.success
+                gui.RodShop.Status.Text = "Bought: " .. rodName:gsub("Tool_", "")
+                gui.RodShop.Status.TextColor3 = THEME.success
+                log("RodShop: Purchased " .. rodName, THEME.success)
+            else
+                btn.Text = "Fail"
+                btn.BackgroundColor3 = THEME.danger
+                gui.RodShop.Status.Text = "Failed: " .. tostring(result)
+                gui.RodShop.Status.TextColor3 = THEME.danger
+                log("RodShop: Failed " .. rodName .. " - " .. tostring(result), THEME.danger)
+            end
+            task.delay(2, function()
+                if btn and btn.Parent then
+                    btn.Text = "Buy"
+                    btn.BackgroundColor3 = THEME.accent
+                end
+            end)
+        end)
+    end
 
     bind(gui.Players.SearchBox:GetPropertyChangedSignal("Text"), function()
         playerSearchText = gui.Players.SearchBox.Text
