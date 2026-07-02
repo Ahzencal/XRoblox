@@ -953,6 +953,17 @@ return function(gui, config)
             frozenAnchor.Position = oldAnchorPos
         end
         autoTPEnabled = wasAutoTP
+
+        -- Webhook for sell
+        if success and result then
+            local sellValue = tonumber(tostring(result):match("%d+")) or 0
+            if sellValue > 0 then
+                perfTotalSellValue = perfTotalSellValue + sellValue
+                webhookSellAll(sellValue, #AUTO_SELL_RARITIES)
+                updatePerfMonitor()
+            end
+        end
+
         return success, result or err
     end
 
@@ -1086,6 +1097,95 @@ return function(gui, config)
                 enableAntiIdle()
             end
         end)
+    end
+
+    -- ═══════════════════════════════════════════
+    -- WEBHOOK & PERFORMANCE MONITOR
+    -- ═══════════════════════════════════════════
+    local webhookEnabled = config.Webhook and config.Webhook.Enabled or false
+    local webhookURL = config.Webhook and config.Webhook.URL or ""
+    local webhookLogRarities = config.Webhook and config.Webhook.LogRarities or {"Ancient", "Mythic", "Legend", "Epic"}
+    local webhookLogSells = config.Webhook and config.Webhook.LogSells or false
+
+    local perfStartTime = tick()
+    local perfRarityCounts = {}
+    local perfTotalSellValue = 0
+
+    local function shouldLogRarity(rarity)
+        for _, r in ipairs(webhookLogRarities) do
+            if string.lower(r) == string.lower(tostring(rarity)) then
+                return true
+            end
+        end
+        return false
+    end
+
+    local function sendWebhook(title, description, color)
+        if not webhookEnabled or webhookURL == "" then return end
+        task.spawn(function()
+            local ok, err = pcall(function()
+                local HttpService = game:GetService("HttpService")
+                local data = HttpService:JSONEncode({
+                    embeds = {{
+                        title = title,
+                        description = description,
+                        color = color or 10181631,
+                        footer = {text = "LyraHub | " .. lp.Name .. " | " .. os.date("%H:%M:%S")},
+                        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+                    }}
+                })
+                local request = (syn and syn.request) or (http and http.request) or http_request or request
+                if request then
+                    request({
+                        Url = webhookURL,
+                        Method = "POST",
+                        Headers = {["Content-Type"] = "application/json"},
+                        Body = data,
+                    })
+                end
+            end)
+            if not ok then
+                log("Webhook error: " .. tostring(err), THEME.danger)
+            end
+        end)
+    end
+
+    local function webhookFishCaught(fishName, rarity, weight, price)
+        if not shouldLogRarity(rarity) then return end
+        local desc = "**Fish:** " .. tostring(fishName)
+            .. "\n**Rarity:** " .. tostring(rarity)
+            .. "\n**Weight:** " .. tostring(weight or "?") .. " kg"
+            .. "\n**Price:** $" .. tostring(price or "?")
+        -- Color by rarity
+        local colors = {ancient = 16711680, mythic = 16753920, legend = 16766720, epic = 10494192}
+        local c = colors[string.lower(tostring(rarity))] or 10181631
+        sendWebhook("🎣 Fish Caught!", desc, c)
+    end
+
+    local function webhookSellAll(totalValue, fishCount)
+        if not webhookLogSells then return end
+        local desc = "**Fish Sold:** " .. tostring(fishCount or "?") .. " fish"
+            .. "\n**Total Value:** $" .. tostring(totalValue or "?")
+            .. "\n**Session Total:** $" .. tostring(perfTotalSellValue)
+        sendWebhook("💰 Fish Sold!", desc, 5763719)
+    end
+
+    local function updatePerfMonitor()
+        local elapsed = tick() - perfStartTime
+        local hours = elapsed / 3600
+        local fishPerHour = hours > 0 and math.floor(autoFishCaught / hours) or 0
+
+        local rarityStr = ""
+        for rarity, count in pairs(perfRarityCounts) do
+            rarityStr = rarityStr .. rarity .. ": " .. count .. "  "
+        end
+        if rarityStr == "" then rarityStr = "-" end
+
+        local webhookStatus = webhookEnabled and "ON" or "OFF"
+
+        gui.AutoFish.PerfStats.Text = "Fish/hr: " .. fishPerHour .. " | Timeouts: " .. autoFishTimeouts
+            .. "\n" .. rarityStr
+            .. "\nWebhook: " .. webhookStatus .. " | Sold: $" .. tostring(perfTotalSellValue)
     end
 
     -- ═══════════════════════════════════════════
@@ -1275,9 +1375,10 @@ return function(gui, config)
             autoFishCasts = autoFishCasts + 1
             gui.AutoFish.Casts.Text = "Casts: " .. autoFishCasts .. " | Caught: " .. autoFishCaught
 
-            -- ── WAITING FOR PULL (detect pull animation) ──
+            -- ── WAITING FOR PULL (detect pull animation + capture fish data) ──
             afSetStage("Waiting for bite...")
             local pullDetected = false
+            local caughtFishData = nil
 
             activeAnimConn = hum.AnimationPlayed:Connect(function(track)
                 if track.Animation and track.Animation.AnimationId == PULL_ANIM_ID then
@@ -1286,12 +1387,25 @@ return function(gui, config)
                 end
             end)
 
+            -- Also listen for StartMinigame to capture fish info
+            local miniGameConn
+            local rod2 = getRod()
+            local startMinigame = rod2 and rod2:FindFirstChild("StartMinigame")
+            if startMinigame and startMinigame:IsA("RemoteEvent") then
+                miniGameConn = startMinigame.OnClientEvent:Connect(function(_, fishInfo)
+                    if fishInfo and type(fishInfo) == "table" then
+                        caughtFishData = fishInfo
+                    end
+                end)
+            end
+
             local pullStart = tick()
             while not pullDetected and (tick() - pullStart) < AF_PULL_TIMEOUT and autoFishEnabled do
                 task.wait(0.05)
             end
 
             if activeAnimConn then activeAnimConn:Disconnect(); activeAnimConn = nil end
+            if miniGameConn then miniGameConn:Disconnect() end
 
             if not autoFishEnabled or destroyed then break end
 
@@ -1330,8 +1444,24 @@ return function(gui, config)
                 end)
                 autoFishCaught = autoFishCaught + 1
                 gui.AutoFish.Casts.Text = "Casts: " .. autoFishCasts .. " | Caught: " .. autoFishCaught
-                gui.AutoFish.LastCatch.Text = "Last: Fish #" .. autoFishCaught
-                log("AutoFish: Caught #" .. autoFishCaught, THEME.success)
+
+                -- Extract fish info
+                local fishName = caughtFishData and caughtFishData.FishName or "Unknown"
+                local fishRarity = caughtFishData and caughtFishData.Rarity or "?"
+                local fishWeight = caughtFishData and caughtFishData.Weight or nil
+                local fishPrice = caughtFishData and caughtFishData.Price or nil
+
+                gui.AutoFish.LastCatch.Text = "Last: " .. fishName .. " [" .. fishRarity .. "]"
+                log("AutoFish: Caught " .. fishName .. " (" .. fishRarity .. ")", THEME.success)
+
+                -- Track rarity counts
+                perfRarityCounts[fishRarity] = (perfRarityCounts[fishRarity] or 0) + 1
+
+                -- Send webhook if rarity qualifies
+                webhookFishCaught(fishName, fishRarity, fishWeight, fishPrice)
+
+                -- Update performance monitor
+                updatePerfMonitor()
             else
                 log("AutoFish: Catch remote not found", THEME.danger)
                 afTimeout("Catch")
@@ -1536,11 +1666,21 @@ return function(gui, config)
         end)
     end
 
+    -- Periodic performance monitor update
+    local lastPerfUpdate = 0
     bind(RunService.Heartbeat, function()
         if destroyed then return end
 
+        -- Update perf monitor every 10s
+        local now = tick()
+        if now - lastPerfUpdate > 10 then
+            lastPerfUpdate = now
+            if autoFishEnabled then
+                updatePerfMonitor()
+            end
+        end
+
         if clicking then
-            local now = tick()
             if now - lastClick >= clickDelay then
                 lastClick = now
                 local x, y = resolvePosition()

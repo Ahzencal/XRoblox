@@ -22,6 +22,7 @@ return {
         BlacklistedPositions = {
             Vector3.new(-198, 16.5000153, -5079),
             Vector3.new(-629.866821, 19.5, 4640.11377),
+            Vector3.new(-625, 16.5000153, -4902),
         },
     },
 
@@ -62,5 +63,12 @@ return {
             "Uncommon",
             "Common"
         }
+    },
+
+    Webhook = {
+        Enabled = false,
+        URL = "", -- Paste your Discord webhook URL here
+        LogRarities = {"Ancient", "Mythic", "Legend", "Epic"}, -- Only log these rarities
+        LogSells = true,
     },
 }

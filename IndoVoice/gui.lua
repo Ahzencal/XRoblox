@@ -543,6 +543,38 @@ return function(config)
     AFTimings.TextYAlignment = Enum.TextYAlignment.Top
     AFTimings.Parent = Tabs.AutoFish
 
+    -- Performance Monitor section
+    local AFPerfSep = Instance.new("Frame")
+    AFPerfSep.Size = UDim2.new(1, -20, 0, 1)
+    AFPerfSep.Position = UDim2.new(0, 10, 0, 278)
+    AFPerfSep.BackgroundColor3 = LYRA.panel2
+    AFPerfSep.BorderSizePixel = 0
+    AFPerfSep.Parent = Tabs.AutoFish
+
+    local AFPerfTitle = Instance.new("TextLabel")
+    AFPerfTitle.Size = UDim2.new(1, -20, 0, 18)
+    AFPerfTitle.Position = UDim2.new(0, 10, 0, 286)
+    AFPerfTitle.BackgroundTransparency = 1
+    AFPerfTitle.TextColor3 = LYRA.text
+    AFPerfTitle.Text = "Performance Monitor"
+    AFPerfTitle.Font = Enum.Font.GothamBold
+    AFPerfTitle.TextSize = 11
+    AFPerfTitle.TextXAlignment = Enum.TextXAlignment.Left
+    AFPerfTitle.Parent = Tabs.AutoFish
+
+    local AFPerfStats = Instance.new("TextLabel")
+    AFPerfStats.Size = UDim2.new(1, -20, 0, 60)
+    AFPerfStats.Position = UDim2.new(0, 10, 0, 306)
+    AFPerfStats.BackgroundTransparency = 1
+    AFPerfStats.TextColor3 = LYRA.dim
+    AFPerfStats.Text = "Fish/hr: 0 | Timeouts: 0\nRarity: -\nWebhook: OFF"
+    AFPerfStats.Font = Enum.Font.Code
+    AFPerfStats.TextSize = 10
+    AFPerfStats.TextWrapped = true
+    AFPerfStats.TextXAlignment = Enum.TextXAlignment.Left
+    AFPerfStats.TextYAlignment = Enum.TextYAlignment.Top
+    AFPerfStats.Parent = Tabs.AutoFish
+
     -- ═══════════════════════════════════════════
     -- CLICKER TAB
     -- ═══════════════════════════════════════════
@@ -760,6 +792,7 @@ return function(config)
             Casts = AutoFishCasts,
             LastCatch = AutoFishLastCatch,
             Timings = AFTimings,
+            PerfStats = AFPerfStats,
         },
         Clicker = {
             StatusLbl = StatusLbl,
