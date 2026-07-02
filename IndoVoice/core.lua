@@ -1103,8 +1103,8 @@ return function(gui, config)
     local AF_CAST_HOLD_MIN = 0.4
     local AF_CAST_HOLD_MAX = 0.6
     local AF_VERIFY_CAST_TIMEOUT = 2.5
-    local AF_PULL_TIMEOUT = 20
-    local AF_POST_PULL_DELAY = 1.8
+    local AF_PULL_TIMEOUT = 25
+    local AF_POST_PULL_DELAY = 2.8
     local AF_POST_PULL_TIMEOUT = 5
     local AF_PRE_END_DELAY = 0
     local AF_POST_END_DELAY = 0.3

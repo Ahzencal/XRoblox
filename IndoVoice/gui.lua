@@ -535,7 +535,7 @@ return function(config)
     AFTimings.Position = UDim2.new(0, 10, 0, 148)
     AFTimings.BackgroundTransparency = 1
     AFTimings.TextColor3 = LYRA.dim
-    AFTimings.Text = "Pre-cast delay: 0.3s\nCast hold: random 0.4-0.6s\nVerify cast timeout: 2.5s\nPull timeout: 20s\nPost-pull delay: 1.8s\nPost-pull timeout: 5s\nPost-end delay: 0.3s"
+    AFTimings.Text = "Pre-cast delay: 0.3s\nCast hold: random 0.4-0.6s\nVerify cast timeout: 2.5s\nPull timeout: 25s\nPost-pull delay: 2.8s\nPost-pull timeout: 5s\nPost-end delay: 0.3s"
     AFTimings.Font = Enum.Font.Code
     AFTimings.TextSize = 10
     AFTimings.TextWrapped = true
