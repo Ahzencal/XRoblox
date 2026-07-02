@@ -829,13 +829,11 @@ return function(gui, config)
             return false, "GameRemoteFunctions folder not found"
         end
 
-        -- Try to find the remote (may have slightly different name)
         local remote = rf:FindFirstChild("CollectSessionRewardFunctionEvent")
             or rf:FindFirstChild("CollectSessionRewardFunction")
             or rf:FindFirstChild("CollectSessionReward")
 
         if not remote then
-            -- Log all children for debugging
             local names = {}
             for _, child in ipairs(rf:GetChildren()) do
                 if string.find(string.lower(child.Name), "session") then
@@ -847,27 +845,29 @@ return function(gui, config)
         end
 
         local claimed = 0
+        local skipped = 0
         for slot = 1, 12 do
             local ok, result = pcall(function()
                 if remote:IsA("RemoteFunction") then
                     return remote:InvokeServer(slot)
                 elseif remote:IsA("RemoteEvent") then
                     remote:FireServer(slot)
-                    return true
+                    return "fired"
                 end
             end)
-            if ok then
+            if ok and result then
                 claimed = claimed + 1
                 log("Session slot " .. slot .. ": claimed", THEME.success)
             else
-                log("Session slot " .. slot .. ": " .. tostring(result), THEME.dim)
+                skipped = skipped + 1
+                log("Session slot " .. slot .. ": on cooldown", THEME.dim)
             end
             task.wait(1)
         end
         if claimed > 0 then
-            return true, "Claimed " .. claimed .. "/12 slots"
+            return true, "Claimed " .. claimed .. "/12 (skipped " .. skipped .. ")"
         end
-        return false, "No session rewards claimed"
+        return false, "All slots on cooldown (" .. skipped .. "/12)"
     end
 
     local function performSell()
