@@ -651,6 +651,15 @@ return function(config)
     -- ═══════════════════════════════════════════
     -- SETTINGS TAB
     -- ═══════════════════════════════════════════
+    local SettingsScroll = Instance.new("ScrollingFrame")
+    SettingsScroll.Size = UDim2.new(1, 0, 1, 0)
+    SettingsScroll.Position = UDim2.new(0, 0, 0, 0)
+    SettingsScroll.BackgroundTransparency = 1
+    SettingsScroll.BorderSizePixel = 0
+    SettingsScroll.ScrollBarThickness = 3
+    SettingsScroll.CanvasSize = UDim2.new(0, 0, 0, 620)
+    SettingsScroll.Parent = Tabs.Settings
+
     local HideKeyLbl = Instance.new("TextLabel")
     HideKeyLbl.Size = UDim2.new(1, -20, 0, 22)
     HideKeyLbl.Position = UDim2.new(0, 10, 0, 10)
@@ -660,30 +669,72 @@ return function(config)
     HideKeyLbl.Font = Enum.Font.GothamBold
     HideKeyLbl.TextSize = 12
     HideKeyLbl.TextXAlignment = Enum.TextXAlignment.Left
-    HideKeyLbl.Parent = Tabs.Settings
+    HideKeyLbl.Parent = SettingsScroll
 
-    local UnloadBtn = makeActionButton(Tabs.Settings, "Unload Script", 40, LYRA.danger)
-    local AutoClaimDailyRewardBtn = makeActionButton(Tabs.Settings, "Auto Claim Daily Reward: OFF", 80, LYRA.accent)
-    local AutoClaimSessionRewardBtn = makeActionButton(Tabs.Settings, "Auto Claim Session Reward: OFF", 120, LYRA.tp)
-    local AntiIdleBtn = makeActionButton(Tabs.Settings, "Anti Idle: OFF", 160, LYRA.warn)
+    local UnloadBtn = makeActionButton(SettingsScroll, "Unload Script", 40, LYRA.danger)
+    local AutoClaimDailyRewardBtn = makeActionButton(SettingsScroll, "Auto Claim Daily Reward: OFF", 80, LYRA.accent)
+    local AutoClaimSessionRewardBtn = makeActionButton(SettingsScroll, "Auto Claim Session Reward: OFF", 120, LYRA.tp)
+    local AntiIdleBtn = makeActionButton(SettingsScroll, "Anti Idle: OFF", 160, LYRA.warn)
 
+    -- Webhook section
+    local WebhookTitle = Instance.new("TextLabel")
+    WebhookTitle.Size = UDim2.new(1, -20, 0, 20)
+    WebhookTitle.Position = UDim2.new(0, 10, 0, 204)
+    WebhookTitle.BackgroundTransparency = 1
+    WebhookTitle.Text = "Webhook"
+    WebhookTitle.TextColor3 = LYRA.text
+    WebhookTitle.Font = Enum.Font.GothamBold
+    WebhookTitle.TextSize = 12
+    WebhookTitle.TextXAlignment = Enum.TextXAlignment.Left
+    WebhookTitle.Parent = SettingsScroll
+
+    local WebhookInput = Instance.new("TextBox")
+    WebhookInput.Size = UDim2.new(1, -20, 0, 28)
+    WebhookInput.Position = UDim2.new(0, 10, 0, 228)
+    WebhookInput.BackgroundColor3 = LYRA.bg2
+    WebhookInput.TextColor3 = LYRA.text
+    WebhookInput.PlaceholderText = "Paste Discord webhook URL..."
+    WebhookInput.PlaceholderColor3 = LYRA.dim
+    WebhookInput.Text = config.Webhook and config.Webhook.URL or ""
+    WebhookInput.Font = Enum.Font.Code
+    WebhookInput.TextSize = 10
+    WebhookInput.ClearTextOnFocus = false
+    WebhookInput.BorderSizePixel = 0
+    WebhookInput.Parent = SettingsScroll
+    Instance.new("UICorner", WebhookInput).CornerRadius = UDim.new(0, 6)
+
+    local WebhookToggleBtn = makeActionButton(SettingsScroll, "Webhook: OFF", 264, LYRA.panel2)
+    local SaveSettingsBtn = makeActionButton(SettingsScroll, "Save Settings", 304, LYRA.success)
+
+    local SaveStatus = Instance.new("TextLabel")
+    SaveStatus.Size = UDim2.new(1, -20, 0, 18)
+    SaveStatus.Position = UDim2.new(0, 10, 0, 342)
+    SaveStatus.BackgroundTransparency = 1
+    SaveStatus.Text = ""
+    SaveStatus.TextColor3 = LYRA.success
+    SaveStatus.Font = Enum.Font.Gotham
+    SaveStatus.TextSize = 10
+    SaveStatus.TextXAlignment = Enum.TextXAlignment.Left
+    SaveStatus.Parent = SettingsScroll
+
+    -- Accent Color section
     local ColorTitle = Instance.new("TextLabel")
     ColorTitle.Size = UDim2.new(1, -20, 0, 20)
-    ColorTitle.Position = UDim2.new(0, 10, 0, 206)
+    ColorTitle.Position = UDim2.new(0, 10, 0, 370)
     ColorTitle.BackgroundTransparency = 1
     ColorTitle.Text = "Accent Color"
     ColorTitle.TextColor3 = LYRA.text
     ColorTitle.Font = Enum.Font.GothamBold
     ColorTitle.TextSize = 12
     ColorTitle.TextXAlignment = Enum.TextXAlignment.Left
-    ColorTitle.Parent = Tabs.Settings
+    ColorTitle.Parent = SettingsScroll
 
     local AccentPreview = Instance.new("Frame")
     AccentPreview.Size = UDim2.new(0, 22, 0, 22)
-    AccentPreview.Position = UDim2.new(1, -36, 0, 204)
+    AccentPreview.Position = UDim2.new(1, -36, 0, 368)
     AccentPreview.BackgroundColor3 = LYRA.accent
     AccentPreview.BorderSizePixel = 0
-    AccentPreview.Parent = Tabs.Settings
+    AccentPreview.Parent = SettingsScroll
     Instance.new("UICorner", AccentPreview).CornerRadius = UDim.new(0, 6)
 
     local ColorButtons = {}
@@ -691,26 +742,26 @@ return function(config)
         local sw = Instance.new("TextButton")
         sw.Text = ""
         sw.Size = UDim2.new(0, 28, 0, 28)
-        sw.Position = UDim2.new(0, 10 + ((i - 1) % 5) * 36, 0, 234 + math.floor((i - 1) / 5) * 36)
+        sw.Position = UDim2.new(0, 10 + ((i - 1) % 5) * 36, 0, 398 + math.floor((i - 1) / 5) * 36)
         sw.BackgroundColor3 = color
         sw.BorderSizePixel = 0
-        sw.Parent = Tabs.Settings
+        sw.Parent = SettingsScroll
         Instance.new("UICorner", sw).CornerRadius = UDim.new(0, 6)
         table.insert(ColorButtons, sw)
     end
 
     local SettingsInfo = Instance.new("TextLabel")
     SettingsInfo.Size = UDim2.new(1, -20, 0, 44)
-    SettingsInfo.Position = UDim2.new(0, 10, 1, -52)
+    SettingsInfo.Position = UDim2.new(0, 10, 0, 470)
     SettingsInfo.BackgroundTransparency = 1
-    SettingsInfo.Text = "Use config.lua for keys, blacklist positions, float height, colors, presets, and reward toggles."
+    SettingsInfo.Text = "Settings are saved locally and auto-loaded on next run."
     SettingsInfo.TextColor3 = LYRA.dim
     SettingsInfo.Font = Enum.Font.Gotham
     SettingsInfo.TextSize = 11
     SettingsInfo.TextWrapped = true
     SettingsInfo.TextXAlignment = Enum.TextXAlignment.Left
     SettingsInfo.TextYAlignment = Enum.TextYAlignment.Top
-    SettingsInfo.Parent = Tabs.Settings
+    SettingsInfo.Parent = SettingsScroll
 
     -- ═══════════════════════════════════════════
     -- LOGS TAB
@@ -810,6 +861,10 @@ return function(config)
             AutoClaimDailyRewardBtn = AutoClaimDailyRewardBtn,
             AutoClaimSessionRewardBtn = AutoClaimSessionRewardBtn,
             AntiIdleBtn = AntiIdleBtn,
+            WebhookInput = WebhookInput,
+            WebhookToggleBtn = WebhookToggleBtn,
+            SaveSettingsBtn = SaveSettingsBtn,
+            SaveStatus = SaveStatus,
             ColorTitle = ColorTitle,
             AccentPreview = AccentPreview,
             ColorButtons = ColorButtons,

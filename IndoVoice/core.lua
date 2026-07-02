@@ -1104,7 +1104,7 @@ return function(gui, config)
     -- ═══════════════════════════════════════════
     local webhookEnabled = config.Webhook and config.Webhook.Enabled or false
     local webhookURL = config.Webhook and config.Webhook.URL or ""
-    local webhookLogRarities = config.Webhook and config.Webhook.LogRarities or {"Ancient", "Mythic", "Legend", "Epic"}
+    local webhookLogRarities = config.Webhook and config.Webhook.LogRarities or {"Ancient"}
     local webhookLogSells = config.Webhook and config.Webhook.LogSells or false
 
     local perfStartTime = tick()
@@ -1173,7 +1173,9 @@ return function(gui, config)
     local function updatePerfMonitor()
         local elapsed = tick() - perfStartTime
         local hours = elapsed / 3600
-        local fishPerHour = hours > 0 and math.floor(autoFishCaught / hours) or 0
+        local caught = autoFishCaught or 0
+        local timeouts = autoFishTimeouts or 0
+        local fishPerHour = hours > 0 and math.floor(caught / hours) or 0
 
         local rarityStr = ""
         for rarity, count in pairs(perfRarityCounts) do
@@ -1183,10 +1185,93 @@ return function(gui, config)
 
         local webhookStatus = webhookEnabled and "ON" or "OFF"
 
-        gui.AutoFish.PerfStats.Text = "Fish/hr: " .. fishPerHour .. " | Timeouts: " .. autoFishTimeouts
+        gui.AutoFish.PerfStats.Text = "Fish/hr: " .. fishPerHour .. " | Timeouts: " .. timeouts
             .. "\n" .. rarityStr
             .. "\nWebhook: " .. webhookStatus .. " | Sold: $" .. tostring(perfTotalSellValue)
     end
+
+    -- ═══════════════════════════════════════════
+    -- SETTINGS SAVE/LOAD (local file persistence)
+    -- ═══════════════════════════════════════════
+    local SETTINGS_FILE = "LyraHub_Settings.json"
+
+    local function saveSettings()
+        local data = {
+            webhookURL = webhookURL,
+            webhookEnabled = webhookEnabled,
+            webhookLogSells = webhookLogSells,
+        }
+        local ok, err = pcall(function()
+            local HttpService = game:GetService("HttpService")
+            local json = HttpService:JSONEncode(data)
+            writefile(SETTINGS_FILE, json)
+        end)
+        if ok then
+            gui.Settings.SaveStatus.Text = "Settings saved!"
+            gui.Settings.SaveStatus.TextColor3 = THEME.success
+            log("Settings saved to " .. SETTINGS_FILE, THEME.success)
+        else
+            gui.Settings.SaveStatus.Text = "Save failed: " .. tostring(err)
+            gui.Settings.SaveStatus.TextColor3 = THEME.danger
+            log("Settings save failed: " .. tostring(err), THEME.danger)
+        end
+        task.delay(3, function()
+            if gui.Settings.SaveStatus and gui.Settings.SaveStatus.Parent then
+                gui.Settings.SaveStatus.Text = ""
+            end
+        end)
+    end
+
+    local function loadSettings()
+        local ok, result = pcall(function()
+            if isfile and isfile(SETTINGS_FILE) then
+                local raw = readfile(SETTINGS_FILE)
+                local HttpService = game:GetService("HttpService")
+                return HttpService:JSONDecode(raw)
+            end
+            return nil
+        end)
+        if ok and result then
+            if result.webhookURL then
+                webhookURL = result.webhookURL
+                gui.Settings.WebhookInput.Text = webhookURL
+            end
+            if result.webhookEnabled ~= nil then
+                webhookEnabled = result.webhookEnabled
+            end
+            if result.webhookLogSells ~= nil then
+                webhookLogSells = result.webhookLogSells
+            end
+            -- Update toggle button
+            gui.Settings.WebhookToggleBtn.Text = webhookEnabled and "Webhook: ON" or "Webhook: OFF"
+            gui.Settings.WebhookToggleBtn.BackgroundColor3 = webhookEnabled and THEME.success or THEME.panel2
+            log("Settings loaded from " .. SETTINGS_FILE, THEME.dim)
+        end
+    end
+
+    -- Webhook toggle button
+    bind(gui.Settings.WebhookToggleBtn.MouseButton1Click, function()
+        webhookEnabled = not webhookEnabled
+        gui.Settings.WebhookToggleBtn.Text = webhookEnabled and "Webhook: ON" or "Webhook: OFF"
+        gui.Settings.WebhookToggleBtn.BackgroundColor3 = webhookEnabled and THEME.success or THEME.panel2
+        log("Webhook: " .. (webhookEnabled and "ON" or "OFF"), webhookEnabled and THEME.success or THEME.dim)
+    end)
+
+    -- Webhook URL input
+    bind(gui.Settings.WebhookInput.FocusLost, function()
+        webhookURL = gui.Settings.WebhookInput.Text
+        log("Webhook URL updated", THEME.dim)
+    end)
+
+    -- Save settings button
+    bind(gui.Settings.SaveSettingsBtn.MouseButton1Click, function()
+        -- Grab latest URL from input
+        webhookURL = gui.Settings.WebhookInput.Text
+        saveSettings()
+    end)
+
+    -- Auto-load settings on start
+    loadSettings()
 
     -- ═══════════════════════════════════════════
     -- AUTO FISH SYSTEM (animation-based, d8nte engine)
