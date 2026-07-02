@@ -569,6 +569,31 @@ return function(config)
     ZoneInfo.TextYAlignment = Enum.TextYAlignment.Top
     ZoneInfo.Parent = Tabs.FishZone
 
+    -- Auto Sell Interval input
+    local SellIntervalLbl = Instance.new("TextLabel")
+    SellIntervalLbl.Size = UDim2.new(0, 120, 0, 20)
+    SellIntervalLbl.Position = UDim2.new(0, 10, 0, 300)
+    SellIntervalLbl.BackgroundTransparency = 1
+    SellIntervalLbl.Text = "Sell Interval (s):"
+    SellIntervalLbl.TextColor3 = LYRA.dim
+    SellIntervalLbl.Font = Enum.Font.Gotham
+    SellIntervalLbl.TextSize = 10
+    SellIntervalLbl.TextXAlignment = Enum.TextXAlignment.Left
+    SellIntervalLbl.Parent = Tabs.FishZone
+
+    local SellIntervalInput = Instance.new("TextBox")
+    SellIntervalInput.Size = UDim2.new(0, 70, 0, 20)
+    SellIntervalInput.Position = UDim2.new(0, 130, 0, 300)
+    SellIntervalInput.BackgroundColor3 = LYRA.bg2
+    SellIntervalInput.TextColor3 = LYRA.text
+    SellIntervalInput.Text = tostring(config.AutoSell and config.AutoSell.Interval or 3600)
+    SellIntervalInput.Font = Enum.Font.Code
+    SellIntervalInput.TextSize = 11
+    SellIntervalInput.ClearTextOnFocus = false
+    SellIntervalInput.BorderSizePixel = 0
+    SellIntervalInput.Parent = Tabs.FishZone
+    Instance.new("UICorner", SellIntervalInput).CornerRadius = UDim.new(0, 4)
+
     -- ═══════════════════════════════════════════
     -- AUTOFISH TAB
     -- ═══════════════════════════════════════════
@@ -1502,6 +1527,7 @@ return function(config)
             SellNowBtn = SellNowBtn,
             ZoneStatus = ZoneStatus,
             ZoneInfo = ZoneInfo,
+            SellIntervalInput = SellIntervalInput,
         },
         AutoFish = {
             ToggleBtn = AutoFishToggleBtn,
