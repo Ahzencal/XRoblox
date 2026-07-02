@@ -955,14 +955,11 @@ return function(gui, config)
         autoTPEnabled = wasAutoTP
 
         -- Webhook for sell
-        if success and result then
-            local sellValue = tonumber(tostring(result):match("%d+")) or 0
+        if success then
+            perfTotalSellValue = perfTotalSellValue + 1
             local soldRarities = table.concat(getActiveSellRarities(), ", ")
-            if sellValue > 0 then
-                perfTotalSellValue = perfTotalSellValue + sellValue
-                webhookSellAll(sellValue, soldRarities)
-                updatePerfMonitor()
-            end
+            webhookSellAll(tostring(result or "OK"), soldRarities)
+            updatePerfMonitor()
         end
 
         return success, result or err
@@ -1111,6 +1108,7 @@ return function(gui, config)
     local perfStartTime = tick()
     local perfRarityCounts = {}
     local perfTotalSellValue = 0
+    local perfTotalEarnings = 0
 
     local function shouldLogRarity(rarity)
         for _, r in ipairs(webhookLogRarities) do
@@ -1131,6 +1129,7 @@ return function(gui, config)
                         title = title,
                         description = description,
                         color = color or 10181631,
+                        thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
                         footer = {text = "LyraHub | " .. lp.Name .. " | " .. os.date("%H:%M:%S")},
                         timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
                     }}
@@ -1157,17 +1156,19 @@ return function(gui, config)
             .. "\n**Rarity:** " .. tostring(rarity)
             .. "\n**Weight:** " .. tostring(weight or "?") .. " kg"
             .. "\n**Price:** $" .. tostring(price or "?")
+            .. "\n**Session Earned:** $" .. tostring(perfTotalEarnings)
         -- Color by rarity
         local colors = {ancient = 16711680, mythic = 16753920, legend = 16766720, epic = 10494192}
         local c = colors[string.lower(tostring(rarity))] or 10181631
         sendWebhook("🎣 Fish Caught!", desc, c)
     end
 
-    local function webhookSellAll(totalValue, soldRarities)
+    local function webhookSellAll(serverResult, soldRarities)
         if not webhookLogSells then return end
-        local desc = "**Value:** $" .. tostring(totalValue or "?")
-            .. "\n**Rarities Sold:** " .. tostring(soldRarities or "?")
-            .. "\n**Session Total:** $" .. tostring(perfTotalSellValue)
+        local desc = "**Result:** " .. tostring(serverResult)
+            .. "\n**Rarities:** " .. tostring(soldRarities or "?")
+            .. "\n**Session Earnings:** $" .. tostring(perfTotalEarnings)
+            .. "\n**Total Sells:** " .. tostring(perfTotalSellValue)
         sendWebhook("💰 Fish Sold!", desc, 5763719)
     end
 
@@ -1178,17 +1179,19 @@ return function(gui, config)
         local timeouts = autoFishTimeouts or 0
         local fishPerHour = hours > 0 and math.floor(caught / hours) or 0
 
+        -- Update stat cards
+        gui.AutoFish.PerfFishHrVal.Text = tostring(fishPerHour)
+        gui.AutoFish.PerfCaughtVal.Text = tostring(caught)
+        gui.AutoFish.PerfSellsVal.Text = tostring(perfTotalSellValue)
+        gui.AutoFish.PerfEarnVal.Text = "$" .. tostring(perfTotalEarnings)
+
+        -- Rarity breakdown
         local rarityStr = ""
         for rarity, count in pairs(perfRarityCounts) do
-            rarityStr = rarityStr .. rarity .. ": " .. count .. "  "
+            rarityStr = rarityStr .. rarity .. ":" .. count .. "  "
         end
         if rarityStr == "" then rarityStr = "-" end
-
-        local webhookStatus = webhookEnabled and "ON" or "OFF"
-
-        gui.AutoFish.PerfStats.Text = "Fish/hr: " .. fishPerHour .. " | Timeouts: " .. timeouts
-            .. "\n" .. rarityStr
-            .. "\nWebhook: " .. webhookStatus .. " | Sold: $" .. tostring(perfTotalSellValue)
+        gui.AutoFish.PerfRarity.Text = rarityStr
     end
 
     -- ═══════════════════════════════════════════
@@ -1651,8 +1654,11 @@ return function(gui, config)
                 gui.AutoFish.LastCatch.Text = "Last: " .. fishName .. " [" .. fishRarity .. "]"
                 log("AutoFish: Caught " .. fishName .. " (" .. fishRarity .. ")", THEME.success)
 
-                -- Track rarity counts
+                -- Track rarity counts and earnings
                 perfRarityCounts[fishRarity] = (perfRarityCounts[fishRarity] or 0) + 1
+                if fishPrice and tonumber(fishPrice) then
+                    perfTotalEarnings = perfTotalEarnings + tonumber(fishPrice)
+                end
 
                 -- Send webhook if rarity qualifies
                 webhookFishCaught(fishName, fishRarity, fishWeight, fishPrice)

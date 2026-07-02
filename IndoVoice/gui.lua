@@ -543,7 +543,7 @@ return function(config)
     AFTimings.TextYAlignment = Enum.TextYAlignment.Top
     AFTimings.Parent = Tabs.AutoFish
 
-    -- Performance Monitor section
+    -- Performance Monitor section (card-style)
     local AFPerfSep = Instance.new("Frame")
     AFPerfSep.Size = UDim2.new(1, -20, 0, 1)
     AFPerfSep.Position = UDim2.new(0, 10, 0, 278)
@@ -553,26 +553,80 @@ return function(config)
 
     local AFPerfTitle = Instance.new("TextLabel")
     AFPerfTitle.Size = UDim2.new(1, -20, 0, 18)
-    AFPerfTitle.Position = UDim2.new(0, 10, 0, 286)
+    AFPerfTitle.Position = UDim2.new(0, 10, 0, 284)
     AFPerfTitle.BackgroundTransparency = 1
-    AFPerfTitle.TextColor3 = LYRA.text
-    AFPerfTitle.Text = "Performance Monitor"
+    AFPerfTitle.TextColor3 = LYRA.accentGlow
+    AFPerfTitle.Text = "📊 Performance"
     AFPerfTitle.Font = Enum.Font.GothamBold
-    AFPerfTitle.TextSize = 11
+    AFPerfTitle.TextSize = 12
     AFPerfTitle.TextXAlignment = Enum.TextXAlignment.Left
     AFPerfTitle.Parent = Tabs.AutoFish
 
-    local AFPerfStats = Instance.new("TextLabel")
-    AFPerfStats.Size = UDim2.new(1, -20, 0, 60)
-    AFPerfStats.Position = UDim2.new(0, 10, 0, 306)
-    AFPerfStats.BackgroundTransparency = 1
-    AFPerfStats.TextColor3 = LYRA.dim
-    AFPerfStats.Text = "Fish/hr: 0 | Timeouts: 0\nRarity: -\nWebhook: OFF"
-    AFPerfStats.Font = Enum.Font.Code
-    AFPerfStats.TextSize = 10
-    AFPerfStats.TextWrapped = true
-    AFPerfStats.TextXAlignment = Enum.TextXAlignment.Left
-    AFPerfStats.TextYAlignment = Enum.TextYAlignment.Top
+    -- Stat cards row 1
+    local function makeStatCard(parent, x, y, w)
+        local card = Instance.new("Frame")
+        card.Size = UDim2.new(0, w, 0, 44)
+        card.Position = UDim2.new(0, x, 0, y)
+        card.BackgroundColor3 = LYRA.bg2
+        card.BorderSizePixel = 0
+        card.Parent = parent
+        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 6)
+
+        local valLbl = Instance.new("TextLabel")
+        valLbl.Size = UDim2.new(1, -8, 0, 22)
+        valLbl.Position = UDim2.new(0, 4, 0, 2)
+        valLbl.BackgroundTransparency = 1
+        valLbl.TextColor3 = LYRA.text
+        valLbl.Font = Enum.Font.GothamBold
+        valLbl.TextSize = 14
+        valLbl.Text = "0"
+        valLbl.TextXAlignment = Enum.TextXAlignment.Center
+        valLbl.Parent = card
+
+        local nameLbl = Instance.new("TextLabel")
+        nameLbl.Size = UDim2.new(1, -8, 0, 14)
+        nameLbl.Position = UDim2.new(0, 4, 0, 26)
+        nameLbl.BackgroundTransparency = 1
+        nameLbl.TextColor3 = LYRA.dim
+        nameLbl.Font = Enum.Font.Gotham
+        nameLbl.TextSize = 9
+        nameLbl.Text = "Label"
+        nameLbl.TextXAlignment = Enum.TextXAlignment.Center
+        nameLbl.Parent = card
+
+        return valLbl, nameLbl
+    end
+
+    local perfFishHrVal, perfFishHrLbl = makeStatCard(Tabs.AutoFish, 10, 306, 85)
+    perfFishHrLbl.Text = "Fish/hr"
+
+    local perfCaughtVal, perfCaughtLbl = makeStatCard(Tabs.AutoFish, 101, 306, 75)
+    perfCaughtLbl.Text = "Caught"
+
+    local perfSellsVal, perfSellsLbl = makeStatCard(Tabs.AutoFish, 182, 306, 75)
+    perfSellsLbl.Text = "Sells"
+
+    local perfEarnVal, perfEarnLbl = makeStatCard(Tabs.AutoFish, 263, 306, 95)
+    perfEarnLbl.Text = "Earned $"
+
+    -- Rarity breakdown row
+    local AFPerfRarity = Instance.new("TextLabel")
+    AFPerfRarity.Size = UDim2.new(1, -20, 0, 30)
+    AFPerfRarity.Position = UDim2.new(0, 10, 0, 356)
+    AFPerfRarity.BackgroundTransparency = 1
+    AFPerfRarity.TextColor3 = LYRA.dim
+    AFPerfRarity.Text = "Rarities: -"
+    AFPerfRarity.Font = Enum.Font.Code
+    AFPerfRarity.TextSize = 9
+    AFPerfRarity.TextWrapped = true
+    AFPerfRarity.TextXAlignment = Enum.TextXAlignment.Left
+    AFPerfRarity.TextYAlignment = Enum.TextYAlignment.Top
+    AFPerfRarity.Parent = Tabs.AutoFish
+
+    -- We keep AFPerfStats as a hidden container for the update function
+    local AFPerfStats = Instance.new("Frame")
+    AFPerfStats.Size = UDim2.new(0, 0, 0, 0)
+    AFPerfStats.Visible = false
     AFPerfStats.Parent = Tabs.AutoFish
 
     -- ═══════════════════════════════════════════
@@ -940,6 +994,11 @@ return function(config)
             LastCatch = AutoFishLastCatch,
             Timings = AFTimings,
             PerfStats = AFPerfStats,
+            PerfFishHrVal = perfFishHrVal,
+            PerfCaughtVal = perfCaughtVal,
+            PerfSellsVal = perfSellsVal,
+            PerfEarnVal = perfEarnVal,
+            PerfRarity = AFPerfRarity,
         },
         Clicker = {
             StatusLbl = StatusLbl,
