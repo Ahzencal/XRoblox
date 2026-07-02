@@ -1089,162 +1089,282 @@ return function(gui, config)
     end
 
     -- ═══════════════════════════════════════════
-    -- AUTO FISH SYSTEM
+    -- AUTO FISH SYSTEM (animation-based, d8nte engine)
     -- ═══════════════════════════════════════════
     local autoFishEnabled = false
     local autoFishCasts = 0
     local autoFishCaught = 0
+    local autoFishTimeouts = 0
+    local autoFishStage = "Idle"
+    local activeAnimConn = nil
 
+    -- Timing config
     local AF_PRE_CAST_DELAY = 0.3
-    local AF_CAST_MIN = 0.4
-    local AF_CAST_MAX = 0.6
+    local AF_CAST_HOLD_MIN = 0.4
+    local AF_CAST_HOLD_MAX = 0.6
+    local AF_VERIFY_CAST_TIMEOUT = 2.5
     local AF_PULL_TIMEOUT = 20
     local AF_POST_PULL_DELAY = 1.8
     local AF_POST_PULL_TIMEOUT = 5
     local AF_PRE_END_DELAY = 0
     local AF_POST_END_DELAY = 0.3
 
+    -- Animation IDs (IndoVoice fishing game)
+    local FISHING_ANIM_ID = "rbxassetid://107858786510758"
+    local PULL_ANIM_ID = "rbxassetid://136444937709795"
+
+    local VIM = game:GetService("VirtualInputManager")
+
     local function getRod()
         local char = lp.Character
         if not char then return nil end
         for _, tool in ipairs(char:GetChildren()) do
-            if tool:IsA("Tool") and tool:FindFirstChild("Cast") then
+            if tool:IsA("Tool") and (tool:FindFirstChild("Cast") or string.find(string.lower(tool.Name), "rod")) then
                 return tool
             end
         end
         return nil
     end
 
+    local function getRodFromBackpack()
+        local backpack = lp:FindFirstChildOfClass("Backpack")
+        if not backpack then return nil end
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and (tool:FindFirstChild("Cast") or string.find(string.lower(tool.Name), "rod")) then
+                return tool
+            end
+        end
+        return nil
+    end
+
+    local function equipRod()
+        local char = lp.Character
+        if not char then return false end
+        if getRod() then return true end
+        local rod = getRodFromBackpack()
+        if rod then
+            rod.Parent = char
+            log("AutoFish: Equipped " .. rod.Name, THEME.dim)
+            task.wait(0.3)
+            return true
+        end
+        return false
+    end
+
+    local function reequipRod()
+        local char = lp.Character
+        if not char then return end
+        local current = getRod()
+        if current then
+            local backpack = lp:FindFirstChildOfClass("Backpack")
+            if backpack then
+                current.Parent = backpack
+            end
+        end
+        task.wait(0.3)
+        equipRod()
+    end
+
+    local function afSetStage(stage)
+        autoFishStage = stage
+        gui.AutoFish.Status.Text = "Status: " .. stage
+    end
+
+    local function afTimeout(reason)
+        autoFishTimeouts = autoFishTimeouts + 1
+        log("AutoFish: Timeout [" .. reason .. "] #" .. autoFishTimeouts, THEME.warn)
+
+        if activeAnimConn then
+            activeAnimConn:Disconnect()
+            activeAnimConn = nil
+        end
+
+        -- Release mouse in case it's held
+        pcall(function()
+            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+        end)
+
+        afSetStage("Re-equipping...")
+        task.spawn(reequipRod)
+        task.wait(0.5)
+    end
+
     local function autoFishLoop()
-        log("AutoFish: Started", THEME.success)
-        gui.AutoFish.Status.Text = "Status: Running"
+        log("AutoFish: Engine started", THEME.success)
         gui.AutoFish.Status.TextColor3 = THEME.success
 
         while autoFishEnabled and not destroyed do
-            local rod = getRod()
-            if not rod then
-                gui.AutoFish.Status.Text = "Status: No rod equipped!"
-                gui.AutoFish.Status.TextColor3 = THEME.danger
-                log("AutoFish: No rod found, waiting...", THEME.warn)
-                task.wait(2)
+            local char = lp.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+            if not char or not hum then
+                afSetStage("No character")
+                task.wait(1)
                 continue
             end
 
-            local castRemote = rod:FindFirstChild("Cast")
-            local catchEvent = rod:FindFirstChild("Catch")
-            local baitLanded = rod:FindFirstChild("BaitLanded")
-            local startMinigame = rod:FindFirstChild("StartMinigame")
-
-            if not castRemote then
-                gui.AutoFish.Status.Text = "Status: Rod missing Cast remote"
-                gui.AutoFish.Status.TextColor3 = THEME.danger
-                task.wait(2)
+            -- Check if moving
+            if hum.MoveDirection.Magnitude > 0.1 then
+                afSetStage("Moving... waiting")
+                task.wait(0.2)
                 continue
             end
 
-            -- Pre-cast delay
-            gui.AutoFish.Status.Text = "Status: Pre-cast..."
+            -- Ensure rod is equipped
+            if not getRod() then
+                afSetStage("Equipping rod...")
+                if not equipRod() then
+                    afSetStage("No rod found!")
+                    gui.AutoFish.Status.TextColor3 = THEME.danger
+                    log("AutoFish: No rod in character or backpack", THEME.danger)
+                    task.wait(2)
+                    continue
+                end
+            end
+
+            -- ── PRE-CAST DELAY ──
+            afSetStage("Pre-cast...")
             task.wait(AF_PRE_CAST_DELAY)
-            if not autoFishEnabled then break end
+            if not autoFishEnabled or destroyed then break end
+            if hum.MoveDirection.Magnitude > 0.1 then continue end
 
-            -- Cast with random power
-            local castPower = AF_CAST_MIN + math.random() * (AF_CAST_MAX - AF_CAST_MIN)
-            local castTime = tick()
-            local castOk = pcall(function()
-                castRemote:InvokeServer(castPower, castTime)
+            -- ── CASTING (hold mouse) ──
+            afSetStage("Casting...")
+            pcall(function()
+                VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0)
             end)
 
-            if not castOk then
-                log("AutoFish: Cast failed", THEME.danger)
-                task.wait(1)
+            local holdDuration = AF_CAST_HOLD_MIN + math.random() * (AF_CAST_HOLD_MAX - AF_CAST_HOLD_MIN)
+            local holdElapsed = 0
+            while holdElapsed < holdDuration and autoFishEnabled do
+                task.wait(0.05)
+                holdElapsed = holdElapsed + 0.05
+            end
+
+            pcall(function()
+                VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+            end)
+
+            if not autoFishEnabled or destroyed then break end
+
+            -- ── VERIFY CAST (detect fishing animation) ──
+            afSetStage("Verify Cast...")
+            local castVerified = false
+
+            activeAnimConn = hum.AnimationPlayed:Connect(function(track)
+                if track.Animation and track.Animation.AnimationId == FISHING_ANIM_ID then
+                    castVerified = true
+                    if activeAnimConn then activeAnimConn:Disconnect(); activeAnimConn = nil end
+                end
+            end)
+
+            local verifyStart = tick()
+            while not castVerified and (tick() - verifyStart) < AF_VERIFY_CAST_TIMEOUT and autoFishEnabled do
+                task.wait(0.05)
+            end
+
+            if activeAnimConn then activeAnimConn:Disconnect(); activeAnimConn = nil end
+
+            if not autoFishEnabled or destroyed then break end
+
+            if not castVerified then
+                afTimeout("Verify Cast")
                 continue
             end
 
             autoFishCasts = autoFishCasts + 1
             gui.AutoFish.Casts.Text = "Casts: " .. autoFishCasts .. " | Caught: " .. autoFishCaught
-            gui.AutoFish.Status.Text = "Status: Waiting for bite..."
 
-            -- Wait for BaitLanded / StartMinigame signals (pull timeout)
-            local pullReceived = false
-            local fishData = nil
-            local pullConn, miniConn
+            -- ── WAITING FOR PULL (detect pull animation) ──
+            afSetStage("Waiting for bite...")
+            local pullDetected = false
 
-            if baitLanded then
-                pullConn = baitLanded.OnClientEvent:Connect(function()
-                    pullReceived = true
-                end)
+            activeAnimConn = hum.AnimationPlayed:Connect(function(track)
+                if track.Animation and track.Animation.AnimationId == PULL_ANIM_ID then
+                    pullDetected = true
+                    if activeAnimConn then activeAnimConn:Disconnect(); activeAnimConn = nil end
+                end
+            end)
+
+            local pullStart = tick()
+            while not pullDetected and (tick() - pullStart) < AF_PULL_TIMEOUT and autoFishEnabled do
+                task.wait(0.05)
             end
 
-            if startMinigame then
-                miniConn = startMinigame.OnClientEvent:Connect(function(_, data)
-                    if data and type(data) == "table" then
-                        fishData = data
-                    end
-                    pullReceived = true
-                end)
-            end
+            if activeAnimConn then activeAnimConn:Disconnect(); activeAnimConn = nil end
 
-            -- Wait for pull or timeout
-            local waitStart = tick()
-            while not pullReceived and (tick() - waitStart) < AF_PULL_TIMEOUT and autoFishEnabled do
-                task.wait(0.1)
-            end
+            if not autoFishEnabled or destroyed then break end
 
-            if pullConn then pullConn:Disconnect() end
-            if miniConn then miniConn:Disconnect() end
-
-            if not autoFishEnabled then break end
-
-            if not pullReceived then
-                gui.AutoFish.Status.Text = "Status: No bite, recasting..."
-                log("AutoFish: Pull timeout, recasting", THEME.warn)
-                task.wait(AF_POST_END_DELAY)
+            if not pullDetected then
+                afTimeout("Waiting Pull")
                 continue
             end
 
-            -- Post-pull delay (simulate reaction time)
-            gui.AutoFish.Status.Text = "Status: Fish on! Pulling..."
-            task.wait(AF_POST_PULL_DELAY)
-            if not autoFishEnabled then break end
+            -- ── POST-PULL DELAY ──
+            afSetStage("Fish on! Waiting...")
+            local postPullStart = tick()
+            while (tick() - postPullStart) < AF_POST_PULL_DELAY and autoFishEnabled do
+                if (tick() - postPullStart) > AF_POST_PULL_TIMEOUT then
+                    afTimeout("Post Pull Wait")
+                    break
+                end
+                task.wait(0.05)
+            end
 
-            -- Pre-end delay
+            if not autoFishEnabled or destroyed then break end
+            if autoFishStage == "Re-equipping..." then continue end
+
+            -- ── PRE-END DELAY ──
             if AF_PRE_END_DELAY > 0 then
                 task.wait(AF_PRE_END_DELAY)
             end
 
-            -- Catch the fish
-            if catchEvent then
+            -- ── CATCH ──
+            afSetStage("Catching!")
+            local rod = getRod()
+            local catchRemote = rod and rod:FindFirstChild("Catch")
+
+            if catchRemote then
                 pcall(function()
-                    catchEvent:FireServer(true)
+                    catchRemote:FireServer(true)
                 end)
+                autoFishCaught = autoFishCaught + 1
+                gui.AutoFish.Casts.Text = "Casts: " .. autoFishCasts .. " | Caught: " .. autoFishCaught
+                gui.AutoFish.LastCatch.Text = "Last: Fish #" .. autoFishCaught
+                log("AutoFish: Caught #" .. autoFishCaught, THEME.success)
+            else
+                log("AutoFish: Catch remote not found", THEME.danger)
+                afTimeout("Catch")
+                continue
             end
 
-            autoFishCaught = autoFishCaught + 1
-            gui.AutoFish.Casts.Text = "Casts: " .. autoFishCasts .. " | Caught: " .. autoFishCaught
-
-            local catchName = fishData and fishData.FishName or "Unknown"
-            local catchRarity = fishData and fishData.Rarity or "?"
-            gui.AutoFish.LastCatch.Text = "Last: " .. catchName .. " [" .. catchRarity .. "]"
-            log("AutoFish: Caught " .. catchName .. " (" .. catchRarity .. ")", THEME.success)
-
-            -- Post-end delay
-            gui.AutoFish.Status.Text = "Status: Caught! Resetting..."
-            task.wait(AF_POST_END_DELAY)
-
-            -- Post-pull timeout (wait for rod to be ready)
-            local readyWait = tick()
-            while (tick() - readyWait) < AF_POST_PULL_TIMEOUT and autoFishEnabled do
-                local newRod = getRod()
-                if newRod and newRod:FindFirstChild("Cast") then
-                    break
+            -- ── END: destroy fishing UI ──
+            afSetStage("Cleaning up...")
+            pcall(function()
+                local playerGui = lp:FindFirstChild("PlayerGui")
+                if playerGui then
+                    for _, g in pairs(playerGui:GetChildren()) do
+                        if g:IsA("ScreenGui") and g:FindFirstChild("FishingHolder", true) then
+                            g:Destroy()
+                            break
+                        end
+                    end
                 end
-                task.wait(0.2)
-            end
+            end)
+
+            -- ── POST-END DELAY ──
+            afSetStage("Resetting...")
+            task.wait(AF_POST_END_DELAY)
         end
 
-        gui.AutoFish.Status.Text = "Status: Idle"
+        afSetStage("Idle")
         gui.AutoFish.Status.TextColor3 = THEME.dim
         log("AutoFish: Stopped", THEME.dim)
+
+        -- Release mouse just in case
+        pcall(function()
+            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+        end)
     end
 
     bind(gui.AutoFish.ToggleBtn.MouseButton1Click, function()
@@ -1256,6 +1376,14 @@ return function(gui, config)
         else
             gui.AutoFish.ToggleBtn.Text = "Auto Fish: OFF"
             gui.AutoFish.ToggleBtn.BackgroundColor3 = THEME.accent
+            -- Release mouse
+            pcall(function()
+                VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+            end)
+            if activeAnimConn then
+                activeAnimConn:Disconnect()
+                activeAnimConn = nil
+            end
         end
     end)
 
