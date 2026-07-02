@@ -1108,31 +1108,35 @@ return function(config)
                         if rarity:IsA("Folder") then
                             for _, rod in ipairs(rarity:GetChildren()) do
                                 if string.find(rod.Name, "Rod$") then
-                                    -- Exclude gold-only and negative price rods
-                                    local shouldExclude = false
+                                    -- Only include rods with positive Ropiah price
+                                    local shouldInclude = false
+                                    local price = 0
                                     pcall(function()
-                                        -- Check attribute-based gold price
-                                        local gp = rod:GetAttribute("GoldPrice") or rod:GetAttribute("GoldOnly")
-                                        if gp and tonumber(gp) and tonumber(gp) > 0 then
-                                            shouldExclude = true
-                                        end
-                                        -- Try requiring the module to check Price
+                                        local data = nil
                                         if rod:IsA("ModuleScript") then
-                                            local data = require(rod)
-                                            if data and data.Price and tonumber(data.Price) < 0 then
-                                                shouldExclude = true
-                                            end
-                                            if data and data.GoldPrice and tonumber(data.GoldPrice) > 0 and (not data.Price or tonumber(data.Price) == 0) then
-                                                shouldExclude = true
+                                            data = require(rod)
+                                        else
+                                            local ms = rod:FindFirstChildOfClass("ModuleScript")
+                                            if ms then data = require(ms) end
+                                        end
+                                        if not data then data = require(rod) end
+                                        if data and type(data) == "table" then
+                                            price = tonumber(data.Price) or 0
+                                            local goldPrice = tonumber(data.GoldPrice) or 0
+                                            -- Include only if price > 0 (buyable with Ropiah)
+                                            if price > 0 then
+                                                shouldInclude = true
                                             end
                                         end
                                     end)
-                                    if not shouldExclude then
+                                    -- If we couldn't read the data at all, skip it
+                                    if shouldInclude then
                                         table.insert(availableRods, {
                                             name = rod.Name,
                                             category = category.Name,
                                             rarity = rarity.Name,
                                             order = rarityOrder[rarity.Name] or 99,
+                                            price = price,
                                         })
                                     end
                                 end
