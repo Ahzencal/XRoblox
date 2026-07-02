@@ -766,10 +766,58 @@ return function(config)
     GachaLastResult.TextXAlignment = Enum.TextXAlignment.Left
     GachaLastResult.Parent = FunScroll
 
+    -- Box selection (auto-detected from ReplicatedStorage.Content.BlindBox)
+    local GachaBoxTitle = Instance.new("TextLabel")
+    GachaBoxTitle.Size = UDim2.new(1, -20, 0, 16)
+    GachaBoxTitle.Position = UDim2.new(0, 10, 0, 284)
+    GachaBoxTitle.BackgroundTransparency = 1
+    GachaBoxTitle.Text = "Select Box:"
+    GachaBoxTitle.TextColor3 = LYRA.text
+    GachaBoxTitle.Font = Enum.Font.GothamBold
+    GachaBoxTitle.TextSize = 10
+    GachaBoxTitle.TextXAlignment = Enum.TextXAlignment.Left
+    GachaBoxTitle.Parent = FunScroll
+
+    -- Read available boxes
+    local availableBoxes = {}
+    pcall(function()
+        local blindBoxFolder = game:GetService("ReplicatedStorage"):FindFirstChild("Content")
+        blindBoxFolder = blindBoxFolder and blindBoxFolder:FindFirstChild("BlindBox")
+        if blindBoxFolder then
+            for _, child in ipairs(blindBoxFolder:GetChildren()) do
+                table.insert(availableBoxes, child.Name)
+            end
+        end
+    end)
+
+    local GachaBoxButtons = {}
+    local GachaSelectedBox = Instance.new("StringValue")
+    GachaSelectedBox.Value = availableBoxes[1] or ""
+
+    for i, boxName in ipairs(availableBoxes) do
+        local btn = Instance.new("TextButton")
+        btn.Text = boxName
+        btn.Size = UDim2.new(0, 90, 0, 22)
+        btn.Position = UDim2.new(0, 10 + ((i - 1) % 3) * 96, 0, 304 + math.floor((i - 1) / 3) * 28)
+        btn.BackgroundColor3 = (i == 1) and LYRA.accent or LYRA.panel2
+        btn.BackgroundTransparency = (i == 1) and 0.2 or 0.6
+        btn.TextColor3 = (i == 1) and Color3.new(1, 1, 1) or LYRA.dim
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 9
+        btn.BorderSizePixel = 0
+        btn.Parent = FunScroll
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        GachaBoxButtons[boxName] = btn
+    end
+
+    -- Calculate Y offset based on number of box rows
+    local boxRows = math.ceil(#availableBoxes / 3)
+    local stopY = 304 + boxRows * 28 + 10
+
     -- Stop rarity selection
     local GachaStopTitle = Instance.new("TextLabel")
     GachaStopTitle.Size = UDim2.new(1, -20, 0, 16)
-    GachaStopTitle.Position = UDim2.new(0, 10, 0, 286)
+    GachaStopTitle.Position = UDim2.new(0, 10, 0, stopY)
     GachaStopTitle.BackgroundTransparency = 1
     GachaStopTitle.Text = "Stop when rarity obtained:"
     GachaStopTitle.TextColor3 = LYRA.text
@@ -784,7 +832,7 @@ return function(config)
         local btn = Instance.new("TextButton")
         btn.Text = rarity
         btn.Size = UDim2.new(0, 62, 0, 22)
-        btn.Position = UDim2.new(0, 10 + ((i - 1) % 4) * 68, 0, 306 + math.floor((i - 1) / 4) * 28)
+        btn.Position = UDim2.new(0, 10 + ((i - 1) % 4) * 68, 0, stopY + 20 + math.floor((i - 1) / 4) * 28)
         btn.BackgroundColor3 = LYRA.panel2
         btn.BackgroundTransparency = 0.6
         btn.TextColor3 = LYRA.dim
@@ -796,58 +844,8 @@ return function(config)
         GachaStopButtons[rarity] = btn
     end
 
-    -- Box type input
-    local GachaBoxTitle = Instance.new("TextLabel")
-    GachaBoxTitle.Size = UDim2.new(0, 60, 0, 22)
-    GachaBoxTitle.Position = UDim2.new(0, 10, 0, 370)
-    GachaBoxTitle.BackgroundTransparency = 1
-    GachaBoxTitle.Text = "Box:"
-    GachaBoxTitle.TextColor3 = LYRA.dim
-    GachaBoxTitle.Font = Enum.Font.Gotham
-    GachaBoxTitle.TextSize = 10
-    GachaBoxTitle.TextXAlignment = Enum.TextXAlignment.Left
-    GachaBoxTitle.Parent = FunScroll
-
-    local GachaBoxInput = Instance.new("TextBox")
-    GachaBoxInput.Size = UDim2.new(0, 160, 0, 22)
-    GachaBoxInput.Position = UDim2.new(0, 46, 0, 370)
-    GachaBoxInput.BackgroundColor3 = LYRA.bg2
-    GachaBoxInput.TextColor3 = LYRA.text
-    GachaBoxInput.PlaceholderText = "e.g. Dino2026"
-    GachaBoxInput.PlaceholderColor3 = LYRA.dim
-    GachaBoxInput.Text = "Dino2026"
-    GachaBoxInput.Font = Enum.Font.Code
-    GachaBoxInput.TextSize = 10
-    GachaBoxInput.ClearTextOnFocus = false
-    GachaBoxInput.BorderSizePixel = 0
-    GachaBoxInput.Parent = FunScroll
-    Instance.new("UICorner", GachaBoxInput).CornerRadius = UDim.new(0, 4)
-
-    local GachaCategoryTitle = Instance.new("TextLabel")
-    GachaCategoryTitle.Size = UDim2.new(0, 60, 0, 22)
-    GachaCategoryTitle.Position = UDim2.new(0, 10, 0, 398)
-    GachaCategoryTitle.BackgroundTransparency = 1
-    GachaCategoryTitle.Text = "Type:"
-    GachaCategoryTitle.TextColor3 = LYRA.dim
-    GachaCategoryTitle.Font = Enum.Font.Gotham
-    GachaCategoryTitle.TextSize = 10
-    GachaCategoryTitle.TextXAlignment = Enum.TextXAlignment.Left
-    GachaCategoryTitle.Parent = FunScroll
-
-    local GachaCategoryInput = Instance.new("TextBox")
-    GachaCategoryInput.Size = UDim2.new(0, 160, 0, 22)
-    GachaCategoryInput.Position = UDim2.new(0, 46, 0, 398)
-    GachaCategoryInput.BackgroundColor3 = LYRA.bg2
-    GachaCategoryInput.TextColor3 = LYRA.text
-    GachaCategoryInput.PlaceholderText = "e.g. Pet"
-    GachaCategoryInput.PlaceholderColor3 = LYRA.dim
-    GachaCategoryInput.Text = "Pet"
-    GachaCategoryInput.Font = Enum.Font.Code
-    GachaCategoryInput.TextSize = 10
-    GachaCategoryInput.ClearTextOnFocus = false
-    GachaCategoryInput.BorderSizePixel = 0
-    GachaCategoryInput.Parent = FunScroll
-    Instance.new("UICorner", GachaCategoryInput).CornerRadius = UDim.new(0, 4)
+    -- Update canvas size to fit everything
+    FunScroll.CanvasSize = UDim2.new(0, 0, 0, stopY + 90)
 
     -- ═══════════════════════════════════════════
     -- SETTINGS TAB
@@ -1162,8 +1160,8 @@ return function(config)
             Status = GachaStatus,
             LastResult = GachaLastResult,
             StopButtons = GachaStopButtons,
-            BoxInput = GachaBoxInput,
-            CategoryInput = GachaCategoryInput,
+            BoxButtons = GachaBoxButtons,
+            SelectedBox = GachaSelectedBox,
         },
         Settings = {
             HideKeyLbl = HideKeyLbl,

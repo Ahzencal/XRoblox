@@ -1776,6 +1776,28 @@ return function(gui, config)
     local autoGachaEnabled = false
     local autoGachaRolls = 0
     local gachaStopRarities = {}
+    local selectedGachaBox = gui.Gacha.SelectedBox.Value
+
+    -- Box selection buttons
+    for boxName, btn in pairs(gui.Gacha.BoxButtons) do
+        bind(btn.MouseButton1Click, function()
+            selectedGachaBox = boxName
+            gui.Gacha.SelectedBox.Value = boxName
+            -- Update button visuals
+            for bName, bBtn in pairs(gui.Gacha.BoxButtons) do
+                if bName == boxName then
+                    bBtn.BackgroundColor3 = THEME.accent
+                    bBtn.BackgroundTransparency = 0.2
+                    bBtn.TextColor3 = Color3.new(1, 1, 1)
+                else
+                    bBtn.BackgroundColor3 = THEME.panel2
+                    bBtn.BackgroundTransparency = 0.6
+                    bBtn.TextColor3 = THEME.dim
+                end
+            end
+            log("Gacha: Selected box → " .. boxName, THEME.dim)
+        end)
+    end
 
     -- Stop rarity toggle buttons
     for rarity, btn in pairs(gui.Gacha.StopButtons) do
@@ -1794,47 +1816,30 @@ return function(gui, config)
     end
 
     local function autoGachaLoop()
-        log("AutoGacha: Started", THEME.success)
+        log("AutoGacha: Started [" .. selectedGachaBox .. "]", THEME.success)
         gui.Gacha.Status.Text = "Status: Running | Rolls: 0"
         gui.Gacha.Status.TextColor3 = THEME.success
 
-        local BlindBoxRoll = game:GetService("ReplicatedStorage"):FindFirstChild("GameRemoteFunctions")
-        BlindBoxRoll = BlindBoxRoll and BlindBoxRoll:FindFirstChild("BlindBoxRollFunctionEvent")
-
-        local BlindBoxComplete = game:GetService("ReplicatedStorage"):FindFirstChild("GameRemoteEvents")
-        BlindBoxComplete = BlindBoxComplete and BlindBoxComplete:FindFirstChild("BlindBoxRollCompletedEventEvent")
-
-        if not BlindBoxRoll then
-            gui.Gacha.Status.Text = "Status: Roll remote not found!"
-            gui.Gacha.Status.TextColor3 = THEME.danger
-            log("AutoGacha: BlindBoxRollFunctionEvent not found", THEME.danger)
-            autoGachaEnabled = false
-            gui.Gacha.ToggleBtn.Text = "Auto Gacha: OFF"
-            gui.Gacha.ToggleBtn.BackgroundColor3 = THEME.accent
-            return
-        end
-
         while autoGachaEnabled and not destroyed do
-            local category = gui.Gacha.CategoryInput.Text
-            local boxName = gui.Gacha.BoxInput.Text
+            local boxName = selectedGachaBox
 
-            if category == "" or boxName == "" then
-                gui.Gacha.Status.Text = "Status: Set Box & Type first!"
+            if boxName == "" then
+                gui.Gacha.Status.Text = "Status: Select a box first!"
                 gui.Gacha.Status.TextColor3 = THEME.warn
                 task.wait(2)
                 continue
             end
 
-            -- Roll 10x
-            gui.Gacha.Status.Text = "Status: Rolling 10x..."
+            -- Roll 10x using "Pet" category (standard for blind boxes in this game)
+            gui.Gacha.Status.Text = "Status: Rolling 10x [" .. boxName .. "]..."
             local rollOk, rollResult = pcall(function()
-                return BlindBoxRoll:InvokeServer(category, boxName, 10)
+                return game:GetService("ReplicatedStorage").GameRemoteFunctions.BlindBoxRollFunctionEvent:InvokeServer("Pet", boxName, 10)
             end)
 
             if not rollOk then
                 gui.Gacha.Status.Text = "Status: Roll failed!"
                 gui.Gacha.Status.TextColor3 = THEME.danger
-                log("AutoGacha: Roll error - " .. tostring(rollResult), THEME.danger)
+                log("AutoGacha: Error - " .. tostring(rollResult), THEME.danger)
                 task.wait(3)
                 continue
             end
@@ -1842,12 +1847,10 @@ return function(gui, config)
             autoGachaRolls = autoGachaRolls + 10
             gui.Gacha.Status.Text = "Status: Running | Rolls: " .. autoGachaRolls
 
-            -- Fire completion event for each result
-            -- The server may return rarity info — check if we got a stop rarity
+            -- Check results for stop rarity
             local gotStopRarity = false
             local lastRarity = "?"
 
-            -- rollResult might be a table of results or a single value
             if type(rollResult) == "table" then
                 for _, item in ipairs(rollResult) do
                     local r = type(item) == "table" and (item.Rarity or item.rarity) or tostring(item)
@@ -1861,13 +1864,6 @@ return function(gui, config)
                 if gachaStopRarities[lastRarity] then
                     gotStopRarity = true
                 end
-            end
-
-            -- Fire BlindBoxRollCompleted for each (if it exists)
-            if BlindBoxComplete then
-                pcall(function()
-                    BlindBoxComplete:FireServer(lastRarity)
-                end)
             end
 
             gui.Gacha.LastResult.Text = "Last: " .. lastRarity .. " (roll #" .. autoGachaRolls .. ")"
@@ -1892,7 +1888,7 @@ return function(gui, config)
                         fields = {
                             {name = "Rarity :", value = "```" .. lastRarity .. "```", inline = true},
                             {name = "Total Rolls :", value = "```" .. tostring(autoGachaRolls) .. "```", inline = true},
-                            {name = "Box :", value = "```" .. category .. " / " .. boxName .. "```", inline = false},
+                            {name = "Box :", value = "```Pet / " .. boxName .. "```", inline = false},
                         },
                         footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
                         timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
