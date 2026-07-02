@@ -1438,6 +1438,21 @@ return function(gui, config)
     updateSellRarityUI()
     updateWebhookRarityUI()
 
+    -- About tab: copy saweria link
+    bind(gui.About.CopySaweriaBtn.MouseButton1Click, function()
+        pcall(function()
+            setclipboard("https://saweria.co/ahzencal")
+        end)
+        gui.About.CopySaweriaBtn.Text = "Copied!"
+        gui.About.CopySaweriaBtn.BackgroundColor3 = THEME.success
+        task.delay(2, function()
+            if gui.About.CopySaweriaBtn and gui.About.CopySaweriaBtn.Parent then
+                gui.About.CopySaweriaBtn.Text = "Copy"
+                gui.About.CopySaweriaBtn.BackgroundColor3 = THEME.accent
+            end
+        end)
+    end)
+
     -- ═══════════════════════════════════════════
     -- AUTO FISH SYSTEM (animation-based, d8nte engine)
     -- ═══════════════════════════════════════════
@@ -2181,7 +2196,7 @@ return function(gui, config)
         end
     end)
 
-    switchTab("Players")
+    switchTab("About")
     updateClickerUI()
     updateRewardButtons()
     refreshPlayerRows()

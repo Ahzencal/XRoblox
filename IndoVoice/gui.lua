@@ -330,15 +330,16 @@ return function(config)
 
     -- TabsBar (nav area)
     local TabsBar = Instance.new("Frame")
-    TabsBar.Size = UDim2.new(1, 0, 0, 320)
+    TabsBar.Size = UDim2.new(1, 0, 1, -74)
     TabsBar.Position = UDim2.new(0, 0, 0, 74)
     TabsBar.BackgroundTransparency = 1
     TabsBar.BorderSizePixel = 0
+    TabsBar.ClipsDescendants = true
     TabsBar.Parent = Sidebar
 
     -- Sidebar nav buttons (full text, vertical)
-    local tabNames = {"Players", "FishZone", "AutoFish", "Fun", "Settings", "Logs"}
-    local tabIcons = {"Players", "FishZone", "AutoFish", "Fun", "Settings", "Logs"}
+    local tabNames = {"About", "Players", "FishZone", "AutoFish", "Fun", "Settings", "Logs"}
+    local tabIcons = {"About", "Players", "FishZone", "AutoFish", "Fun", "Settings", "Logs"}
     local TabButtons = {}
 
     for i, name in ipairs(tabNames) do
@@ -383,6 +384,102 @@ return function(config)
         f.Parent = Content
         Tabs[name] = f
     end
+
+    -- ═══════════════════════════════════════════
+    -- ABOUT TAB
+    -- ═══════════════════════════════════════════
+    local AboutTitle = Instance.new("TextLabel")
+    AboutTitle.Size = UDim2.new(1, -20, 0, 30)
+    AboutTitle.Position = UDim2.new(0, 10, 0, 20)
+    AboutTitle.BackgroundTransparency = 1
+    AboutTitle.Text = "LyraHub"
+    AboutTitle.TextColor3 = LYRA.accentGlow
+    AboutTitle.Font = Enum.Font.GothamBold
+    AboutTitle.TextSize = 22
+    AboutTitle.TextXAlignment = Enum.TextXAlignment.Left
+    AboutTitle.Parent = Tabs.About
+
+    local AboutSub = Instance.new("TextLabel")
+    AboutSub.Size = UDim2.new(1, -20, 0, 18)
+    AboutSub.Position = UDim2.new(0, 10, 0, 52)
+    AboutSub.BackgroundTransparency = 1
+    AboutSub.Text = "Automation tools for IndoVoice"
+    AboutSub.TextColor3 = LYRA.dim
+    AboutSub.Font = Enum.Font.Gotham
+    AboutSub.TextSize = 12
+    AboutSub.TextXAlignment = Enum.TextXAlignment.Left
+    AboutSub.Parent = Tabs.About
+
+    local AboutSep = Instance.new("Frame")
+    AboutSep.Size = UDim2.new(1, -20, 0, 1)
+    AboutSep.Position = UDim2.new(0, 10, 0, 80)
+    AboutSep.BackgroundColor3 = LYRA.panel2
+    AboutSep.BorderSizePixel = 0
+    AboutSep.Parent = Tabs.About
+
+    local AboutDiscord = Instance.new("TextLabel")
+    AboutDiscord.Size = UDim2.new(1, -20, 0, 20)
+    AboutDiscord.Position = UDim2.new(0, 10, 0, 94)
+    AboutDiscord.BackgroundTransparency = 1
+    AboutDiscord.Text = "Discord: Ahzencal"
+    AboutDiscord.TextColor3 = LYRA.text
+    AboutDiscord.Font = Enum.Font.GothamBold
+    AboutDiscord.TextSize = 13
+    AboutDiscord.TextXAlignment = Enum.TextXAlignment.Left
+    AboutDiscord.Parent = Tabs.About
+
+    local AboutSaweria = Instance.new("TextLabel")
+    AboutSaweria.Size = UDim2.new(1, -20, 0, 20)
+    AboutSaweria.Position = UDim2.new(0, 10, 0, 120)
+    AboutSaweria.BackgroundTransparency = 1
+    AboutSaweria.Text = "Saweria: saweria.co/ahzencal"
+    AboutSaweria.TextColor3 = LYRA.text
+    AboutSaweria.Font = Enum.Font.GothamBold
+    AboutSaweria.TextSize = 13
+    AboutSaweria.TextXAlignment = Enum.TextXAlignment.Left
+    AboutSaweria.Parent = Tabs.About
+
+    local CopySaweriaBtn = Instance.new("TextButton")
+    CopySaweriaBtn.Size = UDim2.new(0, 80, 0, 24)
+    CopySaweriaBtn.Position = UDim2.new(1, -90, 0, 118)
+    CopySaweriaBtn.BackgroundColor3 = LYRA.accent
+    CopySaweriaBtn.Text = "Copy"
+    CopySaweriaBtn.TextColor3 = Color3.new(1, 1, 1)
+    CopySaweriaBtn.Font = Enum.Font.GothamBold
+    CopySaweriaBtn.TextSize = 11
+    CopySaweriaBtn.BorderSizePixel = 0
+    CopySaweriaBtn.Parent = Tabs.About
+    Instance.new("UICorner", CopySaweriaBtn).CornerRadius = UDim.new(0, 6)
+
+    local AboutSep2 = Instance.new("Frame")
+    AboutSep2.Size = UDim2.new(1, -20, 0, 1)
+    AboutSep2.Position = UDim2.new(0, 10, 0, 154)
+    AboutSep2.BackgroundColor3 = LYRA.panel2
+    AboutSep2.BorderSizePixel = 0
+    AboutSep2.Parent = Tabs.About
+
+    local AboutCreator = Instance.new("TextLabel")
+    AboutCreator.Size = UDim2.new(1, -20, 0, 40)
+    AboutCreator.Position = UDim2.new(0, 10, 0, 168)
+    AboutCreator.BackgroundTransparency = 1
+    AboutCreator.Text = "Created By: Ahzencal\nLyraHub est. 2026"
+    AboutCreator.TextColor3 = LYRA.dim
+    AboutCreator.Font = Enum.Font.Gotham
+    AboutCreator.TextSize = 12
+    AboutCreator.TextXAlignment = Enum.TextXAlignment.Left
+    AboutCreator.TextYAlignment = Enum.TextYAlignment.Top
+    AboutCreator.Parent = Tabs.About
+
+    local AboutVersion = Instance.new("TextLabel")
+    AboutVersion.Size = UDim2.new(1, -20, 0, 20)
+    AboutVersion.Position = UDim2.new(0, 10, 1, -30)
+    AboutVersion.BackgroundTransparency = 1
+    AboutVersion.Text = "v2.0 | Lyra Engine"
+    AboutVersion.TextColor3 = LYRA.dim
+    AboutVersion.Font = Enum.Font.Code
+    AboutVersion.TextSize = 10
+    AboutVersion.TextXAlignment = Enum.TextXAlignment.Left
+    AboutVersion.Parent = Tabs.About
 
     -- ═══════════════════════════════════════════
     -- PLAYERS TAB
@@ -1118,6 +1215,9 @@ return function(config)
         CloseBtn = CloseBtn,
         TabButtons = TabButtons,
         Tabs = Tabs,
+        About = {
+            CopySaweriaBtn = CopySaweriaBtn,
+        },
         Players = {
             SearchBox = SearchBox,
             PlayerList = PlayerList,
