@@ -2062,7 +2062,7 @@ return function(gui, config)
             -- Roll 10x
             gui.ShopGacha.Status.Text = "Status: Rolling 10x [" .. shopGachaType .. "]..."
             local rollOk, rollResult = pcall(function()
-                return game:GetService("ReplicatedStorage").GameRemoteFunctions.RollShopFunctionEvent:InvokeServer(shopGachaType, 10)
+                return game:GetService("ReplicatedStorage").GameRemoteFunctions.RollShopFunction:InvokeServer(shopGachaType, 10)
             end)
 
             task.wait(1.5)
