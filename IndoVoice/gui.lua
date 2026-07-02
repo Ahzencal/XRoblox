@@ -1108,15 +1108,26 @@ return function(config)
                         if rarity:IsA("Folder") then
                             for _, rod in ipairs(rarity:GetChildren()) do
                                 if string.find(rod.Name, "Rod$") then
-                                    -- Exclude gold-only rods (check for GoldPrice attribute or script)
-                                    local isGoldOnly = false
+                                    -- Exclude gold-only and negative price rods
+                                    local shouldExclude = false
                                     pcall(function()
+                                        -- Check attribute-based gold price
                                         local gp = rod:GetAttribute("GoldPrice") or rod:GetAttribute("GoldOnly")
                                         if gp and tonumber(gp) and tonumber(gp) > 0 then
-                                            isGoldOnly = true
+                                            shouldExclude = true
+                                        end
+                                        -- Try requiring the module to check Price
+                                        if rod:IsA("ModuleScript") then
+                                            local data = require(rod)
+                                            if data and data.Price and tonumber(data.Price) < 0 then
+                                                shouldExclude = true
+                                            end
+                                            if data and data.GoldPrice and tonumber(data.GoldPrice) > 0 and (not data.Price or tonumber(data.Price) == 0) then
+                                                shouldExclude = true
+                                            end
                                         end
                                     end)
-                                    if not isGoldOnly then
+                                    if not shouldExclude then
                                         table.insert(availableRods, {
                                             name = rod.Name,
                                             category = category.Name,
