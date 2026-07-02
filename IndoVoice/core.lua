@@ -788,18 +788,16 @@ return function(gui, config)
         end
 
         if rodTool then
-            local castState = rodTool:GetAttribute("Catch")
-            if castState == nil then castState = rodTool:GetAttribute("IsFishing") end
-            if castState == nil then castState = rodTool:GetAttribute("BaitInWater") end
-            if castState == nil then castState = rodTool:GetAttribute("Cast") end
+            local isCasting = rodTool:GetAttribute("IsCasting")
+            local baitInWater = rodTool:GetAttribute("BaitLandedInWater")
 
-            if typeof(castState) == "boolean" and castState then
+            if isCasting == true or baitInWater == true then
                 isFishing = true
             end
         end
 
         if isFishing then
-            return false, "Cannot sell while still fishing or bait is still in water"
+            return false, "Cannot sell while casting or bait is in water"
         end
 
         local shopPart = nil

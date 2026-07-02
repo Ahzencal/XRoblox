@@ -1,5 +1,5 @@
 -- FishZone/gui.lua
--- GUI template only
+-- Modern minimalist sidebar GUI layout
 return function(config)
     local Players = game:GetService("Players")
     local TweenService = game:GetService("TweenService")
@@ -17,6 +17,7 @@ return function(config)
         TweenService:Create(obj, TweenInfo.new(t, style, dir), props):Play()
     end
 
+    -- Loading screen animation (kept exactly as-is)
     local LoadGui = Instance.new("ScreenGui")
     LoadGui.Name = "AhzencalLoader"
     LoadGui.ResetOnSpawn = false
@@ -166,7 +167,9 @@ return function(config)
             LoadGui:Destroy()
         end)
     end)
+    -- End loading screen animation
 
+    -- Main ScreenGui
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "AhzencalESPv3_Split"
     ScreenGui.ResetOnSpawn = false
@@ -179,128 +182,161 @@ return function(config)
         ScreenGui.Parent = lp:WaitForChild("PlayerGui")
     end
 
+    -- Main frame (sidebar + content area)
     local Main = Instance.new("Frame")
-    Main.Size = UDim2.new(0, 390, 0, 470)
-    Main.Position = UDim2.new(0.5, -195, 0.5, -235)
+    Main.Size = UDim2.new(0, 470, 0, 380)
+    Main.Position = UDim2.new(0.5, -235, 0.5, -190)
     Main.BackgroundColor3 = THEME.bg
     Main.BorderSizePixel = 0
+    Main.ClipsDescendants = true
     Main.Parent = ScreenGui
-    Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 16)
+    Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 14)
     local MainStroke = Instance.new("UIStroke", Main)
     MainStroke.Color = Color3.fromRGB(60, 70, 95)
     MainStroke.Thickness = 1.2
 
-    local Header = Instance.new("Frame")
-    Header.Size = UDim2.new(1, 0, 0, 54)
-    Header.BackgroundColor3 = THEME.bg2
-    Header.BorderSizePixel = 0
-    Header.Parent = Main
-    Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 16)
+    -- Sidebar (left, 80px wide)
+    local Sidebar = Instance.new("Frame")
+    Sidebar.Size = UDim2.new(0, 80, 1, 0)
+    Sidebar.Position = UDim2.new(0, 0, 0, 0)
+    Sidebar.BackgroundColor3 = THEME.bg2
+    Sidebar.BorderSizePixel = 0
+    Sidebar.Parent = Main
+    Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 14)
 
-    local HeaderMask = Instance.new("Frame")
-    HeaderMask.Size = UDim2.new(1, 0, 0, 16)
-    HeaderMask.Position = UDim2.new(0, 0, 1, -16)
-    HeaderMask.BackgroundColor3 = THEME.bg2
-    HeaderMask.BorderSizePixel = 0
-    HeaderMask.Parent = Header
+    -- Mask right side of sidebar corner radius
+    local SidebarMask = Instance.new("Frame")
+    SidebarMask.Size = UDim2.new(0, 14, 1, 0)
+    SidebarMask.Position = UDim2.new(1, -14, 0, 0)
+    SidebarMask.BackgroundColor3 = THEME.bg2
+    SidebarMask.BorderSizePixel = 0
+    SidebarMask.Parent = Sidebar
 
+    -- Title at top of sidebar
     local Title = Instance.new("TextLabel")
-    Title.Text = "Ahzencal Hub"
-    Title.Size = UDim2.new(0, 130, 1, 0)
-    Title.Position = UDim2.new(0, 16, 0, 0)
+    Title.Text = "AH"
+    Title.Size = UDim2.new(1, 0, 0, 40)
+    Title.Position = UDim2.new(0, 0, 0, 8)
     Title.BackgroundTransparency = 1
     Title.TextColor3 = THEME.text
     Title.Font = Enum.Font.GothamBold
-    Title.TextSize = 18
-    Title.TextXAlignment = Enum.TextXAlignment.Left
-    Title.Parent = Header
+    Title.TextSize = 16
+    Title.Parent = Sidebar
 
+    -- Subtitle (hidden but exists for API contract)
     local Subtitle = Instance.new("TextLabel")
-    Subtitle.Text = "ESP • FishZone • AutoClicker"
-    Subtitle.Size = UDim2.new(0, 200, 0, 14)
-    Subtitle.Position = UDim2.new(0, 16, 0, 31)
+    Subtitle.Text = "ESP"
+    Subtitle.Size = UDim2.new(1, 0, 0, 12)
+    Subtitle.Position = UDim2.new(0, 0, 0, 42)
     Subtitle.BackgroundTransparency = 1
     Subtitle.TextColor3 = THEME.dim
     Subtitle.Font = Enum.Font.Gotham
-    Subtitle.TextSize = 10
-    Subtitle.TextXAlignment = Enum.TextXAlignment.Left
-    Subtitle.Parent = Header
+    Subtitle.TextSize = 8
+    Subtitle.Parent = Sidebar
 
-    local function makeTopBtn(txt, x, color)
-        local b = Instance.new("TextButton")
-        b.Text = txt
-        b.Size = UDim2.new(0, 28, 0, 28)
-        b.Position = UDim2.new(1, x, 0, 13)
-        b.BackgroundColor3 = color
-        b.TextColor3 = Color3.new(1, 1, 1)
-        b.Font = Enum.Font.GothamBold
-        b.TextSize = 14
-        b.BorderSizePixel = 0
-        b.Parent = Header
-        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
-        return b
+    -- Header (minimal, exists for API contract)
+    local Header = Instance.new("Frame")
+    Header.Size = UDim2.new(0, 80, 0, 54)
+    Header.Position = UDim2.new(0, 0, 0, 0)
+    Header.BackgroundColor3 = THEME.bg2
+    Header.BackgroundTransparency = 1
+    Header.BorderSizePixel = 0
+    Header.Parent = Sidebar
+
+    local HeaderMask = Instance.new("Frame")
+    HeaderMask.Size = UDim2.new(0, 80, 0, 16)
+    HeaderMask.Position = UDim2.new(0, 0, 0, 38)
+    HeaderMask.BackgroundColor3 = THEME.bg2
+    HeaderMask.BackgroundTransparency = 1
+    HeaderMask.BorderSizePixel = 0
+    HeaderMask.Parent = Sidebar
+
+    -- TabsBar (sidebar nav area, exists for API contract)
+    local TabsBar = Instance.new("Frame")
+    TabsBar.Size = UDim2.new(1, 0, 0, 220)
+    TabsBar.Position = UDim2.new(0, 0, 0, 60)
+    TabsBar.BackgroundColor3 = THEME.panel
+    TabsBar.BackgroundTransparency = 1
+    TabsBar.BorderSizePixel = 0
+    TabsBar.Parent = Sidebar
+
+    -- Sidebar nav buttons (vertical)
+    local tabNames = {"Players", "FishZone", "Clicker", "Settings"}
+    local tabIcons = {"P", "F", "C", "S"}
+    local TabButtons = {}
+
+    for i, name in ipairs(tabNames) do
+        local btn = Instance.new("TextButton")
+        btn.Text = tabIcons[i]
+        btn.Size = UDim2.new(0, 56, 0, 42)
+        btn.Position = UDim2.new(0.5, -28, 0, (i - 1) * 50)
+        btn.BackgroundColor3 = THEME.panel2
+        btn.TextColor3 = THEME.dim
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 14
+        btn.BorderSizePixel = 0
+        btn.Parent = TabsBar
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+        TabButtons[name] = btn
     end
 
-    local MinBtn = makeTopBtn("-", -66, Color3.fromRGB(64, 74, 102))
-    local CloseBtn = makeTopBtn("×", -32, THEME.danger)
+    -- Minimize and close buttons at bottom of sidebar
+    local MinBtn = Instance.new("TextButton")
+    MinBtn.Text = "-"
+    MinBtn.Size = UDim2.new(0, 28, 0, 28)
+    MinBtn.Position = UDim2.new(0.5, -30, 1, -40)
+    MinBtn.BackgroundColor3 = Color3.fromRGB(64, 74, 102)
+    MinBtn.TextColor3 = Color3.new(1, 1, 1)
+    MinBtn.Font = Enum.Font.GothamBold
+    MinBtn.TextSize = 14
+    MinBtn.BorderSizePixel = 0
+    MinBtn.Parent = Sidebar
+    Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 8)
 
-    local TabsBar = Instance.new("Frame")
-    TabsBar.Size = UDim2.new(1, -20, 0, 42)
-    TabsBar.Position = UDim2.new(0, 10, 0, 62)
-    TabsBar.BackgroundColor3 = THEME.panel
-    TabsBar.BorderSizePixel = 0
-    TabsBar.Parent = Main
-    Instance.new("UICorner", TabsBar).CornerRadius = UDim.new(0, 14)
+    local CloseBtn = Instance.new("TextButton")
+    CloseBtn.Text = "x"
+    CloseBtn.Size = UDim2.new(0, 28, 0, 28)
+    CloseBtn.Position = UDim2.new(0.5, 2, 1, -40)
+    CloseBtn.BackgroundColor3 = THEME.danger
+    CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+    CloseBtn.Font = Enum.Font.GothamBold
+    CloseBtn.TextSize = 14
+    CloseBtn.BorderSizePixel = 0
+    CloseBtn.Parent = Sidebar
+    Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 8)
 
+    -- Content area (right side)
     local Content = Instance.new("Frame")
-    Content.Size = UDim2.new(1, -20, 1, -132)
-    Content.Position = UDim2.new(0, 10, 0, 112)
+    Content.Size = UDim2.new(1, -90, 1, -14)
+    Content.Position = UDim2.new(0, 84, 0, 7)
     Content.BackgroundColor3 = THEME.panel
     Content.BorderSizePixel = 0
+    Content.ClipsDescendants = true
     Content.Parent = Main
-    Instance.new("UICorner", Content).CornerRadius = UDim.new(0, 14)
+    Instance.new("UICorner", Content).CornerRadius = UDim.new(0, 12)
     local ContentStroke = Instance.new("UIStroke", Content)
     ContentStroke.Color = Color3.fromRGB(48, 58, 82)
 
+    -- Drag bar and hit area
     local DragBar = Instance.new("Frame")
-    DragBar.Size = UDim2.new(0, 120, 0, 8)
+    DragBar.Size = UDim2.new(0, 100, 0, 6)
     DragBar.AnchorPoint = Vector2.new(0.5, 0)
-    DragBar.Position = UDim2.new(0.5, 0, 1, 10)
+    DragBar.Position = UDim2.new(0.5, 40, 1, 6)
     DragBar.BackgroundColor3 = Color3.fromRGB(95, 108, 142)
     DragBar.BorderSizePixel = 0
     DragBar.Parent = Main
     Instance.new("UICorner", DragBar).CornerRadius = UDim.new(1, 0)
 
     local DragHit = Instance.new("TextButton")
-    DragHit.Size = UDim2.new(0, 150, 0, 20)
+    DragHit.Size = UDim2.new(0, 140, 0, 18)
     DragHit.AnchorPoint = Vector2.new(0.5, 0)
-    DragHit.Position = UDim2.new(0.5, 0, 1, 4)
+    DragHit.Position = UDim2.new(0.5, 40, 1, 2)
     DragHit.Text = ""
     DragHit.BackgroundTransparency = 1
     DragHit.Parent = Main
 
-    local function makeTabButton(name, order)
-        local width = 68
-        local gap = 8
-        local btn = Instance.new("TextButton")
-        btn.Text = name
-        btn.Size = UDim2.new(0, width, 0, 30)
-        btn.Position = UDim2.new(0, 8 + (order - 1) * (width + gap), 0, 6)
-        btn.BackgroundColor3 = THEME.panel2
-        btn.TextColor3 = THEME.dim
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 12
-        btn.BorderSizePixel = 0
-        btn.Parent = TabsBar
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
-        return btn
-    end
-
-    local tabNames = {"Players", "FishZone", "Clicker", "Settings"}
-    local TabButtons, Tabs = {}, {}
-    for i, name in ipairs(tabNames) do
-        TabButtons[name] = makeTabButton(name, i)
-    end
+    -- Tab content frames
+    local Tabs = {}
     for i, name in ipairs(tabNames) do
         local f = Instance.new("Frame")
         f.Name = name .. "Tab"
@@ -311,11 +347,12 @@ return function(config)
         Tabs[name] = f
     end
 
+    -- Players tab content
     local SearchBox = Instance.new("TextBox")
     SearchBox.PlaceholderText = "Search player..."
     SearchBox.Text = ""
     SearchBox.ClearTextOnFocus = false
-    SearchBox.Size = UDim2.new(1, -16, 0, 34)
+    SearchBox.Size = UDim2.new(1, -16, 0, 32)
     SearchBox.Position = UDim2.new(0, 8, 0, 8)
     SearchBox.BackgroundColor3 = THEME.panel2
     SearchBox.TextColor3 = THEME.text
@@ -327,21 +364,21 @@ return function(config)
     Instance.new("UICorner", SearchBox).CornerRadius = UDim.new(0, 10)
 
     local PlayerList = Instance.new("ScrollingFrame")
-    PlayerList.Size = UDim2.new(1, -16, 0, 228)
-    PlayerList.Position = UDim2.new(0, 8, 0, 50)
+    PlayerList.Size = UDim2.new(1, -16, 1, -70)
+    PlayerList.Position = UDim2.new(0, 8, 0, 46)
     PlayerList.BackgroundColor3 = THEME.bg2
     PlayerList.BorderSizePixel = 0
     PlayerList.ScrollBarThickness = 4
     PlayerList.AutomaticCanvasSize = Enum.AutomaticSize.Y
     PlayerList.Parent = Tabs.Players
-    Instance.new("UICorner", PlayerList).CornerRadius = UDim.new(0, 12)
+    Instance.new("UICorner", PlayerList).CornerRadius = UDim.new(0, 10)
     local PlayerListLayout = Instance.new("UIListLayout", PlayerList)
-    PlayerListLayout.Padding = UDim.new(0, 6)
+    PlayerListLayout.Padding = UDim.new(0, 5)
 
     local PlayerHint = Instance.new("TextLabel")
-    PlayerHint.Text = "Showing 5 rows, scroll for more"
-    PlayerHint.Size = UDim2.new(1, -16, 0, 18)
-    PlayerHint.Position = UDim2.new(0, 8, 0, 284)
+    PlayerHint.Text = "Scroll for more players"
+    PlayerHint.Size = UDim2.new(1, -16, 0, 16)
+    PlayerHint.Position = UDim2.new(0, 8, 1, -20)
     PlayerHint.BackgroundTransparency = 1
     PlayerHint.TextColor3 = THEME.dim
     PlayerHint.Font = Enum.Font.Gotham
@@ -349,10 +386,11 @@ return function(config)
     PlayerHint.TextXAlignment = Enum.TextXAlignment.Left
     PlayerHint.Parent = Tabs.Players
 
+    -- FishZone tab content
     local function makeActionButton(parent, text, y, color)
         local b = Instance.new("TextButton")
         b.Text = text
-        b.Size = UDim2.new(1, -16, 0, 36)
+        b.Size = UDim2.new(1, -16, 0, 34)
         b.Position = UDim2.new(0, 8, 0, y)
         b.BackgroundColor3 = color
         b.TextColor3 = Color3.new(1, 1, 1)
@@ -364,29 +402,32 @@ return function(config)
         return b
     end
 
-    local ZoneESPBtn = makeActionButton(Tabs.FishZone, "FishZone ESP: OFF", 10, THEME.accent)
-    local AutoTPBtn = makeActionButton(Tabs.FishZone, "Auto TP Active FishZone: OFF", 54, THEME.tp)
-    local RefreshCharBtn = makeActionButton(Tabs.FishZone, "Refresh Character", 98, THEME.danger)
-    local AutoSellBtn = makeActionButton(Tabs.FishZone, "Auto Sell Fish: OFF", 142, THEME.warn)
-    local SellNowBtn = makeActionButton(Tabs.FishZone, "Sell All Now (Test)", 186, THEME.accent)
+    local ZoneESPBtn = makeActionButton(Tabs.FishZone, "FishZone ESP: OFF", 8, THEME.accent)
+    local AutoTPBtn = makeActionButton(Tabs.FishZone, "Auto TP Active FishZone: OFF", 48, THEME.tp)
+    local RefreshCharBtn = makeActionButton(Tabs.FishZone, "Refresh Character", 88, THEME.danger)
+    local AutoSellBtn = makeActionButton(Tabs.FishZone, "Auto Sell Fish: OFF", 128, THEME.warn)
+    local SellNowBtn = makeActionButton(Tabs.FishZone, "Sell All Now (Test)", 168, THEME.accent)
 
     local ZoneStatus = Instance.new("TextLabel")
-    ZoneStatus.Size = UDim2.new(1, -16, 0, 22)
-    ZoneStatus.Position = UDim2.new(0, 8, 0, 234)
+    ZoneStatus.Size = UDim2.new(1, -16, 0, 20)
+    ZoneStatus.Position = UDim2.new(0, 8, 0, 212)
     ZoneStatus.BackgroundTransparency = 1
     ZoneStatus.TextColor3 = THEME.text
     ZoneStatus.Text = "Status: Idle"
     ZoneStatus.Font = Enum.Font.GothamBold
-    ZoneStatus.TextSize = 13
+    ZoneStatus.TextSize = 12
     ZoneStatus.TextXAlignment = Enum.TextXAlignment.Left
     ZoneStatus.Parent = Tabs.FishZone
 
     local ZoneInfo = Instance.new("TextLabel")
-    ZoneInfo.Size = UDim2.new(1, -16, 0, 84)
-    ZoneInfo.Position = UDim2.new(0, 8, 0, 262)
+    ZoneInfo.Size = UDim2.new(1, -16, 0, 80)
+    ZoneInfo.Position = UDim2.new(0, 8, 0, 238)
     ZoneInfo.BackgroundTransparency = 1
     ZoneInfo.TextColor3 = THEME.dim
-    ZoneInfo.Text = "• Active zones only\n• Auto TP keeps latest working rotation/body lock\n• Refresh Character uses Adonis chat commands\n• Main logic is separated into core.lua"
+    ZoneInfo.Text = "Active zones only
+Auto TP keeps rotation/body lock
+Refresh uses Adonis commands
+Core logic in core.lua"
     ZoneInfo.Font = Enum.Font.Gotham
     ZoneInfo.TextSize = 11
     ZoneInfo.TextWrapped = true
@@ -394,8 +435,9 @@ return function(config)
     ZoneInfo.TextYAlignment = Enum.TextYAlignment.Top
     ZoneInfo.Parent = Tabs.FishZone
 
+    -- Clicker tab content
     local StatusLbl = Instance.new("TextLabel")
-    StatusLbl.Size = UDim2.new(1, -16, 0, 24)
+    StatusLbl.Size = UDim2.new(1, -16, 0, 22)
     StatusLbl.Position = UDim2.new(0, 8, 0, 8)
     StatusLbl.BackgroundTransparency = 1
     StatusLbl.Text = "Status: OFF"
@@ -406,8 +448,8 @@ return function(config)
     StatusLbl.Parent = Tabs.Clicker
 
     local PosLbl = Instance.new("TextLabel")
-    PosLbl.Size = UDim2.new(1, -16, 0, 22)
-    PosLbl.Position = UDim2.new(0, 8, 0, 34)
+    PosLbl.Size = UDim2.new(1, -16, 0, 20)
+    PosLbl.Position = UDim2.new(0, 8, 0, 32)
     PosLbl.BackgroundTransparency = 1
     PosLbl.Text = "Target: Not set (press P)"
     PosLbl.TextColor3 = THEME.dim
@@ -418,7 +460,7 @@ return function(config)
 
     local MethodLbl = Instance.new("TextLabel")
     MethodLbl.Size = UDim2.new(1, -16, 0, 20)
-    MethodLbl.Position = UDim2.new(0, 8, 0, 58)
+    MethodLbl.Position = UDim2.new(0, 8, 0, 54)
     MethodLbl.BackgroundTransparency = 1
     MethodLbl.Text = "Mode: Loading..."
     MethodLbl.TextColor3 = THEME.warn
@@ -429,7 +471,7 @@ return function(config)
 
     local CPSLbl = Instance.new("TextLabel")
     CPSLbl.Size = UDim2.new(1, -16, 0, 20)
-    CPSLbl.Position = UDim2.new(0, 8, 0, 82)
+    CPSLbl.Position = UDim2.new(0, 8, 0, 78)
     CPSLbl.BackgroundTransparency = 1
     CPSLbl.Text = "CPS: " .. tostring(config.Clicker.DefaultCPS)
     CPSLbl.TextColor3 = THEME.text
@@ -440,7 +482,7 @@ return function(config)
 
     local SliderTrack = Instance.new("Frame")
     SliderTrack.Size = UDim2.new(1, -16, 0, 8)
-    SliderTrack.Position = UDim2.new(0, 8, 0, 112)
+    SliderTrack.Position = UDim2.new(0, 8, 0, 106)
     SliderTrack.BackgroundColor3 = THEME.bg2
     SliderTrack.BorderSizePixel = 0
     SliderTrack.Parent = Tabs.Clicker
@@ -462,37 +504,38 @@ return function(config)
     SliderKnob.Parent = SliderTrack
     Instance.new("UICorner", SliderKnob).CornerRadius = UDim.new(1, 0)
 
-    local ToggleBtn = makeActionButton(Tabs.Clicker, "Start [F]", 134, THEME.accent)
+    local ToggleBtn = makeActionButton(Tabs.Clicker, "Start [F]", 130, THEME.accent)
 
+    -- Settings tab content
     local HideKeyLbl = Instance.new("TextLabel")
     HideKeyLbl.Size = UDim2.new(1, -16, 0, 22)
-    HideKeyLbl.Position = UDim2.new(0, 8, 0, 10)
+    HideKeyLbl.Position = UDim2.new(0, 8, 0, 8)
     HideKeyLbl.BackgroundTransparency = 1
-    HideKeyLbl.Text = "Hide/Show UI Keybind: " .. tostring(config.Keys.HideUI):gsub("Enum.KeyCode.", "")
+    HideKeyLbl.Text = "Hide/Show UI: " .. tostring(config.Keys.HideUI):gsub("Enum.KeyCode.", "")
     HideKeyLbl.TextColor3 = THEME.text
     HideKeyLbl.Font = Enum.Font.GothamBold
-    HideKeyLbl.TextSize = 13
+    HideKeyLbl.TextSize = 12
     HideKeyLbl.TextXAlignment = Enum.TextXAlignment.Left
     HideKeyLbl.Parent = Tabs.Settings
 
-    local UnloadBtn = makeActionButton(Tabs.Settings, "Unload Script", 40, THEME.danger)
-    local AutoClaimDailyRewardBtn = makeActionButton(Tabs.Settings, "Auto Claim Daily Reward: OFF", 84, THEME.accent)
-    local AutoClaimSessionRewardBtn = makeActionButton(Tabs.Settings, "Auto Claim Session Reward: OFF", 128, THEME.tp)
+    local UnloadBtn = makeActionButton(Tabs.Settings, "Unload Script", 36, THEME.danger)
+    local AutoClaimDailyRewardBtn = makeActionButton(Tabs.Settings, "Auto Claim Daily Reward: OFF", 76, THEME.accent)
+    local AutoClaimSessionRewardBtn = makeActionButton(Tabs.Settings, "Auto Claim Session Reward: OFF", 116, THEME.tp)
 
     local ColorTitle = Instance.new("TextLabel")
     ColorTitle.Size = UDim2.new(1, -16, 0, 20)
-    ColorTitle.Position = UDim2.new(0, 8, 0, 178)
+    ColorTitle.Position = UDim2.new(0, 8, 0, 162)
     ColorTitle.BackgroundTransparency = 1
     ColorTitle.Text = "Accent Color"
     ColorTitle.TextColor3 = THEME.text
     ColorTitle.Font = Enum.Font.GothamBold
-    ColorTitle.TextSize = 13
+    ColorTitle.TextSize = 12
     ColorTitle.TextXAlignment = Enum.TextXAlignment.Left
     ColorTitle.Parent = Tabs.Settings
 
     local AccentPreview = Instance.new("Frame")
-    AccentPreview.Size = UDim2.new(0, 26, 0, 26)
-    AccentPreview.Position = UDim2.new(1, -34, 0, 174)
+    AccentPreview.Size = UDim2.new(0, 24, 0, 24)
+    AccentPreview.Position = UDim2.new(1, -32, 0, 160)
     AccentPreview.BackgroundColor3 = THEME.accent
     AccentPreview.BorderSizePixel = 0
     AccentPreview.Parent = Tabs.Settings
@@ -502,21 +545,20 @@ return function(config)
     for i, color in ipairs(config.ThemePresets) do
         local sw = Instance.new("TextButton")
         sw.Text = ""
-        sw.Size = UDim2.new(0, 34, 0, 34)
-        sw.Position = UDim2.new(0, 8 + ((i - 1) % 3) * 42, 0, 208 + math.floor((i - 1) / 3) * 42)
+        sw.Size = UDim2.new(0, 30, 0, 30)
+        sw.Position = UDim2.new(0, 8 + ((i - 1) % 4) * 38, 0, 190 + math.floor((i - 1) / 4) * 38)
         sw.BackgroundColor3 = color
         sw.BorderSizePixel = 0
         sw.Parent = Tabs.Settings
-        Instance.new("UICorner", sw).CornerRadius = UDim.new(0, 10)
+        Instance.new("UICorner", sw).CornerRadius = UDim.new(0, 8)
         table.insert(ColorButtons, sw)
     end
 
     local SettingsInfo = Instance.new("TextLabel")
-    SettingsInfo.Size = UDim2.new(1, -16, 0, 60)
-    SettingsInfo.Position = UDim2.new(0, 8, 1, -70)
+    SettingsInfo.Size = UDim2.new(1, -16, 0, 50)
+    SettingsInfo.Position = UDim2.new(0, 8, 1, -58)
     SettingsInfo.BackgroundTransparency = 1
-    SettingsInfo.Text =
-        "Use config.lua for keys, blacklist positions, float height, colors, presets, and reward toggles."
+    SettingsInfo.Text = "Use config.lua for keys, blacklist positions, float height, colors, presets, and reward toggles."
     SettingsInfo.TextColor3 = THEME.dim
     SettingsInfo.Font = Enum.Font.Gotham
     SettingsInfo.TextSize = 11
@@ -525,6 +567,7 @@ return function(config)
     SettingsInfo.TextYAlignment = Enum.TextYAlignment.Top
     SettingsInfo.Parent = Tabs.Settings
 
+    -- Return table (API contract must match exactly)
     return {
         Theme = THEME,
         MainGui = ScreenGui,
