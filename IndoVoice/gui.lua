@@ -942,7 +942,278 @@ return function(config)
     end
 
     -- Update canvas size to fit everything
-    FunScroll.CanvasSize = UDim2.new(0, 0, 0, stopY + 90)
+    local shopGachaY = stopY + 100
+
+    -- ── Shop Gacha Section (Pet / Aura / Trail) ──
+    local ShopGachaSep = Instance.new("Frame")
+    ShopGachaSep.Size = UDim2.new(1, -20, 0, 1)
+    ShopGachaSep.Position = UDim2.new(0, 10, 0, stopY + 90)
+    ShopGachaSep.BackgroundColor3 = LYRA.panel2
+    ShopGachaSep.BorderSizePixel = 0
+    ShopGachaSep.Parent = FunScroll
+
+    local ShopGachaTitle = Instance.new("TextLabel")
+    ShopGachaTitle.Size = UDim2.new(1, -20, 0, 18)
+    ShopGachaTitle.Position = UDim2.new(0, 10, 0, shopGachaY)
+    ShopGachaTitle.BackgroundTransparency = 1
+    ShopGachaTitle.Text = "🛒 Shop Gacha (10x Roll)"
+    ShopGachaTitle.TextColor3 = LYRA.accentGlow
+    ShopGachaTitle.Font = Enum.Font.GothamBold
+    ShopGachaTitle.TextSize = 12
+    ShopGachaTitle.TextXAlignment = Enum.TextXAlignment.Left
+    ShopGachaTitle.Parent = FunScroll
+
+    local ShopGachaToggleBtn = makeActionButton(FunScroll, "Shop Gacha: OFF", shopGachaY + 24, LYRA.accent)
+
+    local ShopGachaStatus = Instance.new("TextLabel")
+    ShopGachaStatus.Size = UDim2.new(1, -20, 0, 18)
+    ShopGachaStatus.Position = UDim2.new(0, 10, 0, shopGachaY + 64)
+    ShopGachaStatus.BackgroundTransparency = 1
+    ShopGachaStatus.Text = "Status: Idle | Rolls: 0"
+    ShopGachaStatus.TextColor3 = LYRA.dim
+    ShopGachaStatus.Font = Enum.Font.Gotham
+    ShopGachaStatus.TextSize = 11
+    ShopGachaStatus.TextXAlignment = Enum.TextXAlignment.Left
+    ShopGachaStatus.Parent = FunScroll
+
+    local ShopGachaLastResult = Instance.new("TextLabel")
+    ShopGachaLastResult.Size = UDim2.new(1, -20, 0, 18)
+    ShopGachaLastResult.Position = UDim2.new(0, 10, 0, shopGachaY + 84)
+    ShopGachaLastResult.BackgroundTransparency = 1
+    ShopGachaLastResult.Text = "Last: -"
+    ShopGachaLastResult.TextColor3 = LYRA.dim
+    ShopGachaLastResult.Font = Enum.Font.Gotham
+    ShopGachaLastResult.TextSize = 11
+    ShopGachaLastResult.TextXAlignment = Enum.TextXAlignment.Left
+    ShopGachaLastResult.Parent = FunScroll
+
+    -- Type selection: Pet / Aura / Trail
+    local ShopGachaTypeTitle = Instance.new("TextLabel")
+    ShopGachaTypeTitle.Size = UDim2.new(1, -20, 0, 16)
+    ShopGachaTypeTitle.Position = UDim2.new(0, 10, 0, shopGachaY + 108)
+    ShopGachaTypeTitle.BackgroundTransparency = 1
+    ShopGachaTypeTitle.Text = "Roll Type:"
+    ShopGachaTypeTitle.TextColor3 = LYRA.text
+    ShopGachaTypeTitle.Font = Enum.Font.GothamBold
+    ShopGachaTypeTitle.TextSize = 10
+    ShopGachaTypeTitle.TextXAlignment = Enum.TextXAlignment.Left
+    ShopGachaTypeTitle.Parent = FunScroll
+
+    local shopGachaTypes = {"Pet", "Aura", "Trail"}
+    local ShopGachaTypeButtons = {}
+    for i, typeName in ipairs(shopGachaTypes) do
+        local btn = Instance.new("TextButton")
+        btn.Text = typeName
+        btn.Size = UDim2.new(0, 80, 0, 26)
+        btn.Position = UDim2.new(0, 10 + (i - 1) * 88, 0, shopGachaY + 128)
+        btn.BackgroundColor3 = (i == 1) and LYRA.accent or LYRA.panel2
+        btn.BackgroundTransparency = (i == 1) and 0.2 or 0.6
+        btn.TextColor3 = (i == 1) and Color3.new(1, 1, 1) or LYRA.dim
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 11
+        btn.BorderSizePixel = 0
+        btn.Parent = FunScroll
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        ShopGachaTypeButtons[typeName] = btn
+    end
+
+    -- Stop rarity selection for shop gacha
+    local ShopGachaStopTitle = Instance.new("TextLabel")
+    ShopGachaStopTitle.Size = UDim2.new(1, -20, 0, 16)
+    ShopGachaStopTitle.Position = UDim2.new(0, 10, 0, shopGachaY + 162)
+    ShopGachaStopTitle.BackgroundTransparency = 1
+    ShopGachaStopTitle.Text = "Stop when rarity:"
+    ShopGachaStopTitle.TextColor3 = LYRA.text
+    ShopGachaStopTitle.Font = Enum.Font.GothamBold
+    ShopGachaStopTitle.TextSize = 10
+    ShopGachaStopTitle.TextXAlignment = Enum.TextXAlignment.Left
+    ShopGachaStopTitle.Parent = FunScroll
+
+    local shopGachaRarities = {"Common", "Uncommon", "Rare", "Epic"}
+    local ShopGachaStopButtons = {}
+    for i, rarity in ipairs(shopGachaRarities) do
+        local btn = Instance.new("TextButton")
+        btn.Text = rarity
+        btn.Size = UDim2.new(0, 62, 0, 22)
+        btn.Position = UDim2.new(0, 10 + ((i - 1) % 4) * 68, 0, shopGachaY + 182 + math.floor((i - 1) / 4) * 28)
+        btn.BackgroundColor3 = LYRA.panel2
+        btn.BackgroundTransparency = 0.6
+        btn.TextColor3 = LYRA.dim
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 9
+        btn.BorderSizePixel = 0
+        btn.Parent = FunScroll
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        ShopGachaStopButtons[rarity] = btn
+    end
+
+    -- ── Rod Shop Section ──
+    local rodShopY = shopGachaY + 250
+
+    local RodShopSep = Instance.new("Frame")
+    RodShopSep.Size = UDim2.new(1, -20, 0, 1)
+    RodShopSep.Position = UDim2.new(0, 10, 0, rodShopY - 10)
+    RodShopSep.BackgroundColor3 = LYRA.panel2
+    RodShopSep.BorderSizePixel = 0
+    RodShopSep.Parent = FunScroll
+
+    local RodShopTitle = Instance.new("TextLabel")
+    RodShopTitle.Size = UDim2.new(1, -20, 0, 18)
+    RodShopTitle.Position = UDim2.new(0, 10, 0, rodShopY)
+    RodShopTitle.BackgroundTransparency = 1
+    RodShopTitle.Text = "🎣 Buy Rod (Ropiah)"
+    RodShopTitle.TextColor3 = LYRA.accentGlow
+    RodShopTitle.Font = Enum.Font.GothamBold
+    RodShopTitle.TextSize = 12
+    RodShopTitle.TextXAlignment = Enum.TextXAlignment.Left
+    RodShopTitle.Parent = FunScroll
+
+    -- Search bar
+    local RodSearchBox = Instance.new("TextBox")
+    RodSearchBox.Size = UDim2.new(1, -20, 0, 22)
+    RodSearchBox.Position = UDim2.new(0, 10, 0, rodShopY + 22)
+    RodSearchBox.BackgroundColor3 = LYRA.bg2
+    RodSearchBox.TextColor3 = LYRA.text
+    RodSearchBox.PlaceholderText = "Search rod..."
+    RodSearchBox.PlaceholderColor3 = LYRA.dim
+    RodSearchBox.Text = ""
+    RodSearchBox.Font = Enum.Font.Gotham
+    RodSearchBox.TextSize = 10
+    RodSearchBox.ClearTextOnFocus = false
+    RodSearchBox.BorderSizePixel = 0
+    RodSearchBox.Parent = FunScroll
+    Instance.new("UICorner", RodSearchBox).CornerRadius = UDim.new(0, 4)
+
+    local RodShopStatus = Instance.new("TextLabel")
+    RodShopStatus.Size = UDim2.new(1, -20, 0, 16)
+    RodShopStatus.Position = UDim2.new(0, 10, 0, rodShopY + 48)
+    RodShopStatus.BackgroundTransparency = 1
+    RodShopStatus.Text = ""
+    RodShopStatus.TextColor3 = LYRA.dim
+    RodShopStatus.Font = Enum.Font.Gotham
+    RodShopStatus.TextSize = 10
+    RodShopStatus.TextXAlignment = Enum.TextXAlignment.Left
+    RodShopStatus.Parent = FunScroll
+
+    -- Scan for rods (exclude gold-only: only include if rod uses script/Ropiah)
+    local availableRods = {}
+    local rarityOrder = {Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legend = 5, Mythic = 6}
+    pcall(function()
+        local toolFolder = game:GetService("ReplicatedStorage"):FindFirstChild("Content")
+        toolFolder = toolFolder and toolFolder:FindFirstChild("Tool")
+        if toolFolder then
+            for _, category in ipairs(toolFolder:GetChildren()) do
+                if category:IsA("Folder") then
+                    for _, rarity in ipairs(category:GetChildren()) do
+                        if rarity:IsA("Folder") then
+                            for _, rod in ipairs(rarity:GetChildren()) do
+                                if string.find(rod.Name, "Rod$") then
+                                    -- Only include rods with positive Ropiah price
+                                    local shouldInclude = false
+                                    local price = 0
+                                    pcall(function()
+                                        local data = nil
+                                        if rod:IsA("ModuleScript") then
+                                            data = require(rod)
+                                        else
+                                            local ms = rod:FindFirstChildOfClass("ModuleScript")
+                                            if ms then data = require(ms) end
+                                        end
+                                        if not data then data = require(rod) end
+                                        if data and type(data) == "table" then
+                                            price = tonumber(data.Price) or 0
+                                            local goldPrice = tonumber(data.GoldPrice) or 0
+                                            -- Include only if price > 0 (buyable with Ropiah)
+                                            if price > 0 then
+                                                shouldInclude = true
+                                            end
+                                        end
+                                    end)
+                                    -- If we couldn't read the data at all, skip it
+                                    if shouldInclude then
+                                        table.insert(availableRods, {
+                                            name = rod.Name,
+                                            category = category.Name,
+                                            rarity = rarity.Name,
+                                            order = rarityOrder[rarity.Name] or 99,
+                                            price = price,
+                                        })
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    -- Sort by rarity (highest first)
+    table.sort(availableRods, function(a, b) return a.order > b.order end)
+
+    -- Rod list
+    local RodListFrame = Instance.new("Frame")
+    RodListFrame.Size = UDim2.new(1, -20, 0, 180)
+    RodListFrame.Position = UDim2.new(0, 10, 0, rodShopY + 68)
+    RodListFrame.BackgroundColor3 = LYRA.bg2
+    RodListFrame.BorderSizePixel = 0
+    RodListFrame.ClipsDescendants = true
+    RodListFrame.Parent = FunScroll
+    Instance.new("UICorner", RodListFrame).CornerRadius = UDim.new(0, 6)
+
+    local RodListScroll = Instance.new("ScrollingFrame")
+    RodListScroll.Size = UDim2.new(1, 0, 1, 0)
+    RodListScroll.BackgroundTransparency = 1
+    RodListScroll.BorderSizePixel = 0
+    RodListScroll.ScrollBarThickness = 3
+    RodListScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    RodListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    RodListScroll.Parent = RodListFrame
+    Instance.new("UIListLayout", RodListScroll).Padding = UDim.new(0, 2)
+
+    local RodBuyButtons = {}
+    local RodRows = {}
+    for _, rod in ipairs(availableRods) do
+        local row = Instance.new("Frame")
+        row.Name = rod.name
+        row.Size = UDim2.new(1, -4, 0, 26)
+        row.BackgroundColor3 = LYRA.panel2
+        row.BackgroundTransparency = 0.5
+        row.BorderSizePixel = 0
+        row.Parent = RodListScroll
+        Instance.new("UICorner", row).CornerRadius = UDim.new(0, 4)
+
+        local displayName = rod.name:gsub("Tool_", ""):gsub("Rod$", "")
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.new(1, -70, 1, 0)
+        lbl.Position = UDim2.new(0, 6, 0, 0)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = displayName .. " [" .. rod.rarity .. "]"
+        lbl.TextColor3 = LYRA.text
+        lbl.Font = Enum.Font.Gotham
+        lbl.TextSize = 10
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+        lbl.TextTruncate = Enum.TextTruncate.AtEnd
+        lbl.Parent = row
+
+        local buyBtn = Instance.new("TextButton")
+        buyBtn.Size = UDim2.new(0, 50, 0, 20)
+        buyBtn.Position = UDim2.new(1, -54, 0.5, -10)
+        buyBtn.BackgroundColor3 = LYRA.accent
+        buyBtn.Text = "Buy"
+        buyBtn.TextColor3 = Color3.new(1, 1, 1)
+        buyBtn.Font = Enum.Font.GothamBold
+        buyBtn.TextSize = 9
+        buyBtn.BorderSizePixel = 0
+        buyBtn.Parent = row
+        Instance.new("UICorner", buyBtn).CornerRadius = UDim.new(0, 4)
+
+        RodBuyButtons[rod.name] = buyBtn
+        RodRows[rod.name] = row
+    end
+
+    -- Final canvas size
+    FunScroll.CanvasSize = UDim2.new(0, 0, 0, rodShopY + 68 + 180 + 20)
 
     -- ═══════════════════════════════════════════
     -- SETTINGS TAB
@@ -1262,6 +1533,19 @@ return function(config)
             StopButtons = GachaStopButtons,
             BoxButtons = GachaBoxButtons,
             SelectedBox = GachaSelectedBox,
+        },
+        ShopGacha = {
+            ToggleBtn = ShopGachaToggleBtn,
+            Status = ShopGachaStatus,
+            LastResult = ShopGachaLastResult,
+            TypeButtons = ShopGachaTypeButtons,
+            StopButtons = ShopGachaStopButtons,
+        },
+        RodShop = {
+            BuyButtons = RodBuyButtons,
+            RodRows = RodRows,
+            Status = RodShopStatus,
+            SearchBox = RodSearchBox,
         },
         Settings = {
             HideKeyLbl = HideKeyLbl,
