@@ -780,6 +780,7 @@ return function(gui, config)
         autoSellEnabled = false
         autoFishEnabled = false
         autoGachaEnabled = false
+        shopGachaEnabled = false
         autoClaimDailyRewardEnabled = false
         autoClaimSessionRewardEnabled = false
         antiIdleEnabled = false
@@ -1987,6 +1988,179 @@ return function(gui, config)
             gui.Gacha.ToggleBtn.BackgroundColor3 = THEME.accent
             gui.Gacha.Status.Text = "Status: Stopped | Rolls: " .. autoGachaRolls
             gui.Gacha.Status.TextColor3 = THEME.dim
+        end
+    end)
+
+    -- ═══════════════════════════════════════════
+    -- SHOP GACHA SYSTEM (Pet / Aura / Trail)
+    -- ═══════════════════════════════════════════
+    local shopGachaEnabled = false
+    local shopGachaRolls = 0
+    local shopGachaType = "Pet"
+    local shopGachaStopRarities = {}
+
+    -- Type selection buttons
+    for typeName, btn in pairs(gui.ShopGacha.TypeButtons) do
+        bind(btn.MouseButton1Click, function()
+            shopGachaType = typeName
+            for tName, tBtn in pairs(gui.ShopGacha.TypeButtons) do
+                if tName == typeName then
+                    tBtn.BackgroundColor3 = THEME.accent
+                    tBtn.BackgroundTransparency = 0.2
+                    tBtn.TextColor3 = Color3.new(1, 1, 1)
+                else
+                    tBtn.BackgroundColor3 = THEME.panel2
+                    tBtn.BackgroundTransparency = 0.6
+                    tBtn.TextColor3 = THEME.dim
+                end
+            end
+            log("ShopGacha: Type → " .. typeName, THEME.dim)
+        end)
+    end
+
+    -- Stop rarity buttons
+    for rarity, btn in pairs(gui.ShopGacha.StopButtons) do
+        bind(btn.MouseButton1Click, function()
+            shopGachaStopRarities[rarity] = not shopGachaStopRarities[rarity]
+            if shopGachaStopRarities[rarity] then
+                btn.BackgroundColor3 = THEME.success
+                btn.BackgroundTransparency = 0.2
+                btn.TextColor3 = Color3.new(1, 1, 1)
+            else
+                btn.BackgroundColor3 = THEME.panel2
+                btn.BackgroundTransparency = 0.6
+                btn.TextColor3 = THEME.dim
+            end
+        end)
+    end
+
+    local function shopGachaLoop()
+        log("ShopGacha: Started [" .. shopGachaType .. "]", THEME.success)
+        gui.ShopGacha.Status.Text = "Status: Running | Rolls: 0"
+        gui.ShopGacha.Status.TextColor3 = THEME.success
+
+        while shopGachaEnabled and not destroyed do
+            -- Listen for reward event
+            local receivedRarities = {}
+            local receivedNames = {}
+            local rewardConn
+            pcall(function()
+                local gre = game:GetService("ReplicatedStorage"):FindFirstChild("GameRemoteEvents")
+                local rewardEvent = gre and gre:FindFirstChild("CreateBlindBoxRewardInfoEvent")
+                if rewardEvent and rewardEvent:IsA("RemoteEvent") then
+                    rewardConn = rewardEvent.OnClientEvent:Connect(function(info, _, rarity, itemId, ...)
+                        local r = rarity or (info and info.Rarity)
+                        local name = (info and info.Name) or itemId or "?"
+                        if r and type(r) == "string" then
+                            table.insert(receivedRarities, r)
+                            table.insert(receivedNames, name)
+                        end
+                    end)
+                end
+            end)
+
+            -- Roll 10x
+            gui.ShopGacha.Status.Text = "Status: Rolling 10x [" .. shopGachaType .. "]..."
+            local rollOk, rollResult = pcall(function()
+                return game:GetService("ReplicatedStorage").GameRemoteFunctions.RollShopFunctionEvent:InvokeServer(shopGachaType, 10)
+            end)
+
+            task.wait(1)
+            if rewardConn then rewardConn:Disconnect() end
+
+            if not rollOk then
+                gui.ShopGacha.Status.Text = "Status: Roll failed!"
+                gui.ShopGacha.Status.TextColor3 = THEME.danger
+                log("ShopGacha: Error - " .. tostring(rollResult), THEME.danger)
+                task.wait(3)
+                continue
+            end
+
+            shopGachaRolls = shopGachaRolls + 10
+            gui.ShopGacha.Status.Text = "Status: Running | Rolls: " .. shopGachaRolls
+
+            -- Destroy any popup UI
+            pcall(function()
+                local playerGui = lp:FindFirstChild("PlayerGui")
+                if playerGui then
+                    for _, g in pairs(playerGui:GetChildren()) do
+                        if g:IsA("ScreenGui") and (string.find(g.Name, "Roll") or string.find(g.Name, "Shop") or string.find(g.Name, "Gacha")) then
+                            g:Destroy()
+                        end
+                    end
+                end
+            end)
+
+            -- Check results
+            local gotStopRarity = false
+            local lastRarity = "?"
+            local lastItemName = "?"
+
+            if #receivedRarities > 0 then
+                for i, r in ipairs(receivedRarities) do
+                    lastRarity = r
+                    lastItemName = receivedNames[i] or "?"
+                    if shopGachaStopRarities[r] then
+                        gotStopRarity = true
+                    end
+                end
+            end
+
+            gui.ShopGacha.LastResult.Text = "Last: " .. lastItemName .. " [" .. lastRarity .. "]"
+            if #receivedRarities > 0 then
+                log("ShopGacha: Roll #" .. shopGachaRolls .. " → " .. table.concat(receivedRarities, ", "), THEME.dim)
+            else
+                log("ShopGacha: Roll #" .. shopGachaRolls .. " (done)", THEME.dim)
+            end
+
+            -- Stop condition
+            if gotStopRarity then
+                gui.ShopGacha.Status.Text = "Status: STOPPED! Got " .. lastItemName .. " [" .. lastRarity .. "]!"
+                gui.ShopGacha.Status.TextColor3 = THEME.success
+                log("ShopGacha: STOPPED - " .. lastItemName .. " (" .. lastRarity .. ") after " .. shopGachaRolls .. " rolls!", THEME.success)
+                shopGachaEnabled = false
+                gui.ShopGacha.ToggleBtn.Text = "Shop Gacha: OFF"
+                gui.ShopGacha.ToggleBtn.BackgroundColor3 = THEME.accent
+
+                sendWebhookRaw({
+                    embeds = {{
+                        title = "🛒 Shop Gacha Target!",
+                        description = "**" .. lp.Name .. "** got the target from shop rolls!",
+                        color = 16766720,
+                        thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
+                        fields = {
+                            {name = "Item :", value = "```" .. lastItemName .. "```", inline = false},
+                            {name = "Rarity :", value = "```" .. lastRarity .. "```", inline = true},
+                            {name = "Total Rolls :", value = "```" .. tostring(shopGachaRolls) .. "```", inline = true},
+                            {name = "Type :", value = "```" .. shopGachaType .. "```", inline = false},
+                        },
+                        footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
+                        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+                    }}
+                })
+                break
+            end
+
+            task.wait(1.5)
+        end
+
+        if shopGachaEnabled then
+            gui.ShopGacha.Status.Text = "Status: Idle | Rolls: " .. shopGachaRolls
+            gui.ShopGacha.Status.TextColor3 = THEME.dim
+        end
+    end
+
+    bind(gui.ShopGacha.ToggleBtn.MouseButton1Click, function()
+        shopGachaEnabled = not shopGachaEnabled
+        if shopGachaEnabled then
+            gui.ShopGacha.ToggleBtn.Text = "Shop Gacha: ON"
+            gui.ShopGacha.ToggleBtn.BackgroundColor3 = THEME.success
+            task.spawn(shopGachaLoop)
+        else
+            gui.ShopGacha.ToggleBtn.Text = "Shop Gacha: OFF"
+            gui.ShopGacha.ToggleBtn.BackgroundColor3 = THEME.accent
+            gui.ShopGacha.Status.Text = "Status: Stopped | Rolls: " .. shopGachaRolls
+            gui.ShopGacha.Status.TextColor3 = THEME.dim
         end
     end)
 

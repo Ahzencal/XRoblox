@@ -942,7 +942,113 @@ return function(config)
     end
 
     -- Update canvas size to fit everything
-    FunScroll.CanvasSize = UDim2.new(0, 0, 0, stopY + 90)
+    local shopGachaY = stopY + 100
+
+    -- ── Shop Gacha Section (Pet / Aura / Trail) ──
+    local ShopGachaSep = Instance.new("Frame")
+    ShopGachaSep.Size = UDim2.new(1, -20, 0, 1)
+    ShopGachaSep.Position = UDim2.new(0, 10, 0, stopY + 90)
+    ShopGachaSep.BackgroundColor3 = LYRA.panel2
+    ShopGachaSep.BorderSizePixel = 0
+    ShopGachaSep.Parent = FunScroll
+
+    local ShopGachaTitle = Instance.new("TextLabel")
+    ShopGachaTitle.Size = UDim2.new(1, -20, 0, 18)
+    ShopGachaTitle.Position = UDim2.new(0, 10, 0, shopGachaY)
+    ShopGachaTitle.BackgroundTransparency = 1
+    ShopGachaTitle.Text = "🛒 Shop Gacha (10x Roll)"
+    ShopGachaTitle.TextColor3 = LYRA.accentGlow
+    ShopGachaTitle.Font = Enum.Font.GothamBold
+    ShopGachaTitle.TextSize = 12
+    ShopGachaTitle.TextXAlignment = Enum.TextXAlignment.Left
+    ShopGachaTitle.Parent = FunScroll
+
+    local ShopGachaToggleBtn = makeActionButton(FunScroll, "Shop Gacha: OFF", shopGachaY + 24, LYRA.accent)
+
+    local ShopGachaStatus = Instance.new("TextLabel")
+    ShopGachaStatus.Size = UDim2.new(1, -20, 0, 18)
+    ShopGachaStatus.Position = UDim2.new(0, 10, 0, shopGachaY + 64)
+    ShopGachaStatus.BackgroundTransparency = 1
+    ShopGachaStatus.Text = "Status: Idle | Rolls: 0"
+    ShopGachaStatus.TextColor3 = LYRA.dim
+    ShopGachaStatus.Font = Enum.Font.Gotham
+    ShopGachaStatus.TextSize = 11
+    ShopGachaStatus.TextXAlignment = Enum.TextXAlignment.Left
+    ShopGachaStatus.Parent = FunScroll
+
+    local ShopGachaLastResult = Instance.new("TextLabel")
+    ShopGachaLastResult.Size = UDim2.new(1, -20, 0, 18)
+    ShopGachaLastResult.Position = UDim2.new(0, 10, 0, shopGachaY + 84)
+    ShopGachaLastResult.BackgroundTransparency = 1
+    ShopGachaLastResult.Text = "Last: -"
+    ShopGachaLastResult.TextColor3 = LYRA.dim
+    ShopGachaLastResult.Font = Enum.Font.Gotham
+    ShopGachaLastResult.TextSize = 11
+    ShopGachaLastResult.TextXAlignment = Enum.TextXAlignment.Left
+    ShopGachaLastResult.Parent = FunScroll
+
+    -- Type selection: Pet / Aura / Trail
+    local ShopGachaTypeTitle = Instance.new("TextLabel")
+    ShopGachaTypeTitle.Size = UDim2.new(1, -20, 0, 16)
+    ShopGachaTypeTitle.Position = UDim2.new(0, 10, 0, shopGachaY + 108)
+    ShopGachaTypeTitle.BackgroundTransparency = 1
+    ShopGachaTypeTitle.Text = "Roll Type:"
+    ShopGachaTypeTitle.TextColor3 = LYRA.text
+    ShopGachaTypeTitle.Font = Enum.Font.GothamBold
+    ShopGachaTypeTitle.TextSize = 10
+    ShopGachaTypeTitle.TextXAlignment = Enum.TextXAlignment.Left
+    ShopGachaTypeTitle.Parent = FunScroll
+
+    local shopGachaTypes = {"Pet", "Aura", "Trail"}
+    local ShopGachaTypeButtons = {}
+    for i, typeName in ipairs(shopGachaTypes) do
+        local btn = Instance.new("TextButton")
+        btn.Text = typeName
+        btn.Size = UDim2.new(0, 80, 0, 26)
+        btn.Position = UDim2.new(0, 10 + (i - 1) * 88, 0, shopGachaY + 128)
+        btn.BackgroundColor3 = (i == 1) and LYRA.accent or LYRA.panel2
+        btn.BackgroundTransparency = (i == 1) and 0.2 or 0.6
+        btn.TextColor3 = (i == 1) and Color3.new(1, 1, 1) or LYRA.dim
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 11
+        btn.BorderSizePixel = 0
+        btn.Parent = FunScroll
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        ShopGachaTypeButtons[typeName] = btn
+    end
+
+    -- Stop rarity selection for shop gacha
+    local ShopGachaStopTitle = Instance.new("TextLabel")
+    ShopGachaStopTitle.Size = UDim2.new(1, -20, 0, 16)
+    ShopGachaStopTitle.Position = UDim2.new(0, 10, 0, shopGachaY + 162)
+    ShopGachaStopTitle.BackgroundTransparency = 1
+    ShopGachaStopTitle.Text = "Stop when rarity:"
+    ShopGachaStopTitle.TextColor3 = LYRA.text
+    ShopGachaStopTitle.Font = Enum.Font.GothamBold
+    ShopGachaStopTitle.TextSize = 10
+    ShopGachaStopTitle.TextXAlignment = Enum.TextXAlignment.Left
+    ShopGachaStopTitle.Parent = FunScroll
+
+    local shopGachaRarities = {"Common", "Uncommon", "Rare", "Epic", "Legend", "Mythic"}
+    local ShopGachaStopButtons = {}
+    for i, rarity in ipairs(shopGachaRarities) do
+        local btn = Instance.new("TextButton")
+        btn.Text = rarity
+        btn.Size = UDim2.new(0, 62, 0, 22)
+        btn.Position = UDim2.new(0, 10 + ((i - 1) % 4) * 68, 0, shopGachaY + 182 + math.floor((i - 1) / 4) * 28)
+        btn.BackgroundColor3 = LYRA.panel2
+        btn.BackgroundTransparency = 0.6
+        btn.TextColor3 = LYRA.dim
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 9
+        btn.BorderSizePixel = 0
+        btn.Parent = FunScroll
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        ShopGachaStopButtons[rarity] = btn
+    end
+
+    -- Final canvas size
+    FunScroll.CanvasSize = UDim2.new(0, 0, 0, shopGachaY + 250)
 
     -- ═══════════════════════════════════════════
     -- SETTINGS TAB
@@ -1262,6 +1368,13 @@ return function(config)
             StopButtons = GachaStopButtons,
             BoxButtons = GachaBoxButtons,
             SelectedBox = GachaSelectedBox,
+        },
+        ShopGacha = {
+            ToggleBtn = ShopGachaToggleBtn,
+            Status = ShopGachaStatus,
+            LastResult = ShopGachaLastResult,
+            TypeButtons = ShopGachaTypeButtons,
+            StopButtons = ShopGachaStopButtons,
         },
         Settings = {
             HideKeyLbl = HideKeyLbl,
