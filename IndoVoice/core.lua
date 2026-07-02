@@ -957,9 +957,10 @@ return function(gui, config)
         -- Webhook for sell
         if success and result then
             local sellValue = tonumber(tostring(result):match("%d+")) or 0
+            local soldRarities = table.concat(getActiveSellRarities(), ", ")
             if sellValue > 0 then
                 perfTotalSellValue = perfTotalSellValue + sellValue
-                webhookSellAll(sellValue, #AUTO_SELL_RARITIES)
+                webhookSellAll(sellValue, soldRarities)
                 updatePerfMonitor()
             end
         end
@@ -1162,10 +1163,10 @@ return function(gui, config)
         sendWebhook("🎣 Fish Caught!", desc, c)
     end
 
-    local function webhookSellAll(totalValue, fishCount)
+    local function webhookSellAll(totalValue, soldRarities)
         if not webhookLogSells then return end
-        local desc = "**Fish Sold:** " .. tostring(fishCount or "?") .. " fish"
-            .. "\n**Total Value:** $" .. tostring(totalValue or "?")
+        local desc = "**Value:** $" .. tostring(totalValue or "?")
+            .. "\n**Rarities Sold:** " .. tostring(soldRarities or "?")
             .. "\n**Session Total:** $" .. tostring(perfTotalSellValue)
         sendWebhook("💰 Fish Sold!", desc, 5763719)
     end
@@ -1195,11 +1196,92 @@ return function(gui, config)
     -- ═══════════════════════════════════════════
     local SETTINGS_FILE = "LyraHub_Settings.json"
 
+    -- Sell rarity state (which rarities to sell)
+    local sellRarities = {}
+    for _, r in ipairs(AUTO_SELL_RARITIES) do
+        sellRarities[r] = true
+    end
+
+    -- Webhook rarity state (which rarities to log)
+    local webhookRarityState = {}
+    for _, r in ipairs(webhookLogRarities) do
+        webhookRarityState[r] = true
+    end
+
+    local function getActiveSellRarities()
+        local list = {}
+        for r, on in pairs(sellRarities) do
+            if on then table.insert(list, r) end
+        end
+        return list
+    end
+
+    local function getActiveWebhookRarities()
+        local list = {}
+        for r, on in pairs(webhookRarityState) do
+            if on then table.insert(list, r) end
+        end
+        return list
+    end
+
+    -- Override shouldLogRarity to use dynamic state
+    shouldLogRarity = function(rarity)
+        return webhookRarityState[tostring(rarity)] == true
+    end
+
+    local function updateSellRarityUI()
+        for rarity, btn in pairs(gui.Settings.SellRarityButtons) do
+            if sellRarities[rarity] then
+                btn.BackgroundColor3 = THEME.success
+                btn.BackgroundTransparency = 0.2
+                btn.TextColor3 = Color3.new(1, 1, 1)
+            else
+                btn.BackgroundColor3 = THEME.panel2
+                btn.BackgroundTransparency = 0.6
+                btn.TextColor3 = THEME.dim
+            end
+        end
+    end
+
+    local function updateWebhookRarityUI()
+        for rarity, btn in pairs(gui.Settings.WebhookRarityButtons) do
+            if webhookRarityState[rarity] then
+                btn.BackgroundColor3 = THEME.accent
+                btn.BackgroundTransparency = 0.2
+                btn.TextColor3 = Color3.new(1, 1, 1)
+            else
+                btn.BackgroundColor3 = THEME.panel2
+                btn.BackgroundTransparency = 0.6
+                btn.TextColor3 = THEME.dim
+            end
+        end
+    end
+
+    -- Bind sell rarity toggles
+    for rarity, btn in pairs(gui.Settings.SellRarityButtons) do
+        bind(btn.MouseButton1Click, function()
+            sellRarities[rarity] = not sellRarities[rarity]
+            updateSellRarityUI()
+            AUTO_SELL_RARITIES = getActiveSellRarities()
+        end)
+    end
+
+    -- Bind webhook rarity toggles
+    for rarity, btn in pairs(gui.Settings.WebhookRarityButtons) do
+        bind(btn.MouseButton1Click, function()
+            webhookRarityState[rarity] = not webhookRarityState[rarity]
+            updateWebhookRarityUI()
+            webhookLogRarities = getActiveWebhookRarities()
+        end)
+    end
+
     local function saveSettings()
         local data = {
             webhookURL = webhookURL,
             webhookEnabled = webhookEnabled,
             webhookLogSells = webhookLogSells,
+            webhookRarities = getActiveWebhookRarities(),
+            sellRarities = getActiveSellRarities(),
         }
         local ok, err = pcall(function()
             local HttpService = game:GetService("HttpService")
@@ -1209,7 +1291,7 @@ return function(gui, config)
         if ok then
             gui.Settings.SaveStatus.Text = "Settings saved!"
             gui.Settings.SaveStatus.TextColor3 = THEME.success
-            log("Settings saved to " .. SETTINGS_FILE, THEME.success)
+            log("Settings saved", THEME.success)
         else
             gui.Settings.SaveStatus.Text = "Save failed: " .. tostring(err)
             gui.Settings.SaveStatus.TextColor3 = THEME.danger
@@ -1242,10 +1324,26 @@ return function(gui, config)
             if result.webhookLogSells ~= nil then
                 webhookLogSells = result.webhookLogSells
             end
-            -- Update toggle button
+            if result.webhookRarities then
+                webhookRarityState = {}
+                for _, r in ipairs(result.webhookRarities) do
+                    webhookRarityState[r] = true
+                end
+                webhookLogRarities = result.webhookRarities
+            end
+            if result.sellRarities then
+                sellRarities = {}
+                for _, r in ipairs(result.sellRarities) do
+                    sellRarities[r] = true
+                end
+                AUTO_SELL_RARITIES = result.sellRarities
+            end
+            -- Update UI
             gui.Settings.WebhookToggleBtn.Text = webhookEnabled and "Webhook: ON" or "Webhook: OFF"
             gui.Settings.WebhookToggleBtn.BackgroundColor3 = webhookEnabled and THEME.success or THEME.panel2
-            log("Settings loaded from " .. SETTINGS_FILE, THEME.dim)
+            updateSellRarityUI()
+            updateWebhookRarityUI()
+            log("Settings loaded", THEME.dim)
         end
     end
 
@@ -1257,21 +1355,35 @@ return function(gui, config)
         log("Webhook: " .. (webhookEnabled and "ON" or "OFF"), webhookEnabled and THEME.success or THEME.dim)
     end)
 
+    -- Test webhook button
+    bind(gui.Settings.WebhookTestBtn.MouseButton1Click, function()
+        webhookURL = gui.Settings.WebhookInput.Text
+        if webhookURL == "" then
+            log("Webhook test: No URL set!", THEME.danger)
+            return
+        end
+        local oldEnabled = webhookEnabled
+        webhookEnabled = true
+        sendWebhook("🧪 Webhook Test", "LyraHub webhook is working!\nPlayer: " .. lp.Name .. "\nRarities: " .. table.concat(getActiveWebhookRarities(), ", "), 10181631)
+        webhookEnabled = oldEnabled
+        log("Webhook test sent!", THEME.success)
+    end)
+
     -- Webhook URL input
     bind(gui.Settings.WebhookInput.FocusLost, function()
         webhookURL = gui.Settings.WebhookInput.Text
-        log("Webhook URL updated", THEME.dim)
     end)
 
     -- Save settings button
     bind(gui.Settings.SaveSettingsBtn.MouseButton1Click, function()
-        -- Grab latest URL from input
         webhookURL = gui.Settings.WebhookInput.Text
         saveSettings()
     end)
 
     -- Auto-load settings on start
     loadSettings()
+    updateSellRarityUI()
+    updateWebhookRarityUI()
 
     -- ═══════════════════════════════════════════
     -- AUTO FISH SYSTEM (animation-based, d8nte engine)
@@ -1288,7 +1400,7 @@ return function(gui, config)
     local AF_CAST_HOLD_MIN = 0.4
     local AF_CAST_HOLD_MAX = 0.6
     local AF_VERIFY_CAST_TIMEOUT = 2.5
-    local AF_PULL_TIMEOUT = 25
+    local AF_PULL_TIMEOUT = 20
     local AF_POST_PULL_DELAY = 2.8
     local AF_POST_PULL_TIMEOUT = 5
     local AF_PRE_END_DELAY = 0
