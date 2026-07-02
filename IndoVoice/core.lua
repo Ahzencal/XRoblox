@@ -2040,6 +2040,57 @@ return function(gui, config)
         gui.ShopGacha.Status.TextColor3 = THEME.success
 
         while shopGachaEnabled and not destroyed do
+            -- Kill any existing animation/reward UI before rolling
+            pcall(function()
+                local playerGui = lp:FindFirstChild("PlayerGui")
+                if playerGui then
+                    for _, g in pairs(playerGui:GetChildren()) do
+                        if g:IsA("ScreenGui") and g.Name ~= "LyraHub_Main" then
+                            if string.find(g.Name, "Roll") or string.find(g.Name, "Shop")
+                                or string.find(g.Name, "Gacha") or string.find(g.Name, "Reward")
+                                or string.find(g.Name, "Animation") or string.find(g.Name, "Popup")
+                                or string.find(g.Name, "Blind") or string.find(g.Name, "Spin")
+                                or g:FindFirstChild("RewardHolder", true)
+                                or g:FindFirstChild("AnimationHolder", true)
+                                or g:FindFirstChild("RollResult", true)
+                                or g:FindFirstChild("Skip", true) then
+                                g:Destroy()
+                            end
+                        end
+                    end
+                end
+            end)
+
+            -- Fire skip/complete signals to acknowledge previous roll
+            pcall(function()
+                local gre = game:GetService("ReplicatedStorage"):FindFirstChild("GameRemoteEvents")
+                if gre then
+                    local skipEvent = gre:FindFirstChild("SkipRollAnimationEvent")
+                        or gre:FindFirstChild("SkipAnimationEvent")
+                        or gre:FindFirstChild("RollSkipEvent")
+                    if skipEvent then
+                        skipEvent:FireServer()
+                    end
+                end
+            end)
+
+            -- Also try to use InterfaceHelper to close any open UI
+            pcall(function()
+                local lib = game:GetService("ReplicatedStorage"):FindFirstChild("Lib")
+                local game_ = lib and lib:FindFirstChild("Game")
+                local helper = game_ and game_:FindFirstChild("InterfaceHelper")
+                if helper then
+                    local mod = require(helper)
+                    if mod and mod.CloseAll then
+                        mod.CloseAll()
+                    elseif mod and mod.Close then
+                        mod.Close()
+                    end
+                end
+            end)
+
+            task.wait(0.3)
+
             -- Listen for reward event (CreateRewardInfoEvent)
             local receivedRarities = {}
             local receivedNames = {}
@@ -2065,32 +2116,54 @@ return function(gui, config)
                 return game:GetService("ReplicatedStorage").GameRemoteFunctions.RollShopFunction:InvokeServer(shopGachaType, 10)
             end)
 
-            task.wait(1.5)
+            task.wait(1)
             if rewardConn then rewardConn:Disconnect() end
 
             if not rollOk then
-                gui.ShopGacha.Status.Text = "Status: Roll failed!"
-                gui.ShopGacha.Status.TextColor3 = THEME.danger
-                log("ShopGacha: Error - " .. tostring(rollResult), THEME.danger)
-                task.wait(3)
+                -- Could be "wait for current roll to finish" — destroy UI and retry
+                gui.ShopGacha.Status.Text = "Status: Waiting/Retrying..."
+                gui.ShopGacha.Status.TextColor3 = THEME.warn
+                log("ShopGacha: " .. tostring(rollResult), THEME.warn)
+                -- Aggressively destroy all reward UIs
+                pcall(function()
+                    local playerGui = lp:FindFirstChild("PlayerGui")
+                    if playerGui then
+                        for _, g in pairs(playerGui:GetChildren()) do
+                            if g:IsA("ScreenGui") and g.Name ~= "LyraHub_Main" and g.Name ~= "Chat" then
+                                local isSystem = string.find(g.Name, "Roblox") or string.find(g.Name, "Core")
+                                if not isSystem then
+                                    if g:FindFirstChild("Skip", true) or g:FindFirstChild("Close", true)
+                                        or string.find(g.Name, "Roll") or string.find(g.Name, "Reward")
+                                        or string.find(g.Name, "Gacha") or string.find(g.Name, "Blind")
+                                        or string.find(g.Name, "Shop") then
+                                        g:Destroy()
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+                task.wait(2)
                 continue
             end
 
             shopGachaRolls = shopGachaRolls + 10
             gui.ShopGacha.Status.Text = "Status: Running | Rolls: " .. shopGachaRolls
+            gui.ShopGacha.Status.TextColor3 = THEME.success
 
-            -- Destroy any popup/animation UI
+            -- Immediately destroy the animation UI after roll
+            task.wait(0.2)
             pcall(function()
                 local playerGui = lp:FindFirstChild("PlayerGui")
                 if playerGui then
                     for _, g in pairs(playerGui:GetChildren()) do
-                        if g:IsA("ScreenGui") and g.Name ~= "LyraHub_Main" then
-                            if string.find(g.Name, "Roll") or string.find(g.Name, "Shop")
-                                or string.find(g.Name, "Gacha") or string.find(g.Name, "Reward")
+                        if g:IsA("ScreenGui") and g.Name ~= "LyraHub_Main" and g.Name ~= "Chat" then
+                            if string.find(g.Name, "Roll") or string.find(g.Name, "Reward")
+                                or string.find(g.Name, "Gacha") or string.find(g.Name, "Blind")
                                 or string.find(g.Name, "Animation") or string.find(g.Name, "Popup")
+                                or string.find(g.Name, "Shop") or string.find(g.Name, "Spin")
                                 or g:FindFirstChild("RewardHolder", true)
-                                or g:FindFirstChild("AnimationHolder", true)
-                                or g:FindFirstChild("RollResult", true) then
+                                or g:FindFirstChild("Skip", true) then
                                 g:Destroy()
                             end
                         end
