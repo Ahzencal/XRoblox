@@ -826,7 +826,7 @@ return function(config)
     GachaStopTitle.TextXAlignment = Enum.TextXAlignment.Left
     GachaStopTitle.Parent = FunScroll
 
-    local gachaRarities = {"Common", "Uncommon", "Rare", "Epic", "Legend", "Mythic", "Ancient", "Secret"}
+    local gachaRarities = {"Common", "Uncommon", "Rare", "Epic", "Legend", "Mythic"}
     local GachaStopButtons = {}
     for i, rarity in ipairs(gachaRarities) do
         local btn = Instance.new("TextButton")

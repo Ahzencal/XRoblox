@@ -1830,11 +1830,35 @@ return function(gui, config)
                 continue
             end
 
+            -- Listen for rarity result from the reward event
+            local receivedRarities = {}
+            local receivedNames = {}
+            local completionConn
+            pcall(function()
+                local gre = game:GetService("ReplicatedStorage"):FindFirstChild("GameRemoteEvents")
+                local rewardEvent = gre and gre:FindFirstChild("CreateBlindBoxRewardInfoEvent")
+                if rewardEvent and rewardEvent:IsA("RemoteEvent") then
+                    completionConn = rewardEvent.OnClientEvent:Connect(function(info, _, rarity, petId, ...)
+                        local r = rarity or (info and info.Rarity)
+                        local name = (info and info.Name) or petId or "?"
+                        if r and type(r) == "string" then
+                            table.insert(receivedRarities, r)
+                            table.insert(receivedNames, name)
+                        end
+                    end)
+                end
+            end)
+
             -- Roll 10x
             gui.Gacha.Status.Text = "Status: Rolling 10x [" .. boxName .. "]..."
             local rollOk, rollResult = pcall(function()
                 return game:GetService("ReplicatedStorage").GameRemoteFunctions.BlindBoxRollFunction:InvokeServer("Pet", boxName, 10)
             end)
+
+            -- Wait a moment for completion events to fire
+            task.wait(1)
+
+            if completionConn then completionConn:Disconnect() end
 
             if not rollOk then
                 gui.Gacha.Status.Text = "Status: Roll failed!"
@@ -1847,33 +1871,62 @@ return function(gui, config)
             autoGachaRolls = autoGachaRolls + 10
             gui.Gacha.Status.Text = "Status: Running | Rolls: " .. autoGachaRolls
 
-            -- Check results for stop rarity
+            -- Destroy blind box animation/UI
+            pcall(function()
+                local playerGui = lp:FindFirstChild("PlayerGui")
+                if playerGui then
+                    for _, g in pairs(playerGui:GetChildren()) do
+                        if g:IsA("ScreenGui") then
+                            if g:FindFirstChild("BlindBox", true) or g:FindFirstChild("GachaHolder", true)
+                                or g:FindFirstChild("Gacha", true) or string.find(g.Name, "BlindBox")
+                                or string.find(g.Name, "Gacha") or string.find(g.Name, "Roll") then
+                                g:Destroy()
+                            end
+                        end
+                    end
+                end
+            end)
+
+            -- Check received rarities from reward event
             local gotStopRarity = false
             local lastRarity = "?"
+            local lastPetName = "?"
 
-            if type(rollResult) == "table" then
-                for _, item in ipairs(rollResult) do
-                    local r = type(item) == "table" and (item.Rarity or item.rarity) or tostring(item)
-                    lastRarity = tostring(r)
-                    if gachaStopRarities[lastRarity] then
+            if #receivedRarities > 0 then
+                for i, r in ipairs(receivedRarities) do
+                    lastRarity = r
+                    lastPetName = receivedNames[i] or "?"
+                    if gachaStopRarities[r] then
                         gotStopRarity = true
                     end
                 end
-            elseif type(rollResult) == "string" then
-                lastRarity = rollResult
-                if gachaStopRarities[lastRarity] then
-                    gotStopRarity = true
+            else
+                -- Fallback: check rollResult if reward event didn't fire
+                if type(rollResult) == "table" then
+                    for _, item in ipairs(rollResult) do
+                        local r = type(item) == "table" and (item.Rarity or item.rarity) or nil
+                        if r then
+                            lastRarity = tostring(r)
+                            if gachaStopRarities[lastRarity] then
+                                gotStopRarity = true
+                            end
+                        end
+                    end
                 end
             end
 
-            gui.Gacha.LastResult.Text = "Last: " .. lastRarity .. " (roll #" .. autoGachaRolls .. ")"
-            log("AutoGacha: Roll #" .. autoGachaRolls .. " → " .. lastRarity, THEME.dim)
+            gui.Gacha.LastResult.Text = "Last: " .. lastPetName .. " [" .. lastRarity .. "]"
+            if #receivedRarities > 0 then
+                log("AutoGacha: Roll #" .. autoGachaRolls .. " → " .. table.concat(receivedRarities, ", "), THEME.dim)
+            else
+                log("AutoGacha: Roll #" .. autoGachaRolls .. " (no rarity data)", THEME.dim)
+            end
 
             -- Check stop condition
             if gotStopRarity then
-                gui.Gacha.Status.Text = "Status: STOPPED! Got " .. lastRarity .. "!"
+                gui.Gacha.Status.Text = "Status: STOPPED! Got " .. lastPetName .. " [" .. lastRarity .. "]!"
                 gui.Gacha.Status.TextColor3 = THEME.success
-                log("AutoGacha: STOPPED - obtained " .. lastRarity .. " after " .. autoGachaRolls .. " rolls!", THEME.success)
+                log("AutoGacha: STOPPED - obtained " .. lastPetName .. " (" .. lastRarity .. ") after " .. autoGachaRolls .. " rolls!", THEME.success)
                 autoGachaEnabled = false
                 gui.Gacha.ToggleBtn.Text = "Auto Gacha: OFF"
                 gui.Gacha.ToggleBtn.BackgroundColor3 = THEME.accent
@@ -1886,6 +1939,7 @@ return function(gui, config)
                         color = 16766720,
                         thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
                         fields = {
+                            {name = "Pet :", value = "```" .. lastPetName .. "```", inline = false},
                             {name = "Rarity :", value = "```" .. lastRarity .. "```", inline = true},
                             {name = "Total Rolls :", value = "```" .. tostring(autoGachaRolls) .. "```", inline = true},
                             {name = "Box :", value = "```Pet / " .. boxName .. "```", inline = false},
