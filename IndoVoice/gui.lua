@@ -330,15 +330,15 @@ return function(config)
 
     -- TabsBar (nav area)
     local TabsBar = Instance.new("Frame")
-    TabsBar.Size = UDim2.new(1, 0, 0, 240)
+    TabsBar.Size = UDim2.new(1, 0, 0, 280)
     TabsBar.Position = UDim2.new(0, 0, 0, 74)
     TabsBar.BackgroundTransparency = 1
     TabsBar.BorderSizePixel = 0
     TabsBar.Parent = Sidebar
 
     -- Sidebar nav buttons (full text, vertical)
-    local tabNames = {"Players", "FishZone", "Clicker", "Settings"}
-    local tabIcons = {"Players", "FishZone", "Clicker", "Settings"}
+    local tabNames = {"Players", "FishZone", "Clicker", "Settings", "Logs"}
+    local tabIcons = {"Players", "FishZone", "Clicker", "Settings", "Logs"}
     local TabButtons = {}
 
     for i, name in ipairs(tabNames) do
@@ -610,6 +610,44 @@ return function(config)
     SettingsInfo.Parent = Tabs.Settings
 
     -- ═══════════════════════════════════════════
+    -- LOGS TAB
+    -- ═══════════════════════════════════════════
+    local LogScroll = Instance.new("ScrollingFrame")
+    LogScroll.Size = UDim2.new(1, -20, 1, -50)
+    LogScroll.Position = UDim2.new(0, 10, 0, 10)
+    LogScroll.BackgroundColor3 = LYRA.bg2
+    LogScroll.BorderSizePixel = 0
+    LogScroll.ScrollBarThickness = 3
+    LogScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    LogScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    LogScroll.Parent = Tabs.Logs
+    Instance.new("UICorner", LogScroll).CornerRadius = UDim.new(0, 8)
+    Instance.new("UIListLayout", LogScroll).Padding = UDim.new(0, 2)
+
+    local ClearLogsBtn = Instance.new("TextButton")
+    ClearLogsBtn.Text = "Clear Logs"
+    ClearLogsBtn.Size = UDim2.new(0, 100, 0, 26)
+    ClearLogsBtn.Position = UDim2.new(1, -110, 1, -36)
+    ClearLogsBtn.BackgroundColor3 = LYRA.danger
+    ClearLogsBtn.TextColor3 = Color3.new(1, 1, 1)
+    ClearLogsBtn.Font = Enum.Font.GothamBold
+    ClearLogsBtn.TextSize = 11
+    ClearLogsBtn.BorderSizePixel = 0
+    ClearLogsBtn.Parent = Tabs.Logs
+    Instance.new("UICorner", ClearLogsBtn).CornerRadius = UDim.new(0, 6)
+
+    local LogCount = Instance.new("TextLabel")
+    LogCount.Size = UDim2.new(0, 200, 0, 26)
+    LogCount.Position = UDim2.new(0, 10, 1, -36)
+    LogCount.BackgroundTransparency = 1
+    LogCount.Text = "0 entries"
+    LogCount.TextColor3 = LYRA.dim
+    LogCount.Font = Enum.Font.Gotham
+    LogCount.TextSize = 10
+    LogCount.TextXAlignment = Enum.TextXAlignment.Left
+    LogCount.Parent = Tabs.Logs
+
+    -- ═══════════════════════════════════════════
     -- RETURN TABLE (API contract preserved)
     -- ═══════════════════════════════════════════
     return {
@@ -665,6 +703,11 @@ return function(config)
             AccentPreview = AccentPreview,
             ColorButtons = ColorButtons,
             SettingsInfo = SettingsInfo,
+        },
+        Logs = {
+            LogScroll = LogScroll,
+            ClearLogsBtn = ClearLogsBtn,
+            LogCount = LogCount,
         },
     }
 end

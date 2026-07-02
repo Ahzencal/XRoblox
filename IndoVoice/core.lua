@@ -73,6 +73,59 @@ return function(gui, config)
         table.clear(list)
     end
 
+    -- ═══════════════════════════════════════════
+    -- LOGGING SYSTEM
+    -- ═══════════════════════════════════════════
+    local logEntries = 0
+    local MAX_LOG_ENTRIES = 200
+
+    local function log(msg, color)
+        color = color or THEME.dim
+        logEntries = logEntries + 1
+        if logEntries > MAX_LOG_ENTRIES then
+            -- Remove oldest entry
+            local children = gui.Logs.LogScroll:GetChildren()
+            for _, child in ipairs(children) do
+                if child:IsA("TextLabel") then
+                    child:Destroy()
+                    break
+                end
+            end
+            logEntries = logEntries - 1
+        end
+
+        local timestamp = os.date("%H:%M:%S")
+        local entry = Instance.new("TextLabel")
+        entry.Size = UDim2.new(1, -8, 0, 16)
+        entry.BackgroundTransparency = 1
+        entry.Text = "[" .. timestamp .. "] " .. tostring(msg)
+        entry.TextColor3 = color
+        entry.Font = Enum.Font.Code
+        entry.TextSize = 11
+        entry.TextXAlignment = Enum.TextXAlignment.Left
+        entry.TextWrapped = true
+        entry.AutomaticSize = Enum.AutomaticSize.Y
+        entry.Parent = gui.Logs.LogScroll
+
+        gui.Logs.LogCount.Text = logEntries .. " entries"
+
+        -- Auto-scroll to bottom
+        task.defer(function()
+            gui.Logs.LogScroll.CanvasPosition = Vector2.new(0, gui.Logs.LogScroll.AbsoluteCanvasSize.Y)
+        end)
+    end
+
+    -- Clear logs button
+    bind(gui.Logs.ClearLogsBtn.MouseButton1Click, function()
+        for _, child in ipairs(gui.Logs.LogScroll:GetChildren()) do
+            if child:IsA("TextLabel") then
+                child:Destroy()
+            end
+        end
+        logEntries = 0
+        gui.Logs.LogCount.Text = "0 entries"
+    end)
+
     local function getHRP(char)
         return char and char:FindFirstChild("HumanoidRootPart")
     end
@@ -592,9 +645,15 @@ return function(gui, config)
             gui.Clicker.PosLbl.Text = "Hover target and press " ..
             tostring(PICK_KEY):gsub("Enum.KeyCode.", "") .. " first"
             gui.Clicker.PosLbl.TextColor3 = THEME.warn
+            log("Clicker: No target position set", THEME.warn)
             return
         end
         clicking = not clicking
+        if clicking then
+            log("Clicker: ON at (" .. math.floor(x) .. ", " .. math.floor(y) .. ") CPS=" .. clickCPS, THEME.success)
+        else
+            log("Clicker: OFF", THEME.danger)
+        end
         updateClickerUI()
     end
 
@@ -714,6 +773,7 @@ return function(gui, config)
     end
 
     local function destroyAll()
+        log("Script unloading...", THEME.danger)
         clicking = false
         destroyed = true
         autoTPEnabled = false
@@ -764,23 +824,50 @@ return function(gui, config)
     end
 
     local function claimSessionReward()
+        local rf = game:GetService("ReplicatedStorage"):FindFirstChild("GameRemoteFunctions")
+        if not rf then
+            return false, "GameRemoteFunctions folder not found"
+        end
+
+        -- Try to find the remote (may have slightly different name)
+        local remote = rf:FindFirstChild("CollectSessionRewardFunctionEvent")
+            or rf:FindFirstChild("CollectSessionRewardFunction")
+            or rf:FindFirstChild("CollectSessionReward")
+
+        if not remote then
+            -- Log all children for debugging
+            local names = {}
+            for _, child in ipairs(rf:GetChildren()) do
+                if string.find(string.lower(child.Name), "session") then
+                    table.insert(names, child.Name .. " [" .. child.ClassName .. "]")
+                end
+            end
+            local found = #names > 0 and table.concat(names, ", ") or "none with 'session'"
+            return false, "Remote not found. Matches: " .. found
+        end
+
         local claimed = 0
         for slot = 1, 12 do
             local ok, result = pcall(function()
-                return game:GetService("ReplicatedStorage").GameRemoteFunctions.CollectSessionRewardFunctionEvent:InvokeServer(slot)
+                if remote:IsA("RemoteFunction") then
+                    return remote:InvokeServer(slot)
+                elseif remote:IsA("RemoteEvent") then
+                    remote:FireServer(slot)
+                    return true
+                end
             end)
             if ok then
                 claimed = claimed + 1
-                print("[IndoVoice] Session reward slot " .. slot .. " claimed:", result) 
+                log("Session slot " .. slot .. ": claimed", THEME.success)
             else
-                print("[IndoVoice] Session reward slot " .. slot .. " failed:", result)
+                log("Session slot " .. slot .. ": " .. tostring(result), THEME.dim)
             end
             task.wait(1)
         end
         if claimed > 0 then
-            return true, "Attempted " .. claimed .. " session reward(s)"
+            return true, "Claimed " .. claimed .. "/12 slots"
         end
-        return false, "No session rewards claimed bruh"
+        return false, "No session rewards claimed"
     end
 
     local function performSell()
@@ -873,10 +960,12 @@ return function(gui, config)
         if autoSellEnabled then
             gui.FishZone.AutoSellBtn.Text = "Auto Sell Fish: ON"
             gui.FishZone.AutoSellBtn.BackgroundColor3 = THEME.success
+            log("Auto Sell: ON (interval " .. AUTO_SELL_INTERVAL .. "s)", THEME.success)
             task.spawn(function()
                 while autoSellEnabled and not destroyed do
                     if SellRemote then
-                        performSell()
+                        local ok, msg = performSell()
+                        log("Auto Sell executed: " .. tostring(msg), ok and THEME.success or THEME.danger)
                     end
                     task.wait(AUTO_SELL_INTERVAL)
                 end
@@ -884,20 +973,21 @@ return function(gui, config)
         else
             gui.FishZone.AutoSellBtn.Text = "Auto Sell Fish: OFF"
             gui.FishZone.AutoSellBtn.BackgroundColor3 = THEME.warn
+            log("Auto Sell: OFF", THEME.dim)
         end
     end)
 
     bind(gui.FishZone.SellNowBtn.MouseButton1Click, function()
-        print("[IndoVoice] Attempting split-second TP & sell...")
+        log("Sell Now: Attempting TP & sell...", THEME.warn)
         if not SellRemote then
-            warn("[IndoVoice] Error: Sell remote not loaded yet!")
+            log("Sell Now: FAILED - remote not loaded", THEME.danger)
             return
         end
         local success, msg = performSell()
         if success then
-            print("[IndoVoice] SUCCESS:", msg)
+            log("Sell Now: SUCCESS - " .. tostring(msg), THEME.success)
         else
-            warn("[IndoVoice] FAILED to sell fish:", msg)
+            log("Sell Now: FAILED - " .. tostring(msg), THEME.danger)
         end
     end)
 
@@ -906,18 +996,23 @@ return function(gui, config)
             autoClaimDailyRewardEnabled = not autoClaimDailyRewardEnabled
             updateRewardButtons()
             if autoClaimDailyRewardEnabled then
+                log("Daily Reward: Auto-claim ON", THEME.success)
                 task.spawn(function()
                     while autoClaimDailyRewardEnabled and not destroyed do
                         local success, message = claimDailyReward()
                         if success then
-                            print("[IndoVoice] Daily reward claimed:", message)
+                            log("Daily Reward: CLAIMED - " .. tostring(message), THEME.success)
                             autoClaimDailyRewardEnabled = false
                             updateRewardButtons()
                             break
+                        else
+                            log("Daily Reward: Waiting... (" .. tostring(message) .. ")", THEME.dim)
                         end
                         task.wait(30)
                     end
                 end)
+            else
+                log("Daily Reward: Auto-claim OFF", THEME.dim)
             end
         end)
     end
@@ -927,15 +1022,20 @@ return function(gui, config)
             autoClaimSessionRewardEnabled = not autoClaimSessionRewardEnabled
             updateRewardButtons()
             if autoClaimSessionRewardEnabled then
+                log("Session Reward: Auto-claim ON (slots 1-12)", THEME.success)
                 task.spawn(function()
                     while autoClaimSessionRewardEnabled and not destroyed do
                         local success, message = claimSessionReward()
                         if success then
-                            print("[IndoVoice] Session reward claimed:", message)
+                            log("Session Reward: " .. tostring(message), THEME.success)
+                        else
+                            log("Session Reward: " .. tostring(message), THEME.dim)
                         end
                         task.wait(60)
                     end
                 end)
+            else
+                log("Session Reward: Auto-claim OFF", THEME.dim)
             end
         end)
     end
@@ -966,7 +1066,7 @@ return function(gui, config)
         end
         gui.Settings.AntiIdleBtn.Text = "Anti Idle: ON"
         gui.Settings.AntiIdleBtn.BackgroundColor3 = THEME.success
-        print("[IndoVoice] Anti idle enabled")
+        log("Anti Idle: ON", THEME.success)
     end
 
     local function disableAntiIdle()
@@ -977,7 +1077,7 @@ return function(gui, config)
         table.clear(antiIdleConnections)
         gui.Settings.AntiIdleBtn.Text = "Anti Idle: OFF"
         gui.Settings.AntiIdleBtn.BackgroundColor3 = THEME.warn
-        print("[IndoVoice] Anti idle disabled")
+        log("Anti Idle: OFF", THEME.dim)
     end
 
     if gui.Settings.AntiIdleBtn then
@@ -1004,20 +1104,24 @@ return function(gui, config)
         gui.FishZone.ZoneESPBtn.Text = zoneESPOn and "FishZone ESP: ON" or "FishZone ESP: OFF"
         gui.FishZone.ZoneESPBtn.BackgroundColor3 = zoneESPOn and THEME.success or THEME.accent
         refreshZoneESP()
+        log("FishZone ESP: " .. (zoneESPOn and "ON" or "OFF"), zoneESPOn and THEME.success or THEME.dim)
     end)
 
     bind(gui.FishZone.AutoTPBtn.MouseButton1Click, function()
         if autoTPEnabled then
             stopAutoTP()
+            log("Auto TP: OFF", THEME.danger)
         else
             startAutoTP()
             moveToNearestActiveZone()
+            log("Auto TP: ON - searching for active zone", THEME.success)
         end
     end)
 
     bind(gui.FishZone.RefreshCharBtn.MouseButton1Click, function()
         gui.FishZone.RefreshCharBtn.Text = "Refreshing..."
         refreshCharacterAdonis()
+        log("Refresh character sent (Adonis)", THEME.warn)
         task.delay(1.2, function()
             if gui.FishZone.RefreshCharBtn and gui.FishZone.RefreshCharBtn.Parent then
                 gui.FishZone.RefreshCharBtn.Text = "Refresh Character"
@@ -1188,4 +1292,11 @@ return function(gui, config)
     refreshPlayerRows()
     refreshZoneESP()
     applyTheme()
+
+    -- Startup logs
+    log("LyraHub initialized", THEME.accentGlow)
+    log("Player: " .. lp.Name, THEME.text)
+    log("Clicker mode: " .. (useVIM and "Silent (VIM)" or "Fallback"), useVIM and THEME.success or THEME.warn)
+    log("Active zones found: " .. #getActiveZoneParts(), THEME.dim)
+    log("Press K to hide/show UI", THEME.dim)
 end
