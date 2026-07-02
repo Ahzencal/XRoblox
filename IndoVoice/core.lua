@@ -1830,10 +1830,10 @@ return function(gui, config)
                 continue
             end
 
-            -- Roll 10x using "Pet" category (standard for blind boxes in this game)
+            -- Roll 10x
             gui.Gacha.Status.Text = "Status: Rolling 10x [" .. boxName .. "]..."
             local rollOk, rollResult = pcall(function()
-                return game:GetService("ReplicatedStorage").GameRemoteFunctions.BlindBoxRollFunctionEvent:InvokeServer("Pet", boxName, 10)
+                return game:GetService("ReplicatedStorage").GameRemoteFunctions.BlindBoxRollFunction:InvokeServer("Pet", boxName, 10)
             end)
 
             if not rollOk then
