@@ -330,15 +330,15 @@ return function(config)
 
     -- TabsBar (nav area)
     local TabsBar = Instance.new("Frame")
-    TabsBar.Size = UDim2.new(1, 0, 0, 280)
+    TabsBar.Size = UDim2.new(1, 0, 0, 320)
     TabsBar.Position = UDim2.new(0, 0, 0, 74)
     TabsBar.BackgroundTransparency = 1
     TabsBar.BorderSizePixel = 0
     TabsBar.Parent = Sidebar
 
     -- Sidebar nav buttons (full text, vertical)
-    local tabNames = {"Players", "FishZone", "Clicker", "Settings", "Logs"}
-    local tabIcons = {"Players", "FishZone", "Clicker", "Settings", "Logs"}
+    local tabNames = {"Players", "FishZone", "AutoFish", "Clicker", "Settings", "Logs"}
+    local tabIcons = {"Players", "FishZone", "AutoFish", "Clicker", "Settings", "Logs"}
     local TabButtons = {}
 
     for i, name in ipairs(tabNames) do
@@ -471,6 +471,77 @@ return function(config)
     ZoneInfo.TextXAlignment = Enum.TextXAlignment.Left
     ZoneInfo.TextYAlignment = Enum.TextYAlignment.Top
     ZoneInfo.Parent = Tabs.FishZone
+
+    -- ═══════════════════════════════════════════
+    -- AUTOFISH TAB
+    -- ═══════════════════════════════════════════
+    local AutoFishToggleBtn = makeActionButton(Tabs.AutoFish, "Auto Fish: OFF", 10, LYRA.accent)
+
+    local AutoFishStatus = Instance.new("TextLabel")
+    AutoFishStatus.Size = UDim2.new(1, -20, 0, 20)
+    AutoFishStatus.Position = UDim2.new(0, 10, 0, 50)
+    AutoFishStatus.BackgroundTransparency = 1
+    AutoFishStatus.TextColor3 = LYRA.dim
+    AutoFishStatus.Text = "Status: Idle"
+    AutoFishStatus.Font = Enum.Font.GothamBold
+    AutoFishStatus.TextSize = 12
+    AutoFishStatus.TextXAlignment = Enum.TextXAlignment.Left
+    AutoFishStatus.Parent = Tabs.AutoFish
+
+    local AutoFishCasts = Instance.new("TextLabel")
+    AutoFishCasts.Size = UDim2.new(1, -20, 0, 18)
+    AutoFishCasts.Position = UDim2.new(0, 10, 0, 74)
+    AutoFishCasts.BackgroundTransparency = 1
+    AutoFishCasts.TextColor3 = LYRA.dim
+    AutoFishCasts.Text = "Casts: 0 | Caught: 0"
+    AutoFishCasts.Font = Enum.Font.Gotham
+    AutoFishCasts.TextSize = 11
+    AutoFishCasts.TextXAlignment = Enum.TextXAlignment.Left
+    AutoFishCasts.Parent = Tabs.AutoFish
+
+    local AutoFishLastCatch = Instance.new("TextLabel")
+    AutoFishLastCatch.Size = UDim2.new(1, -20, 0, 18)
+    AutoFishLastCatch.Position = UDim2.new(0, 10, 0, 94)
+    AutoFishLastCatch.BackgroundTransparency = 1
+    AutoFishLastCatch.TextColor3 = LYRA.dim
+    AutoFishLastCatch.Text = "Last: -"
+    AutoFishLastCatch.Font = Enum.Font.Gotham
+    AutoFishLastCatch.TextSize = 11
+    AutoFishLastCatch.TextXAlignment = Enum.TextXAlignment.Left
+    AutoFishLastCatch.Parent = Tabs.AutoFish
+
+    -- Separator
+    local AFSep = Instance.new("Frame")
+    AFSep.Size = UDim2.new(1, -20, 0, 1)
+    AFSep.Position = UDim2.new(0, 10, 0, 120)
+    AFSep.BackgroundColor3 = LYRA.panel2
+    AFSep.BorderSizePixel = 0
+    AFSep.Parent = Tabs.AutoFish
+
+    -- Settings info
+    local AFSettingsTitle = Instance.new("TextLabel")
+    AFSettingsTitle.Size = UDim2.new(1, -20, 0, 18)
+    AFSettingsTitle.Position = UDim2.new(0, 10, 0, 128)
+    AFSettingsTitle.BackgroundTransparency = 1
+    AFSettingsTitle.TextColor3 = LYRA.text
+    AFSettingsTitle.Text = "Timing Settings"
+    AFSettingsTitle.Font = Enum.Font.GothamBold
+    AFSettingsTitle.TextSize = 11
+    AFSettingsTitle.TextXAlignment = Enum.TextXAlignment.Left
+    AFSettingsTitle.Parent = Tabs.AutoFish
+
+    local AFTimings = Instance.new("TextLabel")
+    AFTimings.Size = UDim2.new(1, -20, 0, 120)
+    AFTimings.Position = UDim2.new(0, 10, 0, 148)
+    AFTimings.BackgroundTransparency = 1
+    AFTimings.TextColor3 = LYRA.dim
+    AFTimings.Text = "Pre-cast delay: 0.3s\nCast power: random 0.4-0.6s\nPull timeout: 20s\nPost-pull delay: 1.8s\nPost-pull timeout: 5s\nPost-end delay: 0.3s"
+    AFTimings.Font = Enum.Font.Code
+    AFTimings.TextSize = 10
+    AFTimings.TextWrapped = true
+    AFTimings.TextXAlignment = Enum.TextXAlignment.Left
+    AFTimings.TextYAlignment = Enum.TextYAlignment.Top
+    AFTimings.Parent = Tabs.AutoFish
 
     -- ═══════════════════════════════════════════
     -- CLICKER TAB
@@ -682,6 +753,13 @@ return function(config)
             SellNowBtn = SellNowBtn,
             ZoneStatus = ZoneStatus,
             ZoneInfo = ZoneInfo,
+        },
+        AutoFish = {
+            ToggleBtn = AutoFishToggleBtn,
+            Status = AutoFishStatus,
+            Casts = AutoFishCasts,
+            LastCatch = AutoFishLastCatch,
+            Timings = AFTimings,
         },
         Clicker = {
             StatusLbl = StatusLbl,

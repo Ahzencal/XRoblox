@@ -778,6 +778,7 @@ return function(gui, config)
         destroyed = true
         autoTPEnabled = false
         autoSellEnabled = false
+        autoFishEnabled = false
         autoClaimDailyRewardEnabled = false
         autoClaimSessionRewardEnabled = false
         antiIdleEnabled = false
@@ -996,19 +997,16 @@ return function(gui, config)
             autoClaimDailyRewardEnabled = not autoClaimDailyRewardEnabled
             updateRewardButtons()
             if autoClaimDailyRewardEnabled then
-                log("Daily Reward: Auto-claim ON", THEME.success)
+                log("Daily Reward: Auto-claim ON (every 1h)", THEME.success)
                 task.spawn(function()
                     while autoClaimDailyRewardEnabled and not destroyed do
                         local success, message = claimDailyReward()
                         if success then
                             log("Daily Reward: CLAIMED - " .. tostring(message), THEME.success)
-                            autoClaimDailyRewardEnabled = false
-                            updateRewardButtons()
-                            break
                         else
-                            log("Daily Reward: Waiting... (" .. tostring(message) .. ")", THEME.dim)
+                            log("Daily Reward: " .. tostring(message), THEME.dim)
                         end
-                        task.wait(30)
+                        task.wait(3600)
                     end
                 end)
             else
@@ -1022,7 +1020,7 @@ return function(gui, config)
             autoClaimSessionRewardEnabled = not autoClaimSessionRewardEnabled
             updateRewardButtons()
             if autoClaimSessionRewardEnabled then
-                log("Session Reward: Auto-claim ON (slots 1-12)", THEME.success)
+                log("Session Reward: Auto-claim ON (every 1h)", THEME.success)
                 task.spawn(function()
                     while autoClaimSessionRewardEnabled and not destroyed do
                         local success, message = claimSessionReward()
@@ -1031,7 +1029,7 @@ return function(gui, config)
                         else
                             log("Session Reward: " .. tostring(message), THEME.dim)
                         end
-                        task.wait(60)
+                        task.wait(3600)
                     end
                 end)
             else
@@ -1089,6 +1087,177 @@ return function(gui, config)
             end
         end)
     end
+
+    -- ═══════════════════════════════════════════
+    -- AUTO FISH SYSTEM
+    -- ═══════════════════════════════════════════
+    local autoFishEnabled = false
+    local autoFishCasts = 0
+    local autoFishCaught = 0
+
+    local AF_PRE_CAST_DELAY = 0.3
+    local AF_CAST_MIN = 0.4
+    local AF_CAST_MAX = 0.6
+    local AF_PULL_TIMEOUT = 20
+    local AF_POST_PULL_DELAY = 1.8
+    local AF_POST_PULL_TIMEOUT = 5
+    local AF_PRE_END_DELAY = 0
+    local AF_POST_END_DELAY = 0.3
+
+    local function getRod()
+        local char = lp.Character
+        if not char then return nil end
+        for _, tool in ipairs(char:GetChildren()) do
+            if tool:IsA("Tool") and tool:FindFirstChild("Cast") then
+                return tool
+            end
+        end
+        return nil
+    end
+
+    local function autoFishLoop()
+        log("AutoFish: Started", THEME.success)
+        gui.AutoFish.Status.Text = "Status: Running"
+        gui.AutoFish.Status.TextColor3 = THEME.success
+
+        while autoFishEnabled and not destroyed do
+            local rod = getRod()
+            if not rod then
+                gui.AutoFish.Status.Text = "Status: No rod equipped!"
+                gui.AutoFish.Status.TextColor3 = THEME.danger
+                log("AutoFish: No rod found, waiting...", THEME.warn)
+                task.wait(2)
+                continue
+            end
+
+            local castRemote = rod:FindFirstChild("Cast")
+            local catchEvent = rod:FindFirstChild("Catch")
+            local baitLanded = rod:FindFirstChild("BaitLanded")
+            local startMinigame = rod:FindFirstChild("StartMinigame")
+
+            if not castRemote then
+                gui.AutoFish.Status.Text = "Status: Rod missing Cast remote"
+                gui.AutoFish.Status.TextColor3 = THEME.danger
+                task.wait(2)
+                continue
+            end
+
+            -- Pre-cast delay
+            gui.AutoFish.Status.Text = "Status: Pre-cast..."
+            task.wait(AF_PRE_CAST_DELAY)
+            if not autoFishEnabled then break end
+
+            -- Cast with random power
+            local castPower = AF_CAST_MIN + math.random() * (AF_CAST_MAX - AF_CAST_MIN)
+            local castTime = tick()
+            local castOk = pcall(function()
+                castRemote:InvokeServer(castPower, castTime)
+            end)
+
+            if not castOk then
+                log("AutoFish: Cast failed", THEME.danger)
+                task.wait(1)
+                continue
+            end
+
+            autoFishCasts = autoFishCasts + 1
+            gui.AutoFish.Casts.Text = "Casts: " .. autoFishCasts .. " | Caught: " .. autoFishCaught
+            gui.AutoFish.Status.Text = "Status: Waiting for bite..."
+
+            -- Wait for BaitLanded / StartMinigame signals (pull timeout)
+            local pullReceived = false
+            local fishData = nil
+            local pullConn, miniConn
+
+            if baitLanded then
+                pullConn = baitLanded.OnClientEvent:Connect(function()
+                    pullReceived = true
+                end)
+            end
+
+            if startMinigame then
+                miniConn = startMinigame.OnClientEvent:Connect(function(_, data)
+                    if data and type(data) == "table" then
+                        fishData = data
+                    end
+                    pullReceived = true
+                end)
+            end
+
+            -- Wait for pull or timeout
+            local waitStart = tick()
+            while not pullReceived and (tick() - waitStart) < AF_PULL_TIMEOUT and autoFishEnabled do
+                task.wait(0.1)
+            end
+
+            if pullConn then pullConn:Disconnect() end
+            if miniConn then miniConn:Disconnect() end
+
+            if not autoFishEnabled then break end
+
+            if not pullReceived then
+                gui.AutoFish.Status.Text = "Status: No bite, recasting..."
+                log("AutoFish: Pull timeout, recasting", THEME.warn)
+                task.wait(AF_POST_END_DELAY)
+                continue
+            end
+
+            -- Post-pull delay (simulate reaction time)
+            gui.AutoFish.Status.Text = "Status: Fish on! Pulling..."
+            task.wait(AF_POST_PULL_DELAY)
+            if not autoFishEnabled then break end
+
+            -- Pre-end delay
+            if AF_PRE_END_DELAY > 0 then
+                task.wait(AF_PRE_END_DELAY)
+            end
+
+            -- Catch the fish
+            if catchEvent then
+                pcall(function()
+                    catchEvent:FireServer(true)
+                end)
+            end
+
+            autoFishCaught = autoFishCaught + 1
+            gui.AutoFish.Casts.Text = "Casts: " .. autoFishCasts .. " | Caught: " .. autoFishCaught
+
+            local catchName = fishData and fishData.FishName or "Unknown"
+            local catchRarity = fishData and fishData.Rarity or "?"
+            gui.AutoFish.LastCatch.Text = "Last: " .. catchName .. " [" .. catchRarity .. "]"
+            log("AutoFish: Caught " .. catchName .. " (" .. catchRarity .. ")", THEME.success)
+
+            -- Post-end delay
+            gui.AutoFish.Status.Text = "Status: Caught! Resetting..."
+            task.wait(AF_POST_END_DELAY)
+
+            -- Post-pull timeout (wait for rod to be ready)
+            local readyWait = tick()
+            while (tick() - readyWait) < AF_POST_PULL_TIMEOUT and autoFishEnabled do
+                local newRod = getRod()
+                if newRod and newRod:FindFirstChild("Cast") then
+                    break
+                end
+                task.wait(0.2)
+            end
+        end
+
+        gui.AutoFish.Status.Text = "Status: Idle"
+        gui.AutoFish.Status.TextColor3 = THEME.dim
+        log("AutoFish: Stopped", THEME.dim)
+    end
+
+    bind(gui.AutoFish.ToggleBtn.MouseButton1Click, function()
+        autoFishEnabled = not autoFishEnabled
+        if autoFishEnabled then
+            gui.AutoFish.ToggleBtn.Text = "Auto Fish: ON"
+            gui.AutoFish.ToggleBtn.BackgroundColor3 = THEME.success
+            task.spawn(autoFishLoop)
+        else
+            gui.AutoFish.ToggleBtn.Text = "Auto Fish: OFF"
+            gui.AutoFish.ToggleBtn.BackgroundColor3 = THEME.accent
+        end
+    end)
 
     bind(gui.Players.SearchBox:GetPropertyChangedSignal("Text"), function()
         playerSearchText = gui.Players.SearchBox.Text
