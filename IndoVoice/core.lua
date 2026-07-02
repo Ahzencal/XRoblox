@@ -1119,21 +1119,12 @@ return function(gui, config)
         return false
     end
 
-    local function sendWebhook(title, description, color)
+    local function sendWebhookRaw(payload)
         if not webhookEnabled or webhookURL == "" then return end
         task.spawn(function()
             local ok, err = pcall(function()
                 local HttpService = game:GetService("HttpService")
-                local data = HttpService:JSONEncode({
-                    embeds = {{
-                        title = title,
-                        description = description,
-                        color = color or 10181631,
-                        thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
-                        footer = {text = "LyraHub | " .. lp.Name .. " | " .. os.date("%H:%M:%S")},
-                        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-                    }}
-                })
+                local data = HttpService:JSONEncode(payload)
                 local request = (syn and syn.request) or (http and http.request) or http_request or request
                 if request then
                     request({
@@ -1150,26 +1141,71 @@ return function(gui, config)
         end)
     end
 
+    local function sendWebhook(title, description, color)
+        sendWebhookRaw({
+            embeds = {{
+                title = title,
+                description = description,
+                color = color or 10181631,
+                thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
+                footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
+                timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+            }}
+        })
+    end
+
     local function webhookFishCaught(fishName, rarity, weight, price)
         if not shouldLogRarity(rarity) then return end
-        local desc = "**Fish:** " .. tostring(fishName)
-            .. "\n**Rarity:** " .. tostring(rarity)
-            .. "\n**Weight:** " .. tostring(weight or "?") .. " kg"
-            .. "\n**Price:** $" .. tostring(price or "?")
-            .. "\n**Session Earned:** $" .. tostring(perfTotalEarnings)
-        -- Color by rarity
-        local colors = {ancient = 16711680, mythic = 16753920, legend = 16766720, epic = 10494192}
+        local priceStr = price and ("$" .. tostring(math.floor(tonumber(price) or 0)) .. " Coins") or "?"
+        local weightStr = weight and (tostring(weight) .. " Kg") or "?"
+        local colors = {ancient = 16711680, mythic = 16753920, legend = 16766720, epic = 10494192, secret = 10040115, rare = 3447003}
         local c = colors[string.lower(tostring(rarity))] or 10181631
-        sendWebhook("🎣 Fish Caught!", desc, c)
+
+        sendWebhookRaw({
+            embeds = {{
+                title = "LyraHub Fish caught!",
+                description = "Congrats! **" .. lp.Name .. "** You obtained new **" .. tostring(rarity) .. "** here for full detail fish :",
+                color = c,
+                thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
+                fields = {
+                    {name = "Name Fish :", value = "```" .. tostring(fishName) .. "```", inline = false},
+                    {name = "Rarity :", value = "```" .. tostring(rarity) .. "```", inline = false},
+                    {name = "Weight :", value = "```" .. weightStr .. "```", inline = false},
+                    {name = "Sell Price :", value = "```" .. priceStr .. "```", inline = false},
+                },
+                footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
+                timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+            }}
+        })
     end
 
     local function webhookSellAll(serverResult, soldRarities)
-        if not webhookLogSells then return end
-        local desc = "**Result:** " .. tostring(serverResult)
-            .. "\n**Rarities:** " .. tostring(soldRarities or "?")
-            .. "\n**Session Earnings:** $" .. tostring(perfTotalEarnings)
-            .. "\n**Total Sells:** " .. tostring(perfTotalSellValue)
-        sendWebhook("💰 Fish Sold!", desc, 5763719)
+        sendWebhookRaw({
+            embeds = {{
+                title = "💰 LyraHub Fish Sold!",
+                description = "**" .. lp.Name .. "** sold their fish inventory.",
+                color = 5763719,
+                thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
+                fields = {
+                    {name = "Result :", value = "```" .. tostring(serverResult or "OK") .. "```", inline = false},
+                    {name = "Rarities Sold :", value = "```" .. tostring(soldRarities or "All") .. "```", inline = false},
+                    {name = "Session Earnings :", value = "```$" .. tostring(math.floor(perfTotalEarnings)) .. " Coins```", inline = true},
+                    {name = "Total Sells :", value = "```" .. tostring(perfTotalSellValue) .. "```", inline = true},
+                },
+                footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
+                timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+            }}
+        })
+    end
+
+    local function formatNumber(n)
+        n = tonumber(n) or 0
+        if n >= 1e12 then return string.format("%.1fT", n / 1e12)
+        elseif n >= 1e9 then return string.format("%.1fB", n / 1e9)
+        elseif n >= 1e6 then return string.format("%.1fM", n / 1e6)
+        elseif n >= 1e3 then return string.format("%.1fK", n / 1e3)
+        else return tostring(math.floor(n))
+        end
     end
 
     local function updatePerfMonitor()
@@ -1183,7 +1219,7 @@ return function(gui, config)
         gui.AutoFish.PerfFishHrVal.Text = tostring(fishPerHour)
         gui.AutoFish.PerfCaughtVal.Text = tostring(caught)
         gui.AutoFish.PerfSellsVal.Text = tostring(perfTotalSellValue)
-        gui.AutoFish.PerfEarnVal.Text = "$" .. tostring(perfTotalEarnings)
+        gui.AutoFish.PerfEarnVal.Text = formatNumber(perfTotalEarnings)
 
         -- Rarity breakdown
         local rarityStr = ""
@@ -1367,7 +1403,20 @@ return function(gui, config)
         end
         local oldEnabled = webhookEnabled
         webhookEnabled = true
-        sendWebhook("🧪 Webhook Test", "LyraHub webhook is working!\nPlayer: " .. lp.Name .. "\nRarities: " .. table.concat(getActiveWebhookRarities(), ", "), 10181631)
+        sendWebhookRaw({
+            embeds = {{
+                title = "🧪 LyraHub Webhook Test",
+                description = "Congrats! **" .. lp.Name .. "** your webhook is working!",
+                color = 10181631,
+                thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
+                fields = {
+                    {name = "Status :", value = "```Connected```", inline = true},
+                    {name = "Log Rarities :", value = "```" .. table.concat(getActiveWebhookRarities(), ", ") .. "```", inline = false},
+                },
+                footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
+                timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+            }}
+        })
         webhookEnabled = oldEnabled
         log("Webhook test sent!", THEME.success)
     end)
