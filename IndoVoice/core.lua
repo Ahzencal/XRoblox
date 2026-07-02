@@ -2040,15 +2040,15 @@ return function(gui, config)
         gui.ShopGacha.Status.TextColor3 = THEME.success
 
         while shopGachaEnabled and not destroyed do
-            -- Listen for reward event
+            -- Listen for reward event (CreateRewardInfoEvent)
             local receivedRarities = {}
             local receivedNames = {}
             local rewardConn
             pcall(function()
                 local gre = game:GetService("ReplicatedStorage"):FindFirstChild("GameRemoteEvents")
-                local rewardEvent = gre and gre:FindFirstChild("CreateBlindBoxRewardInfoEvent")
+                local rewardEvent = gre and gre:FindFirstChild("CreateRewardInfoEvent")
                 if rewardEvent and rewardEvent:IsA("RemoteEvent") then
-                    rewardConn = rewardEvent.OnClientEvent:Connect(function(info, _, rarity, itemId, ...)
+                    rewardConn = rewardEvent.OnClientEvent:Connect(function(info, typeStr, rarity, itemId, ...)
                         local r = rarity or (info and info.Rarity)
                         local name = (info and info.Name) or itemId or "?"
                         if r and type(r) == "string" then
@@ -2062,10 +2062,10 @@ return function(gui, config)
             -- Roll 10x
             gui.ShopGacha.Status.Text = "Status: Rolling 10x [" .. shopGachaType .. "]..."
             local rollOk, rollResult = pcall(function()
-                return game:GetService("ReplicatedStorage").GameRemoteFunctions.RollShopFunction:InvokeServer(shopGachaType, 10)
+                return game:GetService("ReplicatedStorage").GameRemoteFunctions.RollShopFunctionEvent:InvokeServer(shopGachaType, 10)
             end)
 
-            task.wait(1)
+            task.wait(1.5)
             if rewardConn then rewardConn:Disconnect() end
 
             if not rollOk then
@@ -2079,13 +2079,20 @@ return function(gui, config)
             shopGachaRolls = shopGachaRolls + 10
             gui.ShopGacha.Status.Text = "Status: Running | Rolls: " .. shopGachaRolls
 
-            -- Destroy any popup UI
+            -- Destroy any popup/animation UI
             pcall(function()
                 local playerGui = lp:FindFirstChild("PlayerGui")
                 if playerGui then
                     for _, g in pairs(playerGui:GetChildren()) do
-                        if g:IsA("ScreenGui") and (string.find(g.Name, "Roll") or string.find(g.Name, "Shop") or string.find(g.Name, "Gacha")) then
-                            g:Destroy()
+                        if g:IsA("ScreenGui") and g.Name ~= "LyraHub_Main" then
+                            if string.find(g.Name, "Roll") or string.find(g.Name, "Shop")
+                                or string.find(g.Name, "Gacha") or string.find(g.Name, "Reward")
+                                or string.find(g.Name, "Animation") or string.find(g.Name, "Popup")
+                                or g:FindFirstChild("RewardHolder", true)
+                                or g:FindFirstChild("AnimationHolder", true)
+                                or g:FindFirstChild("RollResult", true) then
+                                g:Destroy()
+                            end
                         end
                     end
                 end
@@ -2171,23 +2178,31 @@ return function(gui, config)
         bind(btn.MouseButton1Click, function()
             btn.Text = "..."
             btn.BackgroundColor3 = THEME.warn
-            local ok, result = pcall(function()
+            local ok, success, errMsg = pcall(function()
                 return game:GetService("ReplicatedStorage").GameRemoteFunctions.RodShopPurchaseFunction:InvokeServer(rodName)
             end)
-            if ok then
+            if ok and success == true then
                 btn.Text = "OK!"
                 btn.BackgroundColor3 = THEME.success
-                gui.RodShop.Status.Text = "Bought: " .. rodName:gsub("Tool_", "")
+                gui.RodShop.Status.Text = "Bought: " .. rodName:gsub("Tool_", ""):gsub("Rod$", "")
                 gui.RodShop.Status.TextColor3 = THEME.success
                 log("RodShop: Purchased " .. rodName, THEME.success)
             else
+                local reason = ""
+                if not ok then
+                    reason = tostring(success)
+                elseif success == false then
+                    reason = tostring(errMsg or "Not enough Ropiah")
+                else
+                    reason = "Unknown error"
+                end
                 btn.Text = "Fail"
                 btn.BackgroundColor3 = THEME.danger
-                gui.RodShop.Status.Text = "Failed: " .. tostring(result)
+                gui.RodShop.Status.Text = reason
                 gui.RodShop.Status.TextColor3 = THEME.danger
-                log("RodShop: Failed " .. rodName .. " - " .. tostring(result), THEME.danger)
+                log("RodShop: " .. rodName:gsub("Tool_", "") .. " → " .. reason, THEME.danger)
             end
-            task.delay(2, function()
+            task.delay(3, function()
                 if btn and btn.Parent then
                     btn.Text = "Buy"
                     btn.BackgroundColor3 = THEME.accent
@@ -2195,6 +2210,19 @@ return function(gui, config)
             end)
         end)
     end
+
+    -- Rod search filter
+    bind(gui.RodShop.SearchBox:GetPropertyChangedSignal("Text"), function()
+        local query = string.lower(gui.RodShop.SearchBox.Text)
+        for rodName, row in pairs(gui.RodShop.RodRows) do
+            if query == "" then
+                row.Visible = true
+            else
+                local display = string.lower(rodName:gsub("Tool_", ""):gsub("Rod$", ""))
+                row.Visible = string.find(display, query, 1, true) ~= nil
+            end
+        end
+    end)
 
     bind(gui.Players.SearchBox:GetPropertyChangedSignal("Text"), function()
         playerSearchText = gui.Players.SearchBox.Text

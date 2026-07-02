@@ -1061,16 +1061,32 @@ return function(config)
     RodShopTitle.Size = UDim2.new(1, -20, 0, 18)
     RodShopTitle.Position = UDim2.new(0, 10, 0, rodShopY)
     RodShopTitle.BackgroundTransparency = 1
-    RodShopTitle.Text = "🎣 Buy Rod"
+    RodShopTitle.Text = "🎣 Buy Rod (Ropiah)"
     RodShopTitle.TextColor3 = LYRA.accentGlow
     RodShopTitle.Font = Enum.Font.GothamBold
     RodShopTitle.TextSize = 12
     RodShopTitle.TextXAlignment = Enum.TextXAlignment.Left
     RodShopTitle.Parent = FunScroll
 
+    -- Search bar
+    local RodSearchBox = Instance.new("TextBox")
+    RodSearchBox.Size = UDim2.new(1, -20, 0, 22)
+    RodSearchBox.Position = UDim2.new(0, 10, 0, rodShopY + 22)
+    RodSearchBox.BackgroundColor3 = LYRA.bg2
+    RodSearchBox.TextColor3 = LYRA.text
+    RodSearchBox.PlaceholderText = "Search rod..."
+    RodSearchBox.PlaceholderColor3 = LYRA.dim
+    RodSearchBox.Text = ""
+    RodSearchBox.Font = Enum.Font.Gotham
+    RodSearchBox.TextSize = 10
+    RodSearchBox.ClearTextOnFocus = false
+    RodSearchBox.BorderSizePixel = 0
+    RodSearchBox.Parent = FunScroll
+    Instance.new("UICorner", RodSearchBox).CornerRadius = UDim.new(0, 4)
+
     local RodShopStatus = Instance.new("TextLabel")
     RodShopStatus.Size = UDim2.new(1, -20, 0, 16)
-    RodShopStatus.Position = UDim2.new(0, 10, 0, rodShopY + 22)
+    RodShopStatus.Position = UDim2.new(0, 10, 0, rodShopY + 48)
     RodShopStatus.BackgroundTransparency = 1
     RodShopStatus.Text = ""
     RodShopStatus.TextColor3 = LYRA.dim
@@ -1079,8 +1095,9 @@ return function(config)
     RodShopStatus.TextXAlignment = Enum.TextXAlignment.Left
     RodShopStatus.Parent = FunScroll
 
-    -- Scan for rods from ReplicatedStorage.Content.Tool
+    -- Scan for rods (exclude gold-only: only include if rod uses script/Ropiah)
     local availableRods = {}
+    local rarityOrder = {Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legend = 5, Mythic = 6}
     pcall(function()
         local toolFolder = game:GetService("ReplicatedStorage"):FindFirstChild("Content")
         toolFolder = toolFolder and toolFolder:FindFirstChild("Tool")
@@ -1091,11 +1108,22 @@ return function(config)
                         if rarity:IsA("Folder") then
                             for _, rod in ipairs(rarity:GetChildren()) do
                                 if string.find(rod.Name, "Rod$") then
-                                    table.insert(availableRods, {
-                                        name = rod.Name,
-                                        category = category.Name,
-                                        rarity = rarity.Name,
-                                    })
+                                    -- Exclude gold-only rods (check for GoldPrice attribute or script)
+                                    local isGoldOnly = false
+                                    pcall(function()
+                                        local gp = rod:GetAttribute("GoldPrice") or rod:GetAttribute("GoldOnly")
+                                        if gp and tonumber(gp) and tonumber(gp) > 0 then
+                                            isGoldOnly = true
+                                        end
+                                    end)
+                                    if not isGoldOnly then
+                                        table.insert(availableRods, {
+                                            name = rod.Name,
+                                            category = category.Name,
+                                            rarity = rarity.Name,
+                                            order = rarityOrder[rarity.Name] or 99,
+                                        })
+                                    end
                                 end
                             end
                         end
@@ -1105,10 +1133,13 @@ return function(config)
         end
     end)
 
-    -- Rod list (scrollable within FunScroll)
+    -- Sort by rarity (highest first)
+    table.sort(availableRods, function(a, b) return a.order > b.order end)
+
+    -- Rod list
     local RodListFrame = Instance.new("Frame")
-    RodListFrame.Size = UDim2.new(1, -20, 0, math.min(#availableRods * 30, 180))
-    RodListFrame.Position = UDim2.new(0, 10, 0, rodShopY + 42)
+    RodListFrame.Size = UDim2.new(1, -20, 0, 180)
+    RodListFrame.Position = UDim2.new(0, 10, 0, rodShopY + 68)
     RodListFrame.BackgroundColor3 = LYRA.bg2
     RodListFrame.BorderSizePixel = 0
     RodListFrame.ClipsDescendants = true
@@ -1126,8 +1157,10 @@ return function(config)
     Instance.new("UIListLayout", RodListScroll).Padding = UDim.new(0, 2)
 
     local RodBuyButtons = {}
+    local RodRows = {}
     for _, rod in ipairs(availableRods) do
         local row = Instance.new("Frame")
+        row.Name = rod.name
         row.Size = UDim2.new(1, -4, 0, 26)
         row.BackgroundColor3 = LYRA.panel2
         row.BackgroundTransparency = 0.5
@@ -1135,11 +1168,12 @@ return function(config)
         row.Parent = RodListScroll
         Instance.new("UICorner", row).CornerRadius = UDim.new(0, 4)
 
+        local displayName = rod.name:gsub("Tool_", ""):gsub("Rod$", "")
         local lbl = Instance.new("TextLabel")
         lbl.Size = UDim2.new(1, -70, 1, 0)
         lbl.Position = UDim2.new(0, 6, 0, 0)
         lbl.BackgroundTransparency = 1
-        lbl.Text = rod.name:gsub("Tool_", ""):gsub("Rod", "") .. " [" .. rod.rarity .. "]"
+        lbl.Text = displayName .. " [" .. rod.rarity .. "]"
         lbl.TextColor3 = LYRA.text
         lbl.Font = Enum.Font.Gotham
         lbl.TextSize = 10
@@ -1160,11 +1194,11 @@ return function(config)
         Instance.new("UICorner", buyBtn).CornerRadius = UDim.new(0, 4)
 
         RodBuyButtons[rod.name] = buyBtn
+        RodRows[rod.name] = row
     end
 
     -- Final canvas size
-    local rodListHeight = math.min(#availableRods * 30, 180)
-    FunScroll.CanvasSize = UDim2.new(0, 0, 0, rodShopY + 42 + rodListHeight + 20)
+    FunScroll.CanvasSize = UDim2.new(0, 0, 0, rodShopY + 68 + 180 + 20)
 
     -- ═══════════════════════════════════════════
     -- SETTINGS TAB
@@ -1494,7 +1528,9 @@ return function(config)
         },
         RodShop = {
             BuyButtons = RodBuyButtons,
+            RodRows = RodRows,
             Status = RodShopStatus,
+            SearchBox = RodSearchBox,
         },
         Settings = {
             HideKeyLbl = HideKeyLbl,
