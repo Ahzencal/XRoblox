@@ -967,6 +967,17 @@ return function(gui, config)
         return success, result or err
     end
 
+    -- Sell interval input
+    bind(gui.FishZone.SellIntervalInput.FocusLost, function()
+        local val = tonumber(gui.FishZone.SellIntervalInput.Text)
+        if val and val >= 10 then
+            AUTO_SELL_INTERVAL = val
+            log("Auto Sell interval: " .. val .. "s", THEME.dim)
+        else
+            gui.FishZone.SellIntervalInput.Text = tostring(AUTO_SELL_INTERVAL)
+        end
+    end)
+
     bind(gui.FishZone.AutoSellBtn.MouseButton1Click, function()
         autoSellEnabled = not autoSellEnabled
         if autoSellEnabled then
@@ -1323,6 +1334,7 @@ return function(gui, config)
             webhookLogSells = webhookLogSells,
             webhookRarities = getActiveWebhookRarities(),
             sellRarities = getActiveSellRarities(),
+            sellInterval = AUTO_SELL_INTERVAL,
         }
         local ok, err = pcall(function()
             local HttpService = game:GetService("HttpService")
@@ -1378,6 +1390,10 @@ return function(gui, config)
                     sellRarities[r] = true
                 end
                 AUTO_SELL_RARITIES = result.sellRarities
+            end
+            if result.sellInterval then
+                AUTO_SELL_INTERVAL = tonumber(result.sellInterval) or AUTO_SELL_INTERVAL
+                gui.FishZone.SellIntervalInput.Text = tostring(AUTO_SELL_INTERVAL)
             end
             -- Update UI
             gui.Settings.WebhookToggleBtn.Text = webhookEnabled and "Webhook: ON" or "Webhook: OFF"
