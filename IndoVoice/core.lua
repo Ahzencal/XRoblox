@@ -50,6 +50,13 @@ return function(gui, config)
     local lastClick = 0
     local activeTab = "Players"
 
+    -- Performance/sell tracking (declared early for use in performSell)
+    local perfStartTime = tick()
+    local perfRarityCounts = {}
+    local perfTotalSellValue = 0
+    local perfTotalEarnings = 0
+    local webhookSellEnabled = false
+
     local espObjects = {}
     local zoneObjects = {}
     local playerRows = {}
@@ -956,12 +963,9 @@ return function(gui, config)
         end
         autoTPEnabled = wasAutoTP
 
-        -- Webhook for sell
+        -- Track sell count
         if success then
             perfTotalSellValue = perfTotalSellValue + 1
-            local soldRarities = table.concat(getActiveSellRarities(), ", ")
-            webhookSellAll(tostring(result or "OK"), soldRarities)
-            updatePerfMonitor()
         end
 
         return success, result or err
@@ -1118,11 +1122,6 @@ return function(gui, config)
     local webhookLogRarities = config.Webhook and config.Webhook.LogRarities or {"Ancient"}
     local webhookLogSells = config.Webhook and config.Webhook.LogSells or false
 
-    local perfStartTime = tick()
-    local perfRarityCounts = {}
-    local perfTotalSellValue = 0
-    local perfTotalEarnings = 0
-
     local function shouldLogRarity(rarity)
         for _, r in ipairs(webhookLogRarities) do
             if string.lower(r) == string.lower(tostring(rarity)) then
@@ -1192,25 +1191,6 @@ return function(gui, config)
         })
     end
 
-    local function webhookSellAll(serverResult, soldRarities)
-        sendWebhookRaw({
-            embeds = {{
-                title = "💰 LyraHub Fish Sold!",
-                description = "**" .. lp.Name .. "** sold their fish inventory.",
-                color = 5763719,
-                thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
-                fields = {
-                    {name = "Result :", value = "```" .. tostring(serverResult or "OK") .. "```", inline = false},
-                    {name = "Rarities Sold :", value = "```" .. tostring(soldRarities or "All") .. "```", inline = false},
-                    {name = "Session Earnings :", value = "```Rp." .. tostring(math.floor(perfTotalEarnings)), inline = true},
-                    {name = "Total Sells :", value = "```" .. tostring(perfTotalSellValue) .. "```", inline = true},
-                },
-                footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
-                timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-            }}
-        })
-    end
-
     local function formatNumber(n)
         n = tonumber(n) or 0
         if n >= 1e12 then return string.format("%.1fT", n / 1e12)
@@ -1222,25 +1202,35 @@ return function(gui, config)
     end
 
     local function updatePerfMonitor()
-        local elapsed = tick() - perfStartTime
-        local hours = elapsed / 3600
-        local caught = autoFishCaught or 0
-        local timeouts = autoFishTimeouts or 0
-        local fishPerHour = hours > 0 and math.floor(caught / hours) or 0
-
-        -- Update stat cards
-        gui.AutoFish.PerfFishHrVal.Text = tostring(fishPerHour)
-        gui.AutoFish.PerfCaughtVal.Text = tostring(caught)
-        gui.AutoFish.PerfSellsVal.Text = tostring(perfTotalSellValue)
-        gui.AutoFish.PerfEarnVal.Text = formatNumber(perfTotalEarnings)
-
-        -- Rarity breakdown
-        local rarityStr = ""
-        for rarity, count in pairs(perfRarityCounts) do
-            rarityStr = rarityStr .. rarity .. ":" .. count .. "  "
+        -- Sum total from rarity counts
+        local totalCaught = 0
+        for _, count in pairs(perfRarityCounts) do
+            totalCaught = totalCaught + count
         end
-        if rarityStr == "" then rarityStr = "-" end
-        gui.AutoFish.PerfRarity.Text = rarityStr
+
+        -- Update total fish count
+        pcall(function()
+            gui.FishZone.FishTotalLbl.Text = "Total Fish: " .. tostring(totalCaught)
+        end)
+
+        -- Update rarity breakdown
+        local mythic = perfRarityCounts["Mythic"] or 0
+        local legend = perfRarityCounts["Legend"] or 0
+        local epic = perfRarityCounts["Epic"] or 0
+        local rare = perfRarityCounts["Rare"] or 0
+        local uncommon = perfRarityCounts["Uncommon"] or 0
+        local common = perfRarityCounts["Common"] or 0
+        local ancient = perfRarityCounts["Ancient"] or 0
+
+        local statsText = "Mythic: " .. mythic .. " | Legend: " .. legend .. " | Epic: " .. epic
+            .. "\nRare: " .. rare .. " | Uncommon: " .. uncommon .. " | Common: " .. common
+        if ancient > 0 then
+            statsText = "Ancient: " .. ancient .. "\n" .. statsText
+        end
+
+        pcall(function()
+            gui.FishZone.FishRarityStats.Text = statsText
+        end)
     end
 
     -- ═══════════════════════════════════════════
@@ -1282,7 +1272,7 @@ return function(gui, config)
     end
 
     local function updateSellRarityUI()
-        for rarity, btn in pairs(gui.Settings.SellRarityButtons) do
+        for rarity, btn in pairs(gui.FishZone.SellRarityButtons) do
             if sellRarities[rarity] then
                 btn.BackgroundColor3 = THEME.success
                 btn.BackgroundTransparency = 0.2
@@ -1310,7 +1300,7 @@ return function(gui, config)
     end
 
     -- Bind sell rarity toggles
-    for rarity, btn in pairs(gui.Settings.SellRarityButtons) do
+    for rarity, btn in pairs(gui.FishZone.SellRarityButtons) do
         bind(btn.MouseButton1Click, function()
             sellRarities[rarity] = not sellRarities[rarity]
             updateSellRarityUI()
@@ -1655,7 +1645,6 @@ return function(gui, config)
             end
 
             autoFishCasts = autoFishCasts + 1
-            gui.AutoFish.Casts.Text = "Casts: " .. autoFishCasts .. " | Caught: " .. autoFishCaught
 
             -- ── WAITING FOR PULL (detect pull animation + capture fish data) ──
             afSetStage("Waiting for bite...")
@@ -1725,7 +1714,6 @@ return function(gui, config)
                     catchRemote:FireServer(true)
                 end)
                 autoFishCaught = autoFishCaught + 1
-                gui.AutoFish.Casts.Text = "Casts: " .. autoFishCasts .. " | Caught: " .. autoFishCaught
 
                 -- Extract fish info
                 local fishName = caughtFishData and caughtFishData.FishName or "Unknown"
@@ -2406,14 +2394,44 @@ return function(gui, config)
         end
     end)
 
-    for i, btn in ipairs(gui.Settings.ColorButtons) do
-        bind(btn.MouseButton1Click, function()
-            THEME.accent = config.ThemePresets[i]
-            applyTheme()
-            refreshZoneESP()
-            updateRewardButtons()
-        end)
-    end
+    -- Dark/Light theme toggle
+    bind(gui.Settings.DarkThemeBtn.MouseButton1Click, function()
+        THEME.accent = Color3.fromRGB(155, 89, 255)
+        THEME.accentGlow = Color3.fromRGB(180, 130, 255)
+        THEME.bg = Color3.fromRGB(12, 10, 20)
+        THEME.bg2 = Color3.fromRGB(18, 15, 30)
+        THEME.panel = Color3.fromRGB(22, 20, 38)
+        THEME.panel2 = Color3.fromRGB(30, 27, 50)
+        THEME.sidebar = Color3.fromRGB(16, 13, 28)
+        THEME.topbar = Color3.fromRGB(20, 17, 34)
+        THEME.text = Color3.fromRGB(240, 235, 255)
+        THEME.dim = Color3.fromRGB(130, 120, 170)
+        gui.Settings.DarkThemeBtn.BackgroundColor3 = THEME.accent
+        gui.Settings.DarkThemeBtn.TextColor3 = Color3.new(1, 1, 1)
+        gui.Settings.LightThemeBtn.BackgroundColor3 = THEME.panel2
+        gui.Settings.LightThemeBtn.TextColor3 = THEME.dim
+        applyTheme()
+        log("Theme: Dark (Lyra)", THEME.dim)
+    end)
+
+    bind(gui.Settings.LightThemeBtn.MouseButton1Click, function()
+        THEME.accent = Color3.fromRGB(120, 70, 220)
+        THEME.accentGlow = Color3.fromRGB(100, 60, 190)
+        THEME.bg = Color3.fromRGB(240, 238, 250)
+        THEME.bg2 = Color3.fromRGB(228, 224, 242)
+        THEME.panel = Color3.fromRGB(248, 246, 255)
+        THEME.panel2 = Color3.fromRGB(220, 215, 238)
+        THEME.sidebar = Color3.fromRGB(235, 230, 248)
+        THEME.topbar = Color3.fromRGB(230, 226, 245)
+        THEME.text = Color3.fromRGB(30, 20, 60)
+        THEME.dim = Color3.fromRGB(100, 90, 140)
+        gui.Settings.LightThemeBtn.BackgroundColor3 = THEME.accent
+        gui.Settings.LightThemeBtn.TextColor3 = Color3.new(1, 1, 1)
+        gui.Settings.DarkThemeBtn.BackgroundColor3 = THEME.panel2
+        gui.Settings.DarkThemeBtn.TextColor3 = THEME.dim
+        applyTheme()
+        log("Theme: Light (Lyra)", THEME.dim)
+    end)
 
     for name, btn in pairs(gui.TabButtons) do
         bind(btn.MouseButton1Click, function()
