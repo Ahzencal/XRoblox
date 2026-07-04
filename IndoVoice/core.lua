@@ -2327,7 +2327,7 @@ return function(gui, config)
 
     local function updateKeybindUI()
         local keyName = tostring(TOGGLE_KEY):gsub("Enum.KeyCode.", "")
-        gui.Clicker.KeybindBtn.Text = "Keybind: " .. keyName .. " (tap to change)"
+        gui.Clicker.KeybindBtn.Text = "Key: " .. keyName
         gui.Clicker.ToggleBtn.Text = clicking
             and ("Stop [" .. keyName .. "]")
             or ("Start [" .. keyName .. "]")
