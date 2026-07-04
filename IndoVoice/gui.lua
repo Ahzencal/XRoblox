@@ -1343,15 +1343,7 @@ return function(config)
     WebhookTestBtn.Size = UDim2.new(0.48, -10, 0, 28)
     WebhookTestBtn.Position = UDim2.new(0.5, 5, 0, 340)
 
-    local WebhookSellBtn = makeActionButton(SettingsScroll, "Sell Webhook: OFF", 376, LYRA.panel2)
-    WebhookSellBtn.Size = UDim2.new(0.48, -10, 0, 28)
-    WebhookSellBtn.Position = UDim2.new(0, 10, 0, 376)
-
-    local WebhookSellTestBtn = makeActionButton(SettingsScroll, "Test Sell", 376, LYRA.warn)
-    WebhookSellTestBtn.Size = UDim2.new(0.48, -10, 0, 28)
-    WebhookSellTestBtn.Position = UDim2.new(0.5, 5, 0, 376)
-
-    local SaveSettingsBtn = makeActionButton(SettingsScroll, "Save All Settings", 414, LYRA.success)
+    local SaveSettingsBtn = makeActionButton(SettingsScroll, "Save All Settings", 378, LYRA.success)
 
     local SaveStatus = Instance.new("TextLabel")
     SaveStatus.Size = UDim2.new(1, -20, 0, 18)
@@ -1557,8 +1549,6 @@ return function(config)
             WebhookInput = WebhookInput,
             WebhookToggleBtn = WebhookToggleBtn,
             WebhookTestBtn = WebhookTestBtn,
-            WebhookSellBtn = WebhookSellBtn,
-            WebhookSellTestBtn = WebhookSellTestBtn,
             WebhookRarityButtons = WebhookRarityButtons,
             SaveSettingsBtn = SaveSettingsBtn,
             SaveStatus = SaveStatus,

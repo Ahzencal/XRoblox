@@ -963,40 +963,9 @@ return function(gui, config)
         end
         autoTPEnabled = wasAutoTP
 
-        -- Track sell count + webhook
+        -- Track sell count
         if success then
             perfTotalSellValue = perfTotalSellValue + 1
-            pcall(function()
-                if webhookSellEnabled and webhookURL ~= "" then
-                    local HttpService = game:GetService("HttpService")
-                    local data = HttpService:JSONEncode({
-                        embeds = {{
-                            title = "💰 LyraHub Fish Sold!",
-                            description = "**" .. lp.Name .. "** sold fish inventory.",
-                            color = 5763719,
-                            thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
-                            fields = {
-                                {name = "Result :", value = "```" .. tostring(result or "OK") .. "```", inline = false},
-                                {name = "Total Sells :", value = "```" .. tostring(perfTotalSellValue) .. "```", inline = true},
-                                {name = "Session Earnings :", value = "```Rp." .. tostring(math.floor(perfTotalEarnings)) .. "```", inline = true},
-                            },
-                            footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
-                            timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-                        }}
-                    })
-                    local request = (syn and syn.request) or (http and http.request) or http_request or request
-                    if request then
-                        task.spawn(function()
-                            request({
-                                Url = webhookURL,
-                                Method = "POST",
-                                Headers = {["Content-Type"] = "application/json"},
-                                Body = data,
-                            })
-                        end)
-                    end
-                end
-            end)
         end
 
         return success, result or err
@@ -1463,41 +1432,6 @@ return function(gui, config)
     -- Webhook URL input
     bind(gui.Settings.WebhookInput.FocusLost, function()
         webhookURL = gui.Settings.WebhookInput.Text
-    end)
-
-    -- Sell webhook toggle
-    bind(gui.Settings.WebhookSellBtn.MouseButton1Click, function()
-        webhookSellEnabled = not webhookSellEnabled
-        gui.Settings.WebhookSellBtn.Text = webhookSellEnabled and "Sell Webhook: ON" or "Sell Webhook: OFF"
-        gui.Settings.WebhookSellBtn.BackgroundColor3 = webhookSellEnabled and THEME.success or THEME.panel2
-        log("Sell Webhook: " .. (webhookSellEnabled and "ON" or "OFF"), webhookSellEnabled and THEME.success or THEME.dim)
-    end)
-
-    -- Test sell webhook
-    bind(gui.Settings.WebhookSellTestBtn.MouseButton1Click, function()
-        webhookURL = gui.Settings.WebhookInput.Text
-        if webhookURL == "" then
-            log("Sell Webhook test: No URL!", THEME.danger)
-            return
-        end
-        local oldEnabled = webhookEnabled
-        webhookEnabled = true
-        sendWebhookRaw({
-            embeds = {{
-                title = "💰 LyraHub Sell Test",
-                description = "**" .. lp.Name .. "** sell webhook is working!",
-                color = 5763719,
-                thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
-                fields = {
-                    {name = "Status :", value = "```Connected```", inline = true},
-                    {name = "Sells This Session :", value = "```" .. tostring(perfTotalSellValue) .. "```", inline = true},
-                },
-                footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
-                timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-            }}
-        })
-        webhookEnabled = oldEnabled
-        log("Sell Webhook test sent!", THEME.success)
     end)
 
     -- Save settings button
