@@ -50,6 +50,12 @@ return function(gui, config)
     local lastClick = 0
     local activeTab = "Players"
 
+    -- Performance/sell tracking (declared early for use in performSell)
+    local perfStartTime = tick()
+    local perfRarityCounts = {}
+    local perfTotalSellValue = 0
+    local perfTotalEarnings = 0
+
     local espObjects = {}
     local zoneObjects = {}
     local playerRows = {}
@@ -1118,11 +1124,6 @@ return function(gui, config)
     local webhookLogRarities = config.Webhook and config.Webhook.LogRarities or {"Ancient"}
     local webhookLogSells = config.Webhook and config.Webhook.LogSells or false
 
-    local perfStartTime = tick()
-    local perfRarityCounts = {}
-    local perfTotalSellValue = 0
-    local perfTotalEarnings = 0
-
     local function shouldLogRarity(rarity)
         for _, r in ipairs(webhookLogRarities) do
             if string.lower(r) == string.lower(tostring(rarity)) then
@@ -1222,25 +1223,31 @@ return function(gui, config)
     end
 
     local function updatePerfMonitor()
-        local elapsed = tick() - perfStartTime
-        local hours = elapsed / 3600
         local caught = autoFishCaught or 0
-        local timeouts = autoFishTimeouts or 0
-        local fishPerHour = hours > 0 and math.floor(caught / hours) or 0
 
-        -- Update stat cards
-        gui.AutoFish.PerfFishHrVal.Text = tostring(fishPerHour)
-        gui.AutoFish.PerfCaughtVal.Text = tostring(caught)
-        gui.AutoFish.PerfSellsVal.Text = tostring(perfTotalSellValue)
-        gui.AutoFish.PerfEarnVal.Text = formatNumber(perfTotalEarnings)
+        -- Update total fish count
+        pcall(function()
+            gui.FishZone.FishTotalLbl.Text = "Total Fish: " .. tostring(caught)
+        end)
 
-        -- Rarity breakdown
-        local rarityStr = ""
-        for rarity, count in pairs(perfRarityCounts) do
-            rarityStr = rarityStr .. rarity .. ":" .. count .. "  "
+        -- Update rarity breakdown
+        local mythic = perfRarityCounts["Mythic"] or 0
+        local legend = perfRarityCounts["Legend"] or 0
+        local epic = perfRarityCounts["Epic"] or 0
+        local rare = perfRarityCounts["Rare"] or 0
+        local uncommon = perfRarityCounts["Uncommon"] or 0
+        local common = perfRarityCounts["Common"] or 0
+        local ancient = perfRarityCounts["Ancient"] or 0
+
+        local statsText = "Mythic: " .. mythic .. " | Legend: " .. legend .. " | Epic: " .. epic
+            .. "\nRare: " .. rare .. " | Uncommon: " .. uncommon .. " | Common: " .. common
+        if ancient > 0 then
+            statsText = "Ancient: " .. ancient .. "\n" .. statsText
         end
-        if rarityStr == "" then rarityStr = "-" end
-        gui.AutoFish.PerfRarity.Text = rarityStr
+
+        pcall(function()
+            gui.FishZone.FishRarityStats.Text = statsText
+        end)
     end
 
     -- ═══════════════════════════════════════════
@@ -1282,7 +1289,7 @@ return function(gui, config)
     end
 
     local function updateSellRarityUI()
-        for rarity, btn in pairs(gui.Settings.SellRarityButtons) do
+        for rarity, btn in pairs(gui.FishZone.SellRarityButtons) do
             if sellRarities[rarity] then
                 btn.BackgroundColor3 = THEME.success
                 btn.BackgroundTransparency = 0.2
@@ -1310,7 +1317,7 @@ return function(gui, config)
     end
 
     -- Bind sell rarity toggles
-    for rarity, btn in pairs(gui.Settings.SellRarityButtons) do
+    for rarity, btn in pairs(gui.FishZone.SellRarityButtons) do
         bind(btn.MouseButton1Click, function()
             sellRarities[rarity] = not sellRarities[rarity]
             updateSellRarityUI()
@@ -1655,7 +1662,6 @@ return function(gui, config)
             end
 
             autoFishCasts = autoFishCasts + 1
-            gui.AutoFish.Casts.Text = "Casts: " .. autoFishCasts .. " | Caught: " .. autoFishCaught
 
             -- ── WAITING FOR PULL (detect pull animation + capture fish data) ──
             afSetStage("Waiting for bite...")
@@ -1725,7 +1731,6 @@ return function(gui, config)
                     catchRemote:FireServer(true)
                 end)
                 autoFishCaught = autoFishCaught + 1
-                gui.AutoFish.Casts.Text = "Casts: " .. autoFishCasts .. " | Caught: " .. autoFishCaught
 
                 -- Extract fish info
                 local fishName = caughtFishData and caughtFishData.FishName or "Unknown"

@@ -338,8 +338,8 @@ return function(config)
     TabsBar.Parent = Sidebar
 
     -- Sidebar nav buttons (full text, vertical)
-    local tabNames = {"About", "Players", "FishZone", "AutoFish", "Fun", "Settings", "Logs"}
-    local tabIcons = {"About", "Players", "FishZone", "AutoFish", "Fun", "Settings", "Logs"}
+    local tabNames = {"About", "Players", "Fishing", "Fun", "Mining", "Settings", "Logs"}
+    local tabIcons = {"About", "Players", "Fishing", "Fun", "Mining", "Settings", "Logs"}
     local TabButtons = {}
 
     for i, name in ipairs(tabNames) do
@@ -458,9 +458,22 @@ return function(config)
     AboutSep2.BorderSizePixel = 0
     AboutSep2.Parent = Tabs.About
 
+    local AboutDesc = Instance.new("TextLabel")
+    AboutDesc.Size = UDim2.new(1, -20, 0, 60)
+    AboutDesc.Position = UDim2.new(0, 10, 0, 164)
+    AboutDesc.BackgroundTransparency = 1
+    AboutDesc.Text = "LyraHub is a multi-feature automation hub for IndoVoice. It provides auto fishing, zone management, gacha rolling, player ESP, webhook logging, and more — all in a sleek custom UI with persistent settings."
+    AboutDesc.TextColor3 = LYRA.dim
+    AboutDesc.Font = Enum.Font.Gotham
+    AboutDesc.TextSize = 11
+    AboutDesc.TextWrapped = true
+    AboutDesc.TextXAlignment = Enum.TextXAlignment.Left
+    AboutDesc.TextYAlignment = Enum.TextYAlignment.Top
+    AboutDesc.Parent = Tabs.About
+
     local AboutCreator = Instance.new("TextLabel")
     AboutCreator.Size = UDim2.new(1, -20, 0, 40)
-    AboutCreator.Position = UDim2.new(0, 10, 0, 168)
+    AboutCreator.Position = UDim2.new(0, 10, 0, 230)
     AboutCreator.BackgroundTransparency = 1
     AboutCreator.Text = "Created By: Ahzencal\nLyraHub est. 2026"
     AboutCreator.TextColor3 = LYRA.dim
@@ -522,234 +535,209 @@ return function(config)
     PlayerHint.Parent = Tabs.Players
 
     -- ═══════════════════════════════════════════
-    -- FISHZONE TAB
+    -- FISHING TAB (combined FishZone + AutoFish)
     -- ═══════════════════════════════════════════
     local function makeActionButton(parent, text, y, color)
         local b = Instance.new("TextButton")
         b.Text = text
-        b.Size = UDim2.new(1, -20, 0, 32)
+        b.Size = UDim2.new(1, -20, 0, 30)
         b.Position = UDim2.new(0, 10, 0, y)
         b.BackgroundColor3 = color
         b.TextColor3 = Color3.new(1, 1, 1)
         b.Font = Enum.Font.GothamBold
-        b.TextSize = 12
+        b.TextSize = 11
         b.BorderSizePixel = 0
         b.Parent = parent
         Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
         return b
     end
 
-    local ZoneESPBtn = makeActionButton(Tabs.FishZone, "FishZone ESP: OFF", 10, LYRA.accent)
-    local AutoTPBtn = makeActionButton(Tabs.FishZone, "Auto TP Active FishZone: OFF", 48, LYRA.tp)
-    local RefreshCharBtn = makeActionButton(Tabs.FishZone, "Refresh Character", 86, LYRA.danger)
-    local AutoSellBtn = makeActionButton(Tabs.FishZone, "Auto Sell Fish: OFF", 124, LYRA.warn)
-    local SellNowBtn = makeActionButton(Tabs.FishZone, "Sell All Now", 162, LYRA.accent)
+    local FishScroll = Instance.new("ScrollingFrame")
+    FishScroll.Size = UDim2.new(1, 0, 1, 0)
+    FishScroll.BackgroundTransparency = 1
+    FishScroll.BorderSizePixel = 0
+    FishScroll.ScrollBarThickness = 3
+    FishScroll.CanvasSize = UDim2.new(0, 0, 0, 620)
+    FishScroll.Parent = Tabs.Fishing
 
+    -- Buttons
+    local ZoneESPBtn = makeActionButton(FishScroll, "FishZone ESP: OFF", 8, LYRA.accent)
+    local AutoTPBtn = makeActionButton(FishScroll, "Auto TP Active FishZone: OFF", 42, LYRA.tp)
+    local AutoFishToggleBtn = makeActionButton(FishScroll, "Auto Fish: OFF", 76, LYRA.success)
+    local AutoSellBtn = makeActionButton(FishScroll, "Auto Sell Fish: OFF", 110, LYRA.warn)
+    local SellNowBtn = makeActionButton(FishScroll, "Sell All Now", 144, LYRA.accent)
+    local RefreshCharBtn = makeActionButton(FishScroll, "Refresh Character", 178, LYRA.danger)
+
+    -- AutoFish Status
+    local AutoFishStatus = Instance.new("TextLabel")
+    AutoFishStatus.Size = UDim2.new(1, -20, 0, 18)
+    AutoFishStatus.Position = UDim2.new(0, 10, 0, 216)
+    AutoFishStatus.BackgroundTransparency = 1
+    AutoFishStatus.TextColor3 = LYRA.dim
+    AutoFishStatus.Text = "Fish: Idle"
+    AutoFishStatus.Font = Enum.Font.GothamBold
+    AutoFishStatus.TextSize = 11
+    AutoFishStatus.TextXAlignment = Enum.TextXAlignment.Left
+    AutoFishStatus.Parent = FishScroll
+
+    local AutoFishLastCatch = Instance.new("TextLabel")
+    AutoFishLastCatch.Size = UDim2.new(1, -20, 0, 16)
+    AutoFishLastCatch.Position = UDim2.new(0, 10, 0, 236)
+    AutoFishLastCatch.BackgroundTransparency = 1
+    AutoFishLastCatch.TextColor3 = LYRA.dim
+    AutoFishLastCatch.Text = "Last: -"
+    AutoFishLastCatch.Font = Enum.Font.Gotham
+    AutoFishLastCatch.TextSize = 10
+    AutoFishLastCatch.TextXAlignment = Enum.TextXAlignment.Left
+    AutoFishLastCatch.Parent = FishScroll
+
+    -- Zone Status
     local ZoneStatus = Instance.new("TextLabel")
-    ZoneStatus.Size = UDim2.new(1, -20, 0, 20)
-    ZoneStatus.Position = UDim2.new(0, 10, 0, 204)
+    ZoneStatus.Size = UDim2.new(1, -20, 0, 16)
+    ZoneStatus.Position = UDim2.new(0, 10, 0, 254)
     ZoneStatus.BackgroundTransparency = 1
     ZoneStatus.TextColor3 = LYRA.text
-    ZoneStatus.Text = "Status: Idle"
-    ZoneStatus.Font = Enum.Font.GothamBold
-    ZoneStatus.TextSize = 12
+    ZoneStatus.Text = "Zone: Idle"
+    ZoneStatus.Font = Enum.Font.Gotham
+    ZoneStatus.TextSize = 10
     ZoneStatus.TextXAlignment = Enum.TextXAlignment.Left
-    ZoneStatus.Parent = Tabs.FishZone
+    ZoneStatus.Parent = FishScroll
 
-    local ZoneInfo = Instance.new("TextLabel")
-    ZoneInfo.Size = UDim2.new(1, -20, 0, 70)
-    ZoneInfo.Position = UDim2.new(0, 10, 0, 228)
-    ZoneInfo.BackgroundTransparency = 1
-    ZoneInfo.TextColor3 = LYRA.dim
-    ZoneInfo.Text = "Active zones only\nAuto TP keeps rotation/body lock\nRefresh uses Adonis commands\nCore logic in core.lua"
-    ZoneInfo.Font = Enum.Font.Gotham
-    ZoneInfo.TextSize = 11
-    ZoneInfo.TextWrapped = true
-    ZoneInfo.TextXAlignment = Enum.TextXAlignment.Left
-    ZoneInfo.TextYAlignment = Enum.TextYAlignment.Top
-    ZoneInfo.Parent = Tabs.FishZone
+    -- Separator
+    local FishSep1 = Instance.new("Frame")
+    FishSep1.Size = UDim2.new(1, -20, 0, 1)
+    FishSep1.Position = UDim2.new(0, 10, 0, 278)
+    FishSep1.BackgroundColor3 = LYRA.panel2
+    FishSep1.BorderSizePixel = 0
+    FishSep1.Parent = FishScroll
 
-    -- Auto Sell Interval input
+    -- Config section
     local SellIntervalLbl = Instance.new("TextLabel")
-    SellIntervalLbl.Size = UDim2.new(0, 120, 0, 20)
-    SellIntervalLbl.Position = UDim2.new(0, 10, 0, 300)
+    SellIntervalLbl.Size = UDim2.new(0, 100, 0, 20)
+    SellIntervalLbl.Position = UDim2.new(0, 10, 0, 286)
     SellIntervalLbl.BackgroundTransparency = 1
     SellIntervalLbl.Text = "Sell Interval (s):"
     SellIntervalLbl.TextColor3 = LYRA.dim
     SellIntervalLbl.Font = Enum.Font.Gotham
     SellIntervalLbl.TextSize = 10
     SellIntervalLbl.TextXAlignment = Enum.TextXAlignment.Left
-    SellIntervalLbl.Parent = Tabs.FishZone
+    SellIntervalLbl.Parent = FishScroll
 
     local SellIntervalInput = Instance.new("TextBox")
-    SellIntervalInput.Size = UDim2.new(0, 70, 0, 20)
-    SellIntervalInput.Position = UDim2.new(0, 130, 0, 300)
+    SellIntervalInput.Size = UDim2.new(0, 60, 0, 20)
+    SellIntervalInput.Position = UDim2.new(0, 112, 0, 286)
     SellIntervalInput.BackgroundColor3 = LYRA.bg2
     SellIntervalInput.TextColor3 = LYRA.text
     SellIntervalInput.Text = tostring(config.AutoSell and config.AutoSell.Interval or 3600)
     SellIntervalInput.Font = Enum.Font.Code
-    SellIntervalInput.TextSize = 11
+    SellIntervalInput.TextSize = 10
     SellIntervalInput.ClearTextOnFocus = false
     SellIntervalInput.BorderSizePixel = 0
-    SellIntervalInput.Parent = Tabs.FishZone
+    SellIntervalInput.Parent = FishScroll
     Instance.new("UICorner", SellIntervalInput).CornerRadius = UDim.new(0, 4)
 
-    -- ═══════════════════════════════════════════
-    -- AUTOFISH TAB
-    -- ═══════════════════════════════════════════
-    local AutoFishToggleBtn = makeActionButton(Tabs.AutoFish, "Auto Fish: OFF", 10, LYRA.accent)
+    -- Sell Rarity selection (moved from Settings)
+    local SellRarityTitle = Instance.new("TextLabel")
+    SellRarityTitle.Size = UDim2.new(1, -20, 0, 16)
+    SellRarityTitle.Position = UDim2.new(0, 10, 0, 314)
+    SellRarityTitle.BackgroundTransparency = 1
+    SellRarityTitle.Text = "Sell Rarities:"
+    SellRarityTitle.TextColor3 = LYRA.dim
+    SellRarityTitle.Font = Enum.Font.Gotham
+    SellRarityTitle.TextSize = 10
+    SellRarityTitle.TextXAlignment = Enum.TextXAlignment.Left
+    SellRarityTitle.Parent = FishScroll
 
-    local AutoFishStatus = Instance.new("TextLabel")
-    AutoFishStatus.Size = UDim2.new(1, -20, 0, 20)
-    AutoFishStatus.Position = UDim2.new(0, 10, 0, 50)
-    AutoFishStatus.BackgroundTransparency = 1
-    AutoFishStatus.TextColor3 = LYRA.dim
-    AutoFishStatus.Text = "Status: Idle"
-    AutoFishStatus.Font = Enum.Font.GothamBold
-    AutoFishStatus.TextSize = 12
-    AutoFishStatus.TextXAlignment = Enum.TextXAlignment.Left
-    AutoFishStatus.Parent = Tabs.AutoFish
-
-    local AutoFishCasts = Instance.new("TextLabel")
-    AutoFishCasts.Size = UDim2.new(1, -20, 0, 18)
-    AutoFishCasts.Position = UDim2.new(0, 10, 0, 74)
-    AutoFishCasts.BackgroundTransparency = 1
-    AutoFishCasts.TextColor3 = LYRA.dim
-    AutoFishCasts.Text = "Casts: 0 | Caught: 0"
-    AutoFishCasts.Font = Enum.Font.Gotham
-    AutoFishCasts.TextSize = 11
-    AutoFishCasts.TextXAlignment = Enum.TextXAlignment.Left
-    AutoFishCasts.Parent = Tabs.AutoFish
-
-    local AutoFishLastCatch = Instance.new("TextLabel")
-    AutoFishLastCatch.Size = UDim2.new(1, -20, 0, 18)
-    AutoFishLastCatch.Position = UDim2.new(0, 10, 0, 94)
-    AutoFishLastCatch.BackgroundTransparency = 1
-    AutoFishLastCatch.TextColor3 = LYRA.dim
-    AutoFishLastCatch.Text = "Last: -"
-    AutoFishLastCatch.Font = Enum.Font.Gotham
-    AutoFishLastCatch.TextSize = 11
-    AutoFishLastCatch.TextXAlignment = Enum.TextXAlignment.Left
-    AutoFishLastCatch.Parent = Tabs.AutoFish
-
-    -- Separator
-    local AFSep = Instance.new("Frame")
-    AFSep.Size = UDim2.new(1, -20, 0, 1)
-    AFSep.Position = UDim2.new(0, 10, 0, 120)
-    AFSep.BackgroundColor3 = LYRA.panel2
-    AFSep.BorderSizePixel = 0
-    AFSep.Parent = Tabs.AutoFish
-
-    -- Settings info
-    local AFSettingsTitle = Instance.new("TextLabel")
-    AFSettingsTitle.Size = UDim2.new(1, -20, 0, 18)
-    AFSettingsTitle.Position = UDim2.new(0, 10, 0, 128)
-    AFSettingsTitle.BackgroundTransparency = 1
-    AFSettingsTitle.TextColor3 = LYRA.text
-    AFSettingsTitle.Text = "Timing Settings"
-    AFSettingsTitle.Font = Enum.Font.GothamBold
-    AFSettingsTitle.TextSize = 11
-    AFSettingsTitle.TextXAlignment = Enum.TextXAlignment.Left
-    AFSettingsTitle.Parent = Tabs.AutoFish
-
-    local AFTimings = Instance.new("TextLabel")
-    AFTimings.Size = UDim2.new(1, -20, 0, 120)
-    AFTimings.Position = UDim2.new(0, 10, 0, 148)
-    AFTimings.BackgroundTransparency = 1
-    AFTimings.TextColor3 = LYRA.dim
-    AFTimings.Text = "Pre-cast delay: 0.3s\nCast hold: random 0.4-0.6s\nVerify cast timeout: 2.5s\nPull timeout: 20s\nPost-pull delay: 2.8s\nPost-pull timeout: 5s\nPost-end delay: 0.3s"
-    AFTimings.Font = Enum.Font.Code
-    AFTimings.TextSize = 10
-    AFTimings.TextWrapped = true
-    AFTimings.TextXAlignment = Enum.TextXAlignment.Left
-    AFTimings.TextYAlignment = Enum.TextYAlignment.Top
-    AFTimings.Parent = Tabs.AutoFish
-
-    -- Performance Monitor section (card-style)
-    local AFPerfSep = Instance.new("Frame")
-    AFPerfSep.Size = UDim2.new(1, -20, 0, 1)
-    AFPerfSep.Position = UDim2.new(0, 10, 0, 278)
-    AFPerfSep.BackgroundColor3 = LYRA.panel2
-    AFPerfSep.BorderSizePixel = 0
-    AFPerfSep.Parent = Tabs.AutoFish
-
-    local AFPerfTitle = Instance.new("TextLabel")
-    AFPerfTitle.Size = UDim2.new(1, -20, 0, 18)
-    AFPerfTitle.Position = UDim2.new(0, 10, 0, 284)
-    AFPerfTitle.BackgroundTransparency = 1
-    AFPerfTitle.TextColor3 = LYRA.accentGlow
-    AFPerfTitle.Text = "📊 Performance"
-    AFPerfTitle.Font = Enum.Font.GothamBold
-    AFPerfTitle.TextSize = 12
-    AFPerfTitle.TextXAlignment = Enum.TextXAlignment.Left
-    AFPerfTitle.Parent = Tabs.AutoFish
-
-    -- Stat cards row 1
-    local function makeStatCard(parent, x, y, w)
-        local card = Instance.new("Frame")
-        card.Size = UDim2.new(0, w, 0, 44)
-        card.Position = UDim2.new(0, x, 0, y)
-        card.BackgroundColor3 = LYRA.bg2
-        card.BorderSizePixel = 0
-        card.Parent = parent
-        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 6)
-
-        local valLbl = Instance.new("TextLabel")
-        valLbl.Size = UDim2.new(1, -8, 0, 22)
-        valLbl.Position = UDim2.new(0, 4, 0, 2)
-        valLbl.BackgroundTransparency = 1
-        valLbl.TextColor3 = LYRA.text
-        valLbl.Font = Enum.Font.GothamBold
-        valLbl.TextSize = 14
-        valLbl.Text = "0"
-        valLbl.TextXAlignment = Enum.TextXAlignment.Center
-        valLbl.Parent = card
-
-        local nameLbl = Instance.new("TextLabel")
-        nameLbl.Size = UDim2.new(1, -8, 0, 14)
-        nameLbl.Position = UDim2.new(0, 4, 0, 26)
-        nameLbl.BackgroundTransparency = 1
-        nameLbl.TextColor3 = LYRA.dim
-        nameLbl.Font = Enum.Font.Gotham
-        nameLbl.TextSize = 9
-        nameLbl.Text = "Label"
-        nameLbl.TextXAlignment = Enum.TextXAlignment.Center
-        nameLbl.Parent = card
-
-        return valLbl, nameLbl
+    local allRarities = {"Common", "Uncommon", "Rare", "Epic", "Legend", "Mythic", "Ancient"}
+    local SellRarityButtons = {}
+    for i, rarity in ipairs(allRarities) do
+        local btn = Instance.new("TextButton")
+        btn.Text = rarity
+        btn.Size = UDim2.new(0, 56, 0, 20)
+        btn.Position = UDim2.new(0, 10 + ((i - 1) % 5) * 62, 0, 334 + math.floor((i - 1) / 5) * 26)
+        btn.BackgroundColor3 = LYRA.success
+        btn.BackgroundTransparency = 0.2
+        btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 9
+        btn.BorderSizePixel = 0
+        btn.Parent = FishScroll
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+        SellRarityButtons[rarity] = btn
     end
 
-    local perfFishHrVal, perfFishHrLbl = makeStatCard(Tabs.AutoFish, 10, 306, 85)
-    perfFishHrLbl.Text = "Fish/hr"
+    -- Separator 2
+    local FishSep2 = Instance.new("Frame")
+    FishSep2.Size = UDim2.new(1, -20, 0, 1)
+    FishSep2.Position = UDim2.new(0, 10, 0, 392)
+    FishSep2.BackgroundColor3 = LYRA.panel2
+    FishSep2.BorderSizePixel = 0
+    FishSep2.Parent = FishScroll
 
-    local perfCaughtVal, perfCaughtLbl = makeStatCard(Tabs.AutoFish, 101, 306, 75)
-    perfCaughtLbl.Text = "Caught"
+    -- Fish Caught Stats
+    local FishStatsTitle = Instance.new("TextLabel")
+    FishStatsTitle.Size = UDim2.new(1, -20, 0, 18)
+    FishStatsTitle.Position = UDim2.new(0, 10, 0, 400)
+    FishStatsTitle.BackgroundTransparency = 1
+    FishStatsTitle.Text = "📊 Catch Stats"
+    FishStatsTitle.TextColor3 = LYRA.accentGlow
+    FishStatsTitle.Font = Enum.Font.GothamBold
+    FishStatsTitle.TextSize = 11
+    FishStatsTitle.TextXAlignment = Enum.TextXAlignment.Left
+    FishStatsTitle.Parent = FishScroll
 
-    local perfSellsVal, perfSellsLbl = makeStatCard(Tabs.AutoFish, 182, 306, 75)
-    perfSellsLbl.Text = "Sells"
+    local FishTotalLbl = Instance.new("TextLabel")
+    FishTotalLbl.Size = UDim2.new(1, -20, 0, 16)
+    FishTotalLbl.Position = UDim2.new(0, 10, 0, 422)
+    FishTotalLbl.BackgroundTransparency = 1
+    FishTotalLbl.Text = "Total Fish: 0"
+    FishTotalLbl.TextColor3 = LYRA.text
+    FishTotalLbl.Font = Enum.Font.GothamBold
+    FishTotalLbl.TextSize = 11
+    FishTotalLbl.TextXAlignment = Enum.TextXAlignment.Left
+    FishTotalLbl.Parent = FishScroll
 
-    local perfEarnVal, perfEarnLbl = makeStatCard(Tabs.AutoFish, 263, 306, 95)
-    perfEarnLbl.Text = "Earned $"
+    local FishRarityStats = Instance.new("TextLabel")
+    FishRarityStats.Size = UDim2.new(1, -20, 0, 100)
+    FishRarityStats.Position = UDim2.new(0, 10, 0, 442)
+    FishRarityStats.BackgroundTransparency = 1
+    FishRarityStats.TextColor3 = LYRA.dim
+    FishRarityStats.Text = "Mythic: 0 | Legend: 0 | Epic: 0\nRare: 0 | Uncommon: 0 | Common: 0"
+    FishRarityStats.Font = Enum.Font.Code
+    FishRarityStats.TextSize = 10
+    FishRarityStats.TextWrapped = true
+    FishRarityStats.TextXAlignment = Enum.TextXAlignment.Left
+    FishRarityStats.TextYAlignment = Enum.TextYAlignment.Top
+    FishRarityStats.Parent = FishScroll
 
-    -- Rarity breakdown row
-    local AFPerfRarity = Instance.new("TextLabel")
-    AFPerfRarity.Size = UDim2.new(1, -20, 0, 30)
-    AFPerfRarity.Position = UDim2.new(0, 10, 0, 356)
-    AFPerfRarity.BackgroundTransparency = 1
-    AFPerfRarity.TextColor3 = LYRA.dim
-    AFPerfRarity.Text = "Rarities: -"
-    AFPerfRarity.Font = Enum.Font.Code
-    AFPerfRarity.TextSize = 9
-    AFPerfRarity.TextWrapped = true
-    AFPerfRarity.TextXAlignment = Enum.TextXAlignment.Left
-    AFPerfRarity.TextYAlignment = Enum.TextYAlignment.Top
-    AFPerfRarity.Parent = Tabs.AutoFish
-
-    -- We keep AFPerfStats as a hidden container for the update function
+    -- Hidden elements for API compatibility
+    local AutoFishCasts = Instance.new("StringValue")
+    AutoFishCasts.Value = ""
     local AFPerfStats = Instance.new("Frame")
-    AFPerfStats.Size = UDim2.new(0, 0, 0, 0)
     AFPerfStats.Visible = false
-    AFPerfStats.Parent = Tabs.AutoFish
+
+    -- ═══════════════════════════════════════════
+    -- MINING TAB
+    -- ═══════════════════════════════════════════
+    local MiningTitle = Instance.new("TextLabel")
+    MiningTitle.Size = UDim2.new(1, -20, 0, 30)
+    MiningTitle.Position = UDim2.new(0, 10, 0, 60)
+    MiningTitle.BackgroundTransparency = 1
+    MiningTitle.Text = "⛏️ Mining"
+    MiningTitle.TextColor3 = LYRA.accentGlow
+    MiningTitle.Font = Enum.Font.GothamBold
+    MiningTitle.TextSize = 18
+    MiningTitle.Parent = Tabs.Mining
+
+    local MiningMsg = Instance.new("TextLabel")
+    MiningMsg.Size = UDim2.new(1, -20, 0, 40)
+    MiningMsg.Position = UDim2.new(0, 10, 0, 100)
+    MiningMsg.BackgroundTransparency = 1
+    MiningMsg.Text = "Available Soon"
+    MiningMsg.TextColor3 = LYRA.dim
+    MiningMsg.Font = Enum.Font.Gotham
+    MiningMsg.TextSize = 14
+    MiningMsg.Parent = Tabs.Mining
 
     -- ═══════════════════════════════════════════
     -- FUN THINGS TAB (Auto Clicker + Auto Gacha)
@@ -1249,7 +1237,7 @@ return function(config)
     SettingsScroll.BackgroundTransparency = 1
     SettingsScroll.BorderSizePixel = 0
     SettingsScroll.ScrollBarThickness = 3
-    SettingsScroll.CanvasSize = UDim2.new(0, 0, 0, 820)
+    SettingsScroll.CanvasSize = UDim2.new(0, 0, 0, 700)
     SettingsScroll.Parent = Tabs.Settings
 
     local HideKeyLbl = Instance.new("TextLabel")
@@ -1268,47 +1256,17 @@ return function(config)
     local AutoClaimSessionRewardBtn = makeActionButton(SettingsScroll, "Auto Claim Session Reward: OFF", 120, LYRA.tp)
     local AntiIdleBtn = makeActionButton(SettingsScroll, "Anti Idle: OFF", 160, LYRA.warn)
 
-    -- ── Auto Sell Rarity Selection ──
-    local SellRarityTitle = Instance.new("TextLabel")
-    SellRarityTitle.Size = UDim2.new(1, -20, 0, 18)
-    SellRarityTitle.Position = UDim2.new(0, 10, 0, 202)
-    SellRarityTitle.BackgroundTransparency = 1
-    SellRarityTitle.Text = "Auto Sell Rarities (tap to toggle)"
-    SellRarityTitle.TextColor3 = LYRA.text
-    SellRarityTitle.Font = Enum.Font.GothamBold
-    SellRarityTitle.TextSize = 11
-    SellRarityTitle.TextXAlignment = Enum.TextXAlignment.Left
-    SellRarityTitle.Parent = SettingsScroll
-
-    local allRarities = {"Common", "Uncommon", "Rare", "Epic", "Legend", "Mythic", "Ancient"}
-    local SellRarityButtons = {}
-    for i, rarity in ipairs(allRarities) do
-        local btn = Instance.new("TextButton")
-        btn.Text = rarity
-        btn.Size = UDim2.new(0, 62, 0, 22)
-        btn.Position = UDim2.new(0, 10 + ((i - 1) % 4) * 68, 0, 224 + math.floor((i - 1) / 4) * 28)
-        btn.BackgroundColor3 = LYRA.success
-        btn.BackgroundTransparency = 0.2
-        btn.TextColor3 = Color3.new(1, 1, 1)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 9
-        btn.BorderSizePixel = 0
-        btn.Parent = SettingsScroll
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-        SellRarityButtons[rarity] = btn
-    end
-
     -- ── Webhook Section ──
     local WebhookSep = Instance.new("Frame")
     WebhookSep.Size = UDim2.new(1, -20, 0, 1)
-    WebhookSep.Position = UDim2.new(0, 10, 0, 290)
+    WebhookSep.Position = UDim2.new(0, 10, 0, 200)
     WebhookSep.BackgroundColor3 = LYRA.panel2
     WebhookSep.BorderSizePixel = 0
     WebhookSep.Parent = SettingsScroll
 
     local WebhookTitle = Instance.new("TextLabel")
     WebhookTitle.Size = UDim2.new(1, -20, 0, 18)
-    WebhookTitle.Position = UDim2.new(0, 10, 0, 298)
+    WebhookTitle.Position = UDim2.new(0, 10, 0, 208)
     WebhookTitle.BackgroundTransparency = 1
     WebhookTitle.Text = "Webhook Settings"
     WebhookTitle.TextColor3 = LYRA.text
@@ -1526,21 +1484,17 @@ return function(config)
             AutoSellBtn = AutoSellBtn,
             SellNowBtn = SellNowBtn,
             ZoneStatus = ZoneStatus,
-            ZoneInfo = ZoneInfo,
             SellIntervalInput = SellIntervalInput,
+            SellRarityButtons = SellRarityButtons,
+            FishTotalLbl = FishTotalLbl,
+            FishRarityStats = FishRarityStats,
         },
         AutoFish = {
             ToggleBtn = AutoFishToggleBtn,
             Status = AutoFishStatus,
             Casts = AutoFishCasts,
             LastCatch = AutoFishLastCatch,
-            Timings = AFTimings,
             PerfStats = AFPerfStats,
-            PerfFishHrVal = perfFishHrVal,
-            PerfCaughtVal = perfCaughtVal,
-            PerfSellsVal = perfSellsVal,
-            PerfEarnVal = perfEarnVal,
-            PerfRarity = AFPerfRarity,
         },
         Clicker = {
             StatusLbl = StatusLbl,
@@ -1579,7 +1533,6 @@ return function(config)
             AutoClaimDailyRewardBtn = AutoClaimDailyRewardBtn,
             AutoClaimSessionRewardBtn = AutoClaimSessionRewardBtn,
             AntiIdleBtn = AntiIdleBtn,
-            SellRarityButtons = SellRarityButtons,
             WebhookInput = WebhookInput,
             WebhookToggleBtn = WebhookToggleBtn,
             WebhookTestBtn = WebhookTestBtn,
