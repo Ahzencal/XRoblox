@@ -831,19 +831,31 @@ return function(config)
     SliderKnob.Parent = SliderTrack
     Instance.new("UICorner", SliderKnob).CornerRadius = UDim.new(1, 0)
 
-    local ToggleBtn = makeActionButton(FunScroll, "Start [F]", 126, LYRA.accent)
+    local ToggleBtn = makeActionButton(FunScroll, "Start [`]", 126, LYRA.accent)
+
+    local KeybindBtn = Instance.new("TextButton")
+    KeybindBtn.Text = "Keybind: ` (tap to change)"
+    KeybindBtn.Size = UDim2.new(1, -20, 0, 24)
+    KeybindBtn.Position = UDim2.new(0, 10, 0, 152)
+    KeybindBtn.BackgroundColor3 = LYRA.panel2
+    KeybindBtn.TextColor3 = LYRA.dim
+    KeybindBtn.Font = Enum.Font.Gotham
+    KeybindBtn.TextSize = 10
+    KeybindBtn.BorderSizePixel = 0
+    KeybindBtn.Parent = FunScroll
+    Instance.new("UICorner", KeybindBtn).CornerRadius = UDim.new(0, 6)
 
     -- ── Auto Gacha Section ──
     local GachaSep = Instance.new("Frame")
     GachaSep.Size = UDim2.new(1, -20, 0, 1)
-    GachaSep.Position = UDim2.new(0, 10, 0, 170)
+    GachaSep.Position = UDim2.new(0, 10, 0, 186)
     GachaSep.BackgroundColor3 = LYRA.panel2
     GachaSep.BorderSizePixel = 0
     GachaSep.Parent = FunScroll
 
     local GachaTitle = Instance.new("TextLabel")
     GachaTitle.Size = UDim2.new(1, -20, 0, 18)
-    GachaTitle.Position = UDim2.new(0, 10, 0, 178)
+    GachaTitle.Position = UDim2.new(0, 10, 0, 194)
     GachaTitle.BackgroundTransparency = 1
     GachaTitle.Text = "🎰 Auto Gacha (10x BlindBox)"
     GachaTitle.TextColor3 = LYRA.accentGlow
@@ -1518,6 +1530,7 @@ return function(config)
             SliderFill = SliderFill,
             SliderKnob = SliderKnob,
             ToggleBtn = ToggleBtn,
+            KeybindBtn = KeybindBtn,
         },
         Gacha = {
             ToggleBtn = GachaToggleBtn,

@@ -2322,6 +2322,44 @@ return function(gui, config)
 
     bind(gui.Clicker.ToggleBtn.MouseButton1Click, toggleClicker)
 
+    -- Custom keybind for clicker
+    local isListeningKeybind = false
+
+    local function updateKeybindUI()
+        local keyName = tostring(TOGGLE_KEY):gsub("Enum.KeyCode.", "")
+        gui.Clicker.KeybindBtn.Text = "Keybind: " .. keyName .. " (tap to change)"
+        gui.Clicker.ToggleBtn.Text = clicking
+            and ("Stop [" .. keyName .. "]")
+            or ("Start [" .. keyName .. "]")
+    end
+
+    bind(gui.Clicker.KeybindBtn.MouseButton1Click, function()
+        if isListeningKeybind then return end
+        isListeningKeybind = true
+        gui.Clicker.KeybindBtn.Text = "Press any key..."
+        gui.Clicker.KeybindBtn.BackgroundColor3 = THEME.warn
+        gui.Clicker.KeybindBtn.TextColor3 = Color3.new(1, 1, 1)
+
+        local conn
+        conn = UserInputService.InputBegan:Connect(function(input, gpe)
+            if gpe then return end
+            if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+            conn:Disconnect()
+
+            TOGGLE_KEY = input.KeyCode
+            updateKeybindUI()
+            gui.Clicker.KeybindBtn.BackgroundColor3 = THEME.panel2
+            gui.Clicker.KeybindBtn.TextColor3 = THEME.dim
+            log("Clicker keybind: " .. tostring(TOGGLE_KEY):gsub("Enum.KeyCode.", ""), THEME.dim)
+
+            task.delay(0.1, function()
+                isListeningKeybind = false
+            end)
+        end)
+    end)
+
+    updateKeybindUI()
+
     bind(gui.Clicker.SliderKnob.InputBegan, function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 then draggingSlider = true end
     end)
