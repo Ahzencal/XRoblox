@@ -3,7 +3,7 @@
 
 return {
     Keys = {
-        ToggleClicker = Enum.KeyCode.Grave,
+        ToggleClicker = Enum.KeyCode.F,
         HideUI = Enum.KeyCode.K,
         PickPosition = Enum.KeyCode.P,
     },
