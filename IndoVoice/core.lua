@@ -967,8 +967,9 @@ return function(gui, config)
         if success then
             perfTotalSellValue = perfTotalSellValue + 1
             pcall(function()
-                if webhookSellEnabled and webhookEnabled and webhookURL ~= "" then
-                    sendWebhookRaw({
+                if webhookSellEnabled and webhookURL ~= "" then
+                    local HttpService = game:GetService("HttpService")
+                    local data = HttpService:JSONEncode({
                         embeds = {{
                             title = "💰 LyraHub Fish Sold!",
                             description = "**" .. lp.Name .. "** sold fish inventory.",
@@ -977,11 +978,23 @@ return function(gui, config)
                             fields = {
                                 {name = "Result :", value = "```" .. tostring(result or "OK") .. "```", inline = false},
                                 {name = "Total Sells :", value = "```" .. tostring(perfTotalSellValue) .. "```", inline = true},
+                                {name = "Session Earnings :", value = "```Rp." .. tostring(math.floor(perfTotalEarnings)) .. "```", inline = true},
                             },
                             footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
                             timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
                         }}
                     })
+                    local request = (syn and syn.request) or (http and http.request) or http_request or request
+                    if request then
+                        task.spawn(function()
+                            request({
+                                Url = webhookURL,
+                                Method = "POST",
+                                Headers = {["Content-Type"] = "application/json"},
+                                Body = data,
+                            })
+                        end)
+                    end
                 end
             end)
         end
