@@ -1237,7 +1237,7 @@ return function(config)
     SettingsScroll.BackgroundTransparency = 1
     SettingsScroll.BorderSizePixel = 0
     SettingsScroll.ScrollBarThickness = 3
-    SettingsScroll.CanvasSize = UDim2.new(0, 0, 0, 700)
+    SettingsScroll.CanvasSize = UDim2.new(0, 0, 0, 590)
     SettingsScroll.Parent = Tabs.Settings
 
     local HideKeyLbl = Instance.new("TextLabel")
@@ -1268,7 +1268,7 @@ return function(config)
     WebhookTitle.Size = UDim2.new(1, -20, 0, 18)
     WebhookTitle.Position = UDim2.new(0, 10, 0, 208)
     WebhookTitle.BackgroundTransparency = 1
-    WebhookTitle.Text = "Webhook Settings"
+    WebhookTitle.Text = "Webhook (Fish Caught)"
     WebhookTitle.TextColor3 = LYRA.text
     WebhookTitle.Font = Enum.Font.GothamBold
     WebhookTitle.TextSize = 11
@@ -1276,8 +1276,8 @@ return function(config)
     WebhookTitle.Parent = SettingsScroll
 
     local WebhookURLLabel = Instance.new("TextLabel")
-    WebhookURLLabel.Size = UDim2.new(0, 80, 0, 22)
-    WebhookURLLabel.Position = UDim2.new(0, 10, 0, 320)
+    WebhookURLLabel.Size = UDim2.new(0, 34, 0, 22)
+    WebhookURLLabel.Position = UDim2.new(0, 10, 0, 230)
     WebhookURLLabel.BackgroundTransparency = 1
     WebhookURLLabel.Text = "URL:"
     WebhookURLLabel.TextColor3 = LYRA.dim
@@ -1288,7 +1288,7 @@ return function(config)
 
     local WebhookInput = Instance.new("TextBox")
     WebhookInput.Size = UDim2.new(1, -60, 0, 22)
-    WebhookInput.Position = UDim2.new(0, 46, 0, 320)
+    WebhookInput.Position = UDim2.new(0, 46, 0, 230)
     WebhookInput.BackgroundColor3 = LYRA.bg2
     WebhookInput.TextColor3 = LYRA.text
     WebhookInput.PlaceholderText = "https://discord.com/api/webhooks/..."
@@ -1307,8 +1307,8 @@ return function(config)
 
     -- Webhook rarity filter
     local WebhookRarityTitle = Instance.new("TextLabel")
-    WebhookRarityTitle.Size = UDim2.new(1, -20, 0, 18)
-    WebhookRarityTitle.Position = UDim2.new(0, 10, 0, 350)
+    WebhookRarityTitle.Size = UDim2.new(1, -20, 0, 16)
+    WebhookRarityTitle.Position = UDim2.new(0, 10, 0, 258)
     WebhookRarityTitle.BackgroundTransparency = 1
     WebhookRarityTitle.Text = "Log Rarities (tap to toggle)"
     WebhookRarityTitle.TextColor3 = LYRA.dim
@@ -1322,7 +1322,7 @@ return function(config)
         local btn = Instance.new("TextButton")
         btn.Text = rarity
         btn.Size = UDim2.new(0, 62, 0, 22)
-        btn.Position = UDim2.new(0, 10 + ((i - 1) % 4) * 68, 0, 370 + math.floor((i - 1) / 4) * 28)
+        btn.Position = UDim2.new(0, 10 + ((i - 1) % 4) * 68, 0, 278 + math.floor((i - 1) / 4) * 28)
         btn.BackgroundColor3 = LYRA.panel2
         btn.BackgroundTransparency = 0.4
         btn.TextColor3 = LYRA.dim
@@ -1335,19 +1335,27 @@ return function(config)
     end
 
     -- Buttons row: Toggle + Test + Save
-    local WebhookToggleBtn = makeActionButton(SettingsScroll, "Webhook: OFF", 430, LYRA.panel2)
+    local WebhookToggleBtn = makeActionButton(SettingsScroll, "Webhook: OFF", 340, LYRA.panel2)
     WebhookToggleBtn.Size = UDim2.new(0.48, -10, 0, 28)
-    WebhookToggleBtn.Position = UDim2.new(0, 10, 0, 430)
+    WebhookToggleBtn.Position = UDim2.new(0, 10, 0, 340)
 
-    local WebhookTestBtn = makeActionButton(SettingsScroll, "Test Webhook", 430, LYRA.warn)
+    local WebhookTestBtn = makeActionButton(SettingsScroll, "Test Webhook", 340, LYRA.warn)
     WebhookTestBtn.Size = UDim2.new(0.48, -10, 0, 28)
-    WebhookTestBtn.Position = UDim2.new(0.5, 5, 0, 430)
+    WebhookTestBtn.Position = UDim2.new(0.5, 5, 0, 340)
 
-    local SaveSettingsBtn = makeActionButton(SettingsScroll, "Save All Settings", 468, LYRA.success)
+    local WebhookSellBtn = makeActionButton(SettingsScroll, "Sell Webhook: OFF", 376, LYRA.panel2)
+    WebhookSellBtn.Size = UDim2.new(0.48, -10, 0, 28)
+    WebhookSellBtn.Position = UDim2.new(0, 10, 0, 376)
+
+    local WebhookSellTestBtn = makeActionButton(SettingsScroll, "Test Sell", 376, LYRA.warn)
+    WebhookSellTestBtn.Size = UDim2.new(0.48, -10, 0, 28)
+    WebhookSellTestBtn.Position = UDim2.new(0.5, 5, 0, 376)
+
+    local SaveSettingsBtn = makeActionButton(SettingsScroll, "Save All Settings", 414, LYRA.success)
 
     local SaveStatus = Instance.new("TextLabel")
     SaveStatus.Size = UDim2.new(1, -20, 0, 18)
-    SaveStatus.Position = UDim2.new(0, 10, 0, 506)
+    SaveStatus.Position = UDim2.new(0, 10, 0, 450)
     SaveStatus.BackgroundTransparency = 1
     SaveStatus.Text = ""
     SaveStatus.TextColor3 = LYRA.success
@@ -1356,49 +1364,62 @@ return function(config)
     SaveStatus.TextXAlignment = Enum.TextXAlignment.Left
     SaveStatus.Parent = SettingsScroll
 
-    -- ── Accent Color section ──
-    local ColorSep = Instance.new("Frame")
-    ColorSep.Size = UDim2.new(1, -20, 0, 1)
-    ColorSep.Position = UDim2.new(0, 10, 0, 530)
-    ColorSep.BackgroundColor3 = LYRA.panel2
-    ColorSep.BorderSizePixel = 0
-    ColorSep.Parent = SettingsScroll
+    -- ── Theme section (Dark / Light) ──
+    local ThemeSep = Instance.new("Frame")
+    ThemeSep.Size = UDim2.new(1, -20, 0, 1)
+    ThemeSep.Position = UDim2.new(0, 10, 0, 474)
+    ThemeSep.BackgroundColor3 = LYRA.panel2
+    ThemeSep.BorderSizePixel = 0
+    ThemeSep.Parent = SettingsScroll
 
     local ColorTitle = Instance.new("TextLabel")
-    ColorTitle.Size = UDim2.new(1, -20, 0, 20)
-    ColorTitle.Position = UDim2.new(0, 10, 0, 538)
+    ColorTitle.Size = UDim2.new(1, -20, 0, 18)
+    ColorTitle.Position = UDim2.new(0, 10, 0, 482)
     ColorTitle.BackgroundTransparency = 1
-    ColorTitle.Text = "Accent Color"
+    ColorTitle.Text = "Theme"
     ColorTitle.TextColor3 = LYRA.text
     ColorTitle.Font = Enum.Font.GothamBold
-    ColorTitle.TextSize = 12
+    ColorTitle.TextSize = 11
     ColorTitle.TextXAlignment = Enum.TextXAlignment.Left
     ColorTitle.Parent = SettingsScroll
 
     local AccentPreview = Instance.new("Frame")
-    AccentPreview.Size = UDim2.new(0, 22, 0, 22)
-    AccentPreview.Position = UDim2.new(1, -36, 0, 536)
+    AccentPreview.Size = UDim2.new(0, 18, 0, 18)
+    AccentPreview.Position = UDim2.new(1, -30, 0, 482)
     AccentPreview.BackgroundColor3 = LYRA.accent
     AccentPreview.BorderSizePixel = 0
     AccentPreview.Parent = SettingsScroll
-    Instance.new("UICorner", AccentPreview).CornerRadius = UDim.new(0, 6)
+    Instance.new("UICorner", AccentPreview).CornerRadius = UDim.new(0, 4)
+
+    local DarkThemeBtn = Instance.new("TextButton")
+    DarkThemeBtn.Text = "Dark (Lyra)"
+    DarkThemeBtn.Size = UDim2.new(0.48, -10, 0, 28)
+    DarkThemeBtn.Position = UDim2.new(0, 10, 0, 506)
+    DarkThemeBtn.BackgroundColor3 = LYRA.accent
+    DarkThemeBtn.TextColor3 = Color3.new(1, 1, 1)
+    DarkThemeBtn.Font = Enum.Font.GothamBold
+    DarkThemeBtn.TextSize = 11
+    DarkThemeBtn.BorderSizePixel = 0
+    DarkThemeBtn.Parent = SettingsScroll
+    Instance.new("UICorner", DarkThemeBtn).CornerRadius = UDim.new(0, 6)
+
+    local LightThemeBtn = Instance.new("TextButton")
+    LightThemeBtn.Text = "Light (Lyra)"
+    LightThemeBtn.Size = UDim2.new(0.48, -10, 0, 28)
+    LightThemeBtn.Position = UDim2.new(0.5, 5, 0, 506)
+    LightThemeBtn.BackgroundColor3 = LYRA.panel2
+    LightThemeBtn.TextColor3 = LYRA.dim
+    LightThemeBtn.Font = Enum.Font.GothamBold
+    LightThemeBtn.TextSize = 11
+    LightThemeBtn.BorderSizePixel = 0
+    LightThemeBtn.Parent = SettingsScroll
+    Instance.new("UICorner", LightThemeBtn).CornerRadius = UDim.new(0, 6)
 
     local ColorButtons = {}
-    for i, color in ipairs(config.ThemePresets) do
-        local sw = Instance.new("TextButton")
-        sw.Text = ""
-        sw.Size = UDim2.new(0, 28, 0, 28)
-        sw.Position = UDim2.new(0, 10 + ((i - 1) % 5) * 36, 0, 566 + math.floor((i - 1) / 5) * 36)
-        sw.BackgroundColor3 = color
-        sw.BorderSizePixel = 0
-        sw.Parent = SettingsScroll
-        Instance.new("UICorner", sw).CornerRadius = UDim.new(0, 6)
-        table.insert(ColorButtons, sw)
-    end
 
     local SettingsInfo = Instance.new("TextLabel")
-    SettingsInfo.Size = UDim2.new(1, -20, 0, 44)
-    SettingsInfo.Position = UDim2.new(0, 10, 0, 640)
+    SettingsInfo.Size = UDim2.new(1, -20, 0, 30)
+    SettingsInfo.Position = UDim2.new(0, 10, 0, 544)
     SettingsInfo.BackgroundTransparency = 1
     SettingsInfo.Text = "Settings are saved locally and auto-loaded on next run."
     SettingsInfo.TextColor3 = LYRA.dim
@@ -1536,12 +1557,16 @@ return function(config)
             WebhookInput = WebhookInput,
             WebhookToggleBtn = WebhookToggleBtn,
             WebhookTestBtn = WebhookTestBtn,
+            WebhookSellBtn = WebhookSellBtn,
+            WebhookSellTestBtn = WebhookSellTestBtn,
             WebhookRarityButtons = WebhookRarityButtons,
             SaveSettingsBtn = SaveSettingsBtn,
             SaveStatus = SaveStatus,
             ColorTitle = ColorTitle,
             AccentPreview = AccentPreview,
             ColorButtons = ColorButtons,
+            DarkThemeBtn = DarkThemeBtn,
+            LightThemeBtn = LightThemeBtn,
             SettingsInfo = SettingsInfo,
         },
         Logs = {

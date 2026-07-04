@@ -55,6 +55,7 @@ return function(gui, config)
     local perfRarityCounts = {}
     local perfTotalSellValue = 0
     local perfTotalEarnings = 0
+    local webhookSellEnabled = false
 
     local espObjects = {}
     local zoneObjects = {}
@@ -962,12 +963,27 @@ return function(gui, config)
         end
         autoTPEnabled = wasAutoTP
 
-        -- Webhook for sell
+        -- Track sell count + webhook
         if success then
             perfTotalSellValue = perfTotalSellValue + 1
-            local soldRarities = table.concat(getActiveSellRarities(), ", ")
-            webhookSellAll(tostring(result or "OK"), soldRarities)
-            updatePerfMonitor()
+            pcall(function()
+                if webhookSellEnabled and webhookEnabled and webhookURL ~= "" then
+                    sendWebhookRaw({
+                        embeds = {{
+                            title = "💰 LyraHub Fish Sold!",
+                            description = "**" .. lp.Name .. "** sold fish inventory.",
+                            color = 5763719,
+                            thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
+                            fields = {
+                                {name = "Result :", value = "```" .. tostring(result or "OK") .. "```", inline = false},
+                                {name = "Total Sells :", value = "```" .. tostring(perfTotalSellValue) .. "```", inline = true},
+                            },
+                            footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
+                            timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+                        }}
+                    })
+                end
+            end)
         end
 
         return success, result or err
@@ -1193,25 +1209,6 @@ return function(gui, config)
         })
     end
 
-    local function webhookSellAll(serverResult, soldRarities)
-        sendWebhookRaw({
-            embeds = {{
-                title = "💰 LyraHub Fish Sold!",
-                description = "**" .. lp.Name .. "** sold their fish inventory.",
-                color = 5763719,
-                thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
-                fields = {
-                    {name = "Result :", value = "```" .. tostring(serverResult or "OK") .. "```", inline = false},
-                    {name = "Rarities Sold :", value = "```" .. tostring(soldRarities or "All") .. "```", inline = false},
-                    {name = "Session Earnings :", value = "```Rp." .. tostring(math.floor(perfTotalEarnings)), inline = true},
-                    {name = "Total Sells :", value = "```" .. tostring(perfTotalSellValue) .. "```", inline = true},
-                },
-                footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
-                timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-            }}
-        })
-    end
-
     local function formatNumber(n)
         n = tonumber(n) or 0
         if n >= 1e12 then return string.format("%.1fT", n / 1e12)
@@ -1223,11 +1220,15 @@ return function(gui, config)
     end
 
     local function updatePerfMonitor()
-        local caught = autoFishCaught or 0
+        -- Sum total from rarity counts
+        local totalCaught = 0
+        for _, count in pairs(perfRarityCounts) do
+            totalCaught = totalCaught + count
+        end
 
         -- Update total fish count
         pcall(function()
-            gui.FishZone.FishTotalLbl.Text = "Total Fish: " .. tostring(caught)
+            gui.FishZone.FishTotalLbl.Text = "Total Fish: " .. tostring(totalCaught)
         end)
 
         -- Update rarity breakdown
@@ -1449,6 +1450,41 @@ return function(gui, config)
     -- Webhook URL input
     bind(gui.Settings.WebhookInput.FocusLost, function()
         webhookURL = gui.Settings.WebhookInput.Text
+    end)
+
+    -- Sell webhook toggle
+    bind(gui.Settings.WebhookSellBtn.MouseButton1Click, function()
+        webhookSellEnabled = not webhookSellEnabled
+        gui.Settings.WebhookSellBtn.Text = webhookSellEnabled and "Sell Webhook: ON" or "Sell Webhook: OFF"
+        gui.Settings.WebhookSellBtn.BackgroundColor3 = webhookSellEnabled and THEME.success or THEME.panel2
+        log("Sell Webhook: " .. (webhookSellEnabled and "ON" or "OFF"), webhookSellEnabled and THEME.success or THEME.dim)
+    end)
+
+    -- Test sell webhook
+    bind(gui.Settings.WebhookSellTestBtn.MouseButton1Click, function()
+        webhookURL = gui.Settings.WebhookInput.Text
+        if webhookURL == "" then
+            log("Sell Webhook test: No URL!", THEME.danger)
+            return
+        end
+        local oldEnabled = webhookEnabled
+        webhookEnabled = true
+        sendWebhookRaw({
+            embeds = {{
+                title = "💰 LyraHub Sell Test",
+                description = "**" .. lp.Name .. "** sell webhook is working!",
+                color = 5763719,
+                thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
+                fields = {
+                    {name = "Status :", value = "```Connected```", inline = true},
+                    {name = "Sells This Session :", value = "```" .. tostring(perfTotalSellValue) .. "```", inline = true},
+                },
+                footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
+                timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+            }}
+        })
+        webhookEnabled = oldEnabled
+        log("Sell Webhook test sent!", THEME.success)
     end)
 
     -- Save settings button
@@ -2411,14 +2447,44 @@ return function(gui, config)
         end
     end)
 
-    for i, btn in ipairs(gui.Settings.ColorButtons) do
-        bind(btn.MouseButton1Click, function()
-            THEME.accent = config.ThemePresets[i]
-            applyTheme()
-            refreshZoneESP()
-            updateRewardButtons()
-        end)
-    end
+    -- Dark/Light theme toggle
+    bind(gui.Settings.DarkThemeBtn.MouseButton1Click, function()
+        THEME.accent = Color3.fromRGB(155, 89, 255)
+        THEME.accentGlow = Color3.fromRGB(180, 130, 255)
+        THEME.bg = Color3.fromRGB(12, 10, 20)
+        THEME.bg2 = Color3.fromRGB(18, 15, 30)
+        THEME.panel = Color3.fromRGB(22, 20, 38)
+        THEME.panel2 = Color3.fromRGB(30, 27, 50)
+        THEME.sidebar = Color3.fromRGB(16, 13, 28)
+        THEME.topbar = Color3.fromRGB(20, 17, 34)
+        THEME.text = Color3.fromRGB(240, 235, 255)
+        THEME.dim = Color3.fromRGB(130, 120, 170)
+        gui.Settings.DarkThemeBtn.BackgroundColor3 = THEME.accent
+        gui.Settings.DarkThemeBtn.TextColor3 = Color3.new(1, 1, 1)
+        gui.Settings.LightThemeBtn.BackgroundColor3 = THEME.panel2
+        gui.Settings.LightThemeBtn.TextColor3 = THEME.dim
+        applyTheme()
+        log("Theme: Dark (Lyra)", THEME.dim)
+    end)
+
+    bind(gui.Settings.LightThemeBtn.MouseButton1Click, function()
+        THEME.accent = Color3.fromRGB(120, 70, 220)
+        THEME.accentGlow = Color3.fromRGB(100, 60, 190)
+        THEME.bg = Color3.fromRGB(240, 238, 250)
+        THEME.bg2 = Color3.fromRGB(228, 224, 242)
+        THEME.panel = Color3.fromRGB(248, 246, 255)
+        THEME.panel2 = Color3.fromRGB(220, 215, 238)
+        THEME.sidebar = Color3.fromRGB(235, 230, 248)
+        THEME.topbar = Color3.fromRGB(230, 226, 245)
+        THEME.text = Color3.fromRGB(30, 20, 60)
+        THEME.dim = Color3.fromRGB(100, 90, 140)
+        gui.Settings.LightThemeBtn.BackgroundColor3 = THEME.accent
+        gui.Settings.LightThemeBtn.TextColor3 = Color3.new(1, 1, 1)
+        gui.Settings.DarkThemeBtn.BackgroundColor3 = THEME.panel2
+        gui.Settings.DarkThemeBtn.TextColor3 = THEME.dim
+        applyTheme()
+        log("Theme: Light (Lyra)", THEME.dim)
+    end)
 
     for name, btn in pairs(gui.TabButtons) do
         bind(btn.MouseButton1Click, function()
