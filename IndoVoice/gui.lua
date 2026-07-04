@@ -753,63 +753,65 @@ return function(config)
 
     -- ── Auto Clicker Section ──
     local ClickerTitle = Instance.new("TextLabel")
-    ClickerTitle.Size = UDim2.new(1, -20, 0, 18)
+    ClickerTitle.Size = UDim2.new(1, -20, 0, 16)
     ClickerTitle.Position = UDim2.new(0, 10, 0, 8)
     ClickerTitle.BackgroundTransparency = 1
     ClickerTitle.Text = "🖱 Auto Clicker"
     ClickerTitle.TextColor3 = LYRA.accentGlow
     ClickerTitle.Font = Enum.Font.GothamBold
-    ClickerTitle.TextSize = 12
+    ClickerTitle.TextSize = 11
     ClickerTitle.TextXAlignment = Enum.TextXAlignment.Left
     ClickerTitle.Parent = FunScroll
 
+    -- Row: Status + Mode
     local StatusLbl = Instance.new("TextLabel")
-    StatusLbl.Size = UDim2.new(1, -20, 0, 18)
-    StatusLbl.Position = UDim2.new(0, 10, 0, 30)
+    StatusLbl.Size = UDim2.new(0.5, -10, 0, 14)
+    StatusLbl.Position = UDim2.new(0, 10, 0, 28)
     StatusLbl.BackgroundTransparency = 1
     StatusLbl.Text = "Status: OFF"
     StatusLbl.TextColor3 = LYRA.danger
     StatusLbl.Font = Enum.Font.GothamBold
-    StatusLbl.TextSize = 12
+    StatusLbl.TextSize = 10
     StatusLbl.TextXAlignment = Enum.TextXAlignment.Left
     StatusLbl.Parent = FunScroll
 
-    local PosLbl = Instance.new("TextLabel")
-    PosLbl.Size = UDim2.new(1, -20, 0, 16)
-    PosLbl.Position = UDim2.new(0, 10, 0, 50)
-    PosLbl.BackgroundTransparency = 1
-    PosLbl.Text = "Target: Not set (press P)"
-    PosLbl.TextColor3 = LYRA.dim
-    PosLbl.Font = Enum.Font.Gotham
-    PosLbl.TextSize = 11
-    PosLbl.TextXAlignment = Enum.TextXAlignment.Left
-    PosLbl.Parent = FunScroll
-
     local MethodLbl = Instance.new("TextLabel")
-    MethodLbl.Size = UDim2.new(1, -20, 0, 16)
-    MethodLbl.Position = UDim2.new(0, 10, 0, 68)
+    MethodLbl.Size = UDim2.new(0.5, -10, 0, 14)
+    MethodLbl.Position = UDim2.new(0.5, 0, 0, 28)
     MethodLbl.BackgroundTransparency = 1
     MethodLbl.Text = "Mode: Loading..."
     MethodLbl.TextColor3 = LYRA.warn
     MethodLbl.Font = Enum.Font.Gotham
-    MethodLbl.TextSize = 11
+    MethodLbl.TextSize = 10
     MethodLbl.TextXAlignment = Enum.TextXAlignment.Left
     MethodLbl.Parent = FunScroll
 
+    local PosLbl = Instance.new("TextLabel")
+    PosLbl.Size = UDim2.new(1, -20, 0, 14)
+    PosLbl.Position = UDim2.new(0, 10, 0, 44)
+    PosLbl.BackgroundTransparency = 1
+    PosLbl.Text = "Target: Not set (press P)"
+    PosLbl.TextColor3 = LYRA.dim
+    PosLbl.Font = Enum.Font.Gotham
+    PosLbl.TextSize = 10
+    PosLbl.TextXAlignment = Enum.TextXAlignment.Left
+    PosLbl.Parent = FunScroll
+
+    -- CPS slider
     local CPSLbl = Instance.new("TextLabel")
-    CPSLbl.Size = UDim2.new(1, -20, 0, 16)
-    CPSLbl.Position = UDim2.new(0, 10, 0, 86)
+    CPSLbl.Size = UDim2.new(0, 60, 0, 14)
+    CPSLbl.Position = UDim2.new(0, 10, 0, 62)
     CPSLbl.BackgroundTransparency = 1
     CPSLbl.Text = "CPS: " .. tostring(config.Clicker.DefaultCPS)
     CPSLbl.TextColor3 = LYRA.text
     CPSLbl.Font = Enum.Font.GothamBold
-    CPSLbl.TextSize = 11
+    CPSLbl.TextSize = 10
     CPSLbl.TextXAlignment = Enum.TextXAlignment.Left
     CPSLbl.Parent = FunScroll
 
     local SliderTrack = Instance.new("Frame")
-    SliderTrack.Size = UDim2.new(1, -20, 0, 6)
-    SliderTrack.Position = UDim2.new(0, 10, 0, 108)
+    SliderTrack.Size = UDim2.new(1, -90, 0, 6)
+    SliderTrack.Position = UDim2.new(0, 70, 0, 66)
     SliderTrack.BackgroundColor3 = LYRA.bg2
     SliderTrack.BorderSizePixel = 0
     SliderTrack.Parent = FunScroll
@@ -831,19 +833,42 @@ return function(config)
     SliderKnob.Parent = SliderTrack
     Instance.new("UICorner", SliderKnob).CornerRadius = UDim.new(1, 0)
 
-    local ToggleBtn = makeActionButton(FunScroll, "Start [F]", 126, LYRA.accent)
+    -- Start + Keybind buttons (side by side)
+    local ToggleBtn = Instance.new("TextButton")
+    ToggleBtn.Text = "Start [F]"
+    ToggleBtn.Size = UDim2.new(0.55, -14, 0, 28)
+    ToggleBtn.Position = UDim2.new(0, 10, 0, 84)
+    ToggleBtn.BackgroundColor3 = LYRA.accent
+    ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+    ToggleBtn.Font = Enum.Font.GothamBold
+    ToggleBtn.TextSize = 11
+    ToggleBtn.BorderSizePixel = 0
+    ToggleBtn.Parent = FunScroll
+    Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
+
+    local KeybindBtn = Instance.new("TextButton")
+    KeybindBtn.Text = "Key: F"
+    KeybindBtn.Size = UDim2.new(0.45, -14, 0, 28)
+    KeybindBtn.Position = UDim2.new(0.55, 4, 0, 84)
+    KeybindBtn.BackgroundColor3 = LYRA.panel2
+    KeybindBtn.TextColor3 = LYRA.dim
+    KeybindBtn.Font = Enum.Font.Gotham
+    KeybindBtn.TextSize = 10
+    KeybindBtn.BorderSizePixel = 0
+    KeybindBtn.Parent = FunScroll
+    Instance.new("UICorner", KeybindBtn).CornerRadius = UDim.new(0, 6)
 
     -- ── Auto Gacha Section ──
     local GachaSep = Instance.new("Frame")
     GachaSep.Size = UDim2.new(1, -20, 0, 1)
-    GachaSep.Position = UDim2.new(0, 10, 0, 170)
+    GachaSep.Position = UDim2.new(0, 10, 0, 122)
     GachaSep.BackgroundColor3 = LYRA.panel2
     GachaSep.BorderSizePixel = 0
     GachaSep.Parent = FunScroll
 
     local GachaTitle = Instance.new("TextLabel")
     GachaTitle.Size = UDim2.new(1, -20, 0, 18)
-    GachaTitle.Position = UDim2.new(0, 10, 0, 178)
+    GachaTitle.Position = UDim2.new(0, 10, 0, 130)
     GachaTitle.BackgroundTransparency = 1
     GachaTitle.Text = "🎰 Auto Gacha (10x BlindBox)"
     GachaTitle.TextColor3 = LYRA.accentGlow
@@ -852,11 +877,11 @@ return function(config)
     GachaTitle.TextXAlignment = Enum.TextXAlignment.Left
     GachaTitle.Parent = FunScroll
 
-    local GachaToggleBtn = makeActionButton(FunScroll, "Auto Gacha: OFF", 200, LYRA.accent)
+    local GachaToggleBtn = makeActionButton(FunScroll, "Auto Gacha: OFF", 152, LYRA.accent)
 
     local GachaStatus = Instance.new("TextLabel")
     GachaStatus.Size = UDim2.new(1, -20, 0, 18)
-    GachaStatus.Position = UDim2.new(0, 10, 0, 240)
+    GachaStatus.Position = UDim2.new(0, 10, 0, 190)
     GachaStatus.BackgroundTransparency = 1
     GachaStatus.Text = "Status: Idle | Rolls: 0"
     GachaStatus.TextColor3 = LYRA.dim
@@ -867,7 +892,7 @@ return function(config)
 
     local GachaLastResult = Instance.new("TextLabel")
     GachaLastResult.Size = UDim2.new(1, -20, 0, 18)
-    GachaLastResult.Position = UDim2.new(0, 10, 0, 260)
+    GachaLastResult.Position = UDim2.new(0, 10, 0, 210)
     GachaLastResult.BackgroundTransparency = 1
     GachaLastResult.Text = "Last: -"
     GachaLastResult.TextColor3 = LYRA.dim
@@ -879,7 +904,7 @@ return function(config)
     -- Box selection (auto-detected from ReplicatedStorage.Content.BlindBox)
     local GachaBoxTitle = Instance.new("TextLabel")
     GachaBoxTitle.Size = UDim2.new(1, -20, 0, 16)
-    GachaBoxTitle.Position = UDim2.new(0, 10, 0, 284)
+    GachaBoxTitle.Position = UDim2.new(0, 10, 0, 234)
     GachaBoxTitle.BackgroundTransparency = 1
     GachaBoxTitle.Text = "Select Box:"
     GachaBoxTitle.TextColor3 = LYRA.text
@@ -908,7 +933,7 @@ return function(config)
         local btn = Instance.new("TextButton")
         btn.Text = boxName
         btn.Size = UDim2.new(0, 90, 0, 22)
-        btn.Position = UDim2.new(0, 10 + ((i - 1) % 3) * 96, 0, 304 + math.floor((i - 1) / 3) * 28)
+        btn.Position = UDim2.new(0, 10 + ((i - 1) % 3) * 96, 0, 254 + math.floor((i - 1) / 3) * 28)
         btn.BackgroundColor3 = (i == 1) and LYRA.accent or LYRA.panel2
         btn.BackgroundTransparency = (i == 1) and 0.2 or 0.6
         btn.TextColor3 = (i == 1) and Color3.new(1, 1, 1) or LYRA.dim
@@ -922,7 +947,7 @@ return function(config)
 
     -- Calculate Y offset based on number of box rows
     local boxRows = math.ceil(#availableBoxes / 3)
-    local stopY = 304 + boxRows * 28 + 10
+    local stopY = 254 + boxRows * 28 + 10
 
     -- Stop rarity selection
     local GachaStopTitle = Instance.new("TextLabel")
@@ -1518,6 +1543,7 @@ return function(config)
             SliderFill = SliderFill,
             SliderKnob = SliderKnob,
             ToggleBtn = ToggleBtn,
+            KeybindBtn = KeybindBtn,
         },
         Gacha = {
             ToggleBtn = GachaToggleBtn,
