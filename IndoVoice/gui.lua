@@ -864,11 +864,11 @@ return function(config)
     GachaTitle.TextXAlignment = Enum.TextXAlignment.Left
     GachaTitle.Parent = FunScroll
 
-    local GachaToggleBtn = makeActionButton(FunScroll, "Auto Gacha: OFF", 200, LYRA.accent)
+    local GachaToggleBtn = makeActionButton(FunScroll, "Auto Gacha: OFF", 216, LYRA.accent)
 
     local GachaStatus = Instance.new("TextLabel")
     GachaStatus.Size = UDim2.new(1, -20, 0, 18)
-    GachaStatus.Position = UDim2.new(0, 10, 0, 240)
+    GachaStatus.Position = UDim2.new(0, 10, 0, 254)
     GachaStatus.BackgroundTransparency = 1
     GachaStatus.Text = "Status: Idle | Rolls: 0"
     GachaStatus.TextColor3 = LYRA.dim
@@ -879,7 +879,7 @@ return function(config)
 
     local GachaLastResult = Instance.new("TextLabel")
     GachaLastResult.Size = UDim2.new(1, -20, 0, 18)
-    GachaLastResult.Position = UDim2.new(0, 10, 0, 260)
+    GachaLastResult.Position = UDim2.new(0, 10, 0, 274)
     GachaLastResult.BackgroundTransparency = 1
     GachaLastResult.Text = "Last: -"
     GachaLastResult.TextColor3 = LYRA.dim
@@ -891,7 +891,7 @@ return function(config)
     -- Box selection (auto-detected from ReplicatedStorage.Content.BlindBox)
     local GachaBoxTitle = Instance.new("TextLabel")
     GachaBoxTitle.Size = UDim2.new(1, -20, 0, 16)
-    GachaBoxTitle.Position = UDim2.new(0, 10, 0, 284)
+    GachaBoxTitle.Position = UDim2.new(0, 10, 0, 298)
     GachaBoxTitle.BackgroundTransparency = 1
     GachaBoxTitle.Text = "Select Box:"
     GachaBoxTitle.TextColor3 = LYRA.text
@@ -920,7 +920,7 @@ return function(config)
         local btn = Instance.new("TextButton")
         btn.Text = boxName
         btn.Size = UDim2.new(0, 90, 0, 22)
-        btn.Position = UDim2.new(0, 10 + ((i - 1) % 3) * 96, 0, 304 + math.floor((i - 1) / 3) * 28)
+        btn.Position = UDim2.new(0, 10 + ((i - 1) % 3) * 96, 0, 318 + math.floor((i - 1) / 3) * 28)
         btn.BackgroundColor3 = (i == 1) and LYRA.accent or LYRA.panel2
         btn.BackgroundTransparency = (i == 1) and 0.2 or 0.6
         btn.TextColor3 = (i == 1) and Color3.new(1, 1, 1) or LYRA.dim
@@ -934,7 +934,7 @@ return function(config)
 
     -- Calculate Y offset based on number of box rows
     local boxRows = math.ceil(#availableBoxes / 3)
-    local stopY = 304 + boxRows * 28 + 10
+    local stopY = 318 + boxRows * 28 + 10
 
     -- Stop rarity selection
     local GachaStopTitle = Instance.new("TextLabel")
