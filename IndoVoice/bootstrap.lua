@@ -26,8 +26,6 @@ local function compile(source, name)
     return fn
 end
 
+-- Pass BASE_URL as vararg so main.lua receives it via `...`
 local mainChunk = compile(fetch(BASE_URL .. "main.lua", "main.lua"), "main.lua")
-local mainFactory = mainChunk()
-
-assert(type(mainFactory) == "function", "main.lua must return a function")
-mainFactory(BASE_URL)
+mainChunk(BASE_URL)
