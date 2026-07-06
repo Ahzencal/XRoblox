@@ -20,11 +20,20 @@ return function(BASE_URL)
         return fn
     end
 
+    local function deepClone(t)
+        if type(t) ~= "table" then return t end
+        local copy = {}
+        for k, v in pairs(t) do
+            copy[k] = deepClone(v)
+        end
+        return copy
+    end
+
     local configChunk = compile(fetch(BASE_URL .. "config.lua", "config.lua"), "config.lua")
     local guiChunk = compile(fetch(BASE_URL .. "gui.lua", "gui.lua"), "gui.lua")
     local coreChunk = compile(fetch(BASE_URL .. "core.lua", "core.lua"), "core.lua")
 
-    local config = configChunk()
+    local config = deepClone(configChunk())
     local guiFactory = guiChunk()
     local coreFactory = coreChunk()
 
