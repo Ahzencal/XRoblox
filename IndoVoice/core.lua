@@ -1475,8 +1475,8 @@ return function(gui, config)
     local AF_CAST_HOLD_MIN = 0.4
     local AF_CAST_HOLD_MAX = 0.6
     local AF_VERIFY_CAST_TIMEOUT = 2.5
-    local AF_BAIT_LANDED_TIMEOUT = 25
-    local AF_MINIGAME_TIMEOUT = 20
+    local AF_BAIT_LANDED_TIMEOUT = 40
+    local AF_MINIGAME_TIMEOUT = 40
     local AF_POST_END_DELAY = 0.3
 
     -- Animation IDs (IndoVoice fishing game)
