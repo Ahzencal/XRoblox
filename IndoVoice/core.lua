@@ -1468,14 +1468,19 @@ return function(gui, config)
     local autoFishCaught = 0
     local autoFishTimeouts = 0
     local autoFishStage = "Idle"
+    local activeAnimConn = nil
 
     -- Timing config
     local AF_PRE_CAST_DELAY = 0.3
-    local AF_CAST_POWER_MIN = 1.2
-    local AF_CAST_POWER_MAX = 1.6
-    local AF_BAIT_LANDED_TIMEOUT = 15 -- max wait for bait to land
-    local AF_MINIGAME_TIMEOUT = 20 -- max wait for minigame to finish
+    local AF_CAST_HOLD_MIN = 0.4
+    local AF_CAST_HOLD_MAX = 0.6
+    local AF_VERIFY_CAST_TIMEOUT = 2.5
+    local AF_BAIT_LANDED_TIMEOUT = 25
+    local AF_MINIGAME_TIMEOUT = 20
     local AF_POST_END_DELAY = 0.3
+
+    -- Animation IDs (IndoVoice fishing game)
+    local FISHING_ANIM_ID = "rbxassetid://107858786510758"
 
     local function getRod()
         local char = lp.Character
@@ -1536,6 +1541,16 @@ return function(gui, config)
         autoFishTimeouts = autoFishTimeouts + 1
         log("AutoFish: Timeout [" .. reason .. "] #" .. autoFishTimeouts, THEME.warn)
 
+        if activeAnimConn then
+            activeAnimConn:Disconnect()
+            activeAnimConn = nil
+        end
+
+        -- Release mouse in case it's held
+        pcall(function()
+            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+        end)
+
         afSetStage("Re-equipping...")
         task.spawn(reequipRod)
         task.wait(0.5)
@@ -1580,30 +1595,50 @@ return function(gui, config)
             if not autoFishEnabled or destroyed then break end
             if hum.MoveDirection.Magnitude > 0.1 then continue end
 
-            -- ── CASTING (invoke Cast remote) ──
+            -- ── CASTING (hold mouse) ──
             afSetStage("Casting...")
-            local rod = getRod()
-            local castRemote = rod and rod:FindFirstChild("Cast")
-
-            if not castRemote then
-                log("AutoFish: Cast remote not found on rod", THEME.danger)
-                afTimeout("No Cast Remote")
-                continue
-            end
-
-            local castPower = AF_CAST_POWER_MIN + math.random() * (AF_CAST_POWER_MAX - AF_CAST_POWER_MIN)
-            local castSuccess = false
             pcall(function()
-                castRemote:InvokeServer(castPower, tick())
-                castSuccess = true
+                VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0)
             end)
 
-            if not castSuccess then
-                afTimeout("Cast Failed")
+            local holdDuration = AF_CAST_HOLD_MIN + math.random() * (AF_CAST_HOLD_MAX - AF_CAST_HOLD_MIN)
+            local holdElapsed = 0
+            while holdElapsed < holdDuration and autoFishEnabled do
+                task.wait(0.05)
+                holdElapsed = holdElapsed + 0.05
+            end
+
+            pcall(function()
+                VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+            end)
+
+            if not autoFishEnabled or destroyed then break end
+
+            -- ── VERIFY CAST (detect fishing animation) ──
+            afSetStage("Verify Cast...")
+            local castVerified = false
+
+            activeAnimConn = hum.AnimationPlayed:Connect(function(track)
+                if track.Animation and track.Animation.AnimationId == FISHING_ANIM_ID then
+                    castVerified = true
+                    if activeAnimConn then activeAnimConn:Disconnect(); activeAnimConn = nil end
+                end
+            end)
+
+            local verifyStart = tick()
+            while not castVerified and (tick() - verifyStart) < AF_VERIFY_CAST_TIMEOUT and autoFishEnabled do
+                task.wait(0.05)
+            end
+
+            if activeAnimConn then activeAnimConn:Disconnect(); activeAnimConn = nil end
+
+            if not autoFishEnabled or destroyed then break end
+
+            if not castVerified then
+                afTimeout("Verify Cast")
                 continue
             end
 
-            if not autoFishEnabled or destroyed then break end
             autoFishCasts = autoFishCasts + 1
 
             -- ── WAITING FOR STARTMINIGAME (fish bite + fish info) ──
@@ -1742,6 +1777,11 @@ return function(gui, config)
         afSetStage("Idle")
         gui.AutoFish.Status.TextColor3 = THEME.dim
         log("AutoFish: Stopped", THEME.dim)
+
+        -- Release mouse just in case
+        pcall(function()
+            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+        end)
     end
 
     bind(gui.AutoFish.ToggleBtn.MouseButton1Click, function()
