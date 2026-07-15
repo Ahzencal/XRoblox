@@ -295,7 +295,7 @@ return function(config)
     Title.Parent = Sidebar
 
     local Subtitle = Instance.new("TextLabel")
-    Subtitle.Text = "v2.0"
+    Subtitle.Text = "v2.5"
     Subtitle.Size = UDim2.new(1, 0, 0, 14)
     Subtitle.Position = UDim2.new(0, 0, 0, 46)
     Subtitle.BackgroundTransparency = 1

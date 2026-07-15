@@ -1675,15 +1675,13 @@ return function(gui, config)
                 continue
             end
 
-            -- ── WAIT FOR MINIGAME TO FINISH ──
-            afSetStage("Fish on! Minigame...")
-
-            -- Wait for the minigame UI (FishingHolder) to appear then disappear
+            -- ── WAIT FOR MINIGAME GUI (confirm fishing is active) ──
+            afSetStage("Fish on! Detecting minigame...")
             local playerGui = lp:FindFirstChild("PlayerGui")
             local minigameGui = nil
             local waitStart = tick()
 
-            -- Wait for the minigame GUI to appear (up to 3s)
+            -- Wait up to 3s for the minigame GUI to appear
             while not minigameGui and (tick() - waitStart) < 3 and autoFishEnabled do
                 if playerGui then
                     for _, g in pairs(playerGui:GetChildren()) do
@@ -1698,23 +1696,16 @@ return function(gui, config)
 
             if not autoFishEnabled or destroyed then break end
 
-            if minigameGui then
-                -- Minigame appeared, wait for it to disappear (game finished)
-                afSetStage("Playing minigame...")
-                local mgStart = tick()
-                while minigameGui and minigameGui.Parent and (tick() - mgStart) < AF_MINIGAME_TIMEOUT and autoFishEnabled do
-                    task.wait(0.1)
-                end
-
-                if (tick() - mgStart) >= AF_MINIGAME_TIMEOUT then
-                    afTimeout("Minigame Timeout")
-                    continue
-                end
-            else
-                -- No minigame UI found, fallback delay
-                log("AutoFish: No minigame GUI detected, using fallback delay", THEME.warn)
-                task.wait(12)
+            if not minigameGui then
+                log("AutoFish: No minigame GUI detected", THEME.warn)
+                afTimeout("No Minigame GUI")
+                continue
             end
+
+            -- ── SKIP MINIGAME (random 5-10s delay then catch) ──
+            afSetStage("Minigame active, waiting to catch...")
+            local skipDelay = 5 + math.random() * 5
+            task.wait(skipDelay)
 
             if not autoFishEnabled or destroyed then break end
 
