@@ -502,11 +502,56 @@ return function(ctx)
 
         task.wait(0.3)
 
+        -- Spawn auto-confirm handler for the sell confirmation UI
+        local confirmDone = false
+        task.spawn(function()
+            local playerGui = lp:FindFirstChild("PlayerGui")
+            if not playerGui then return end
+            -- Wait for SellConfirmation GUI to appear (up to 5s)
+            local waitStart = tick()
+            local confirmGui = nil
+            while not confirmGui and (tick() - waitStart) < 5 do
+                confirmGui = playerGui:FindFirstChild("SellConfirmation")
+                if not confirmGui then task.wait(0.1) end
+            end
+            if confirmGui then
+                -- Find the ConfirmFunctionEvent and invoke its callback
+                local controller = confirmGui:FindFirstChild("SellConfirmationUIController")
+                if controller then
+                    local confirmEvent = controller:FindFirstChild("ConfirmFunctionEvent")
+                    if confirmEvent then
+                        pcall(function()
+                            confirmEvent:Invoke()
+                        end)
+                    end
+                end
+                -- Destroy the confirmation UI
+                task.wait(0.2)
+                pcall(function() confirmGui:Destroy() end)
+            end
+            confirmDone = true
+        end)
+
         local raritiesList = getActiveOreSellRarities()
         local result
         local success, err = pcall(function()
             if SellOreRemote then
                 result = SellOreRemote:InvokeServer(raritiesList)
+            end
+        end)
+
+        -- Wait for confirmation to complete if not already
+        local cWait = tick()
+        while not confirmDone and (tick() - cWait) < 3 do
+            task.wait(0.1)
+        end
+
+        -- Clean up any leftover confirmation GUI
+        pcall(function()
+            local playerGui = lp:FindFirstChild("PlayerGui")
+            if playerGui then
+                local confirmGui = playerGui:FindFirstChild("SellConfirmation")
+                if confirmGui then confirmGui:Destroy() end
             end
         end)
 

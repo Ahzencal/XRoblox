@@ -720,136 +720,56 @@ return function(config)
     -- MINING TAB
     -- ═══════════════════════════════════════════
     local MiningScroll = Instance.new("ScrollingFrame")
-    MiningScroll.Size = UDim2.new(1, 0, 1, -55)
-    MiningScroll.Position = UDim2.new(0, 0, 0, 55)
+    MiningScroll.Size = UDim2.new(1, 0, 1, 0)
     MiningScroll.BackgroundTransparency = 1
-    MiningScroll.ScrollBarThickness = 4
     MiningScroll.BorderSizePixel = 0
-    MiningScroll.CanvasSize = UDim2.new(0, 0, 0, 400)
+    MiningScroll.ScrollBarThickness = 3
+    MiningScroll.CanvasSize = UDim2.new(0, 0, 0, 520)
     MiningScroll.Parent = Tabs.Mining
-    local MiningLayout = Instance.new("UIListLayout", MiningScroll)
-    MiningLayout.Padding = UDim.new(0, 8)
-    MiningLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    Instance.new("UIPadding", MiningScroll).PaddingLeft = UDim.new(0, 10)
 
-    local MiningTitle = Instance.new("TextLabel")
-    MiningTitle.Size = UDim2.new(1, -20, 0, 30)
-    MiningTitle.BackgroundTransparency = 1
-    MiningTitle.Text = "⛏️ Auto Mining"
-    MiningTitle.TextColor3 = LYRA.accentGlow
-    MiningTitle.Font = Enum.Font.GothamBold
-    MiningTitle.TextSize = 18
-    MiningTitle.TextXAlignment = Enum.TextXAlignment.Left
-    MiningTitle.Parent = MiningScroll
+    -- Buttons (same style as fishing)
+    local AutoMineESPBtn = makeActionButton(MiningScroll, "Hotspot ESP: OFF", 8, LYRA.warn)
+    local AutoMineTPBtn = makeActionButton(MiningScroll, "Auto TP to Stones: OFF", 42, LYRA.tp)
+    local AutoMineToggleBtn = makeActionButton(MiningScroll, "Auto Mine: OFF", 76, LYRA.success)
+    local AutoSellOreBtn = makeActionButton(MiningScroll, "Auto Sell Ore: OFF", 110, LYRA.warn)
+    local SellOreNowBtn = makeActionButton(MiningScroll, "Sell Ore Now", 144, LYRA.accent)
+    local AutoMineHotspotBtn = makeActionButton(MiningScroll, "Hotspot Only: OFF", 178, LYRA.tp)
 
-    local AutoMineToggleBtn = Instance.new("TextButton")
-    AutoMineToggleBtn.Size = UDim2.new(1, -20, 0, 36)
-    AutoMineToggleBtn.BackgroundColor3 = LYRA.accent
-    AutoMineToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-    AutoMineToggleBtn.Font = Enum.Font.GothamBold
-    AutoMineToggleBtn.TextSize = 13
-    AutoMineToggleBtn.Text = "Auto Mine: OFF"
-    AutoMineToggleBtn.BorderSizePixel = 0
-    AutoMineToggleBtn.Parent = MiningScroll
-    Instance.new("UICorner", AutoMineToggleBtn).CornerRadius = UDim.new(0, 10)
-
+    -- Status labels
     local AutoMineStatus = Instance.new("TextLabel")
-    AutoMineStatus.Size = UDim2.new(1, -20, 0, 20)
+    AutoMineStatus.Size = UDim2.new(1, -20, 0, 18)
+    AutoMineStatus.Position = UDim2.new(0, 10, 0, 216)
     AutoMineStatus.BackgroundTransparency = 1
-    AutoMineStatus.Text = "Status: Idle"
     AutoMineStatus.TextColor3 = LYRA.dim
-    AutoMineStatus.Font = Enum.Font.Gotham
-    AutoMineStatus.TextSize = 12
+    AutoMineStatus.Text = "Mine: Idle"
+    AutoMineStatus.Font = Enum.Font.GothamBold
+    AutoMineStatus.TextSize = 11
     AutoMineStatus.TextXAlignment = Enum.TextXAlignment.Left
     AutoMineStatus.Parent = MiningScroll
 
     local AutoMineLastOre = Instance.new("TextLabel")
-    AutoMineLastOre.Size = UDim2.new(1, -20, 0, 20)
+    AutoMineLastOre.Size = UDim2.new(1, -20, 0, 16)
+    AutoMineLastOre.Position = UDim2.new(0, 10, 0, 236)
     AutoMineLastOre.BackgroundTransparency = 1
-    AutoMineLastOre.Text = "Last: —"
     AutoMineLastOre.TextColor3 = LYRA.dim
+    AutoMineLastOre.Text = "Last: —"
     AutoMineLastOre.Font = Enum.Font.Gotham
-    AutoMineLastOre.TextSize = 12
+    AutoMineLastOre.TextSize = 10
     AutoMineLastOre.TextXAlignment = Enum.TextXAlignment.Left
     AutoMineLastOre.Parent = MiningScroll
 
-    local AutoMineHotspotBtn = Instance.new("TextButton")
-    AutoMineHotspotBtn.Size = UDim2.new(1, -20, 0, 32)
-    AutoMineHotspotBtn.BackgroundColor3 = LYRA.tp
-    AutoMineHotspotBtn.TextColor3 = Color3.new(1, 1, 1)
-    AutoMineHotspotBtn.Font = Enum.Font.GothamBold
-    AutoMineHotspotBtn.TextSize = 12
-    AutoMineHotspotBtn.Text = "Hotspot Only: OFF"
-    AutoMineHotspotBtn.BorderSizePixel = 0
-    AutoMineHotspotBtn.Parent = MiningScroll
-    Instance.new("UICorner", AutoMineHotspotBtn).CornerRadius = UDim.new(0, 10)
-
-    local AutoMineTPBtn = Instance.new("TextButton")
-    AutoMineTPBtn.Size = UDim2.new(1, -20, 0, 32)
-    AutoMineTPBtn.BackgroundColor3 = LYRA.tp
-    AutoMineTPBtn.TextColor3 = Color3.new(1, 1, 1)
-    AutoMineTPBtn.Font = Enum.Font.GothamBold
-    AutoMineTPBtn.TextSize = 12
-    AutoMineTPBtn.Text = "Auto TP to Stones: OFF"
-    AutoMineTPBtn.BorderSizePixel = 0
-    AutoMineTPBtn.Parent = MiningScroll
-    Instance.new("UICorner", AutoMineTPBtn).CornerRadius = UDim.new(0, 10)
-
-    local MineOreStats = Instance.new("TextLabel")
-    MineOreStats.Size = UDim2.new(1, -20, 0, 50)
-    MineOreStats.BackgroundTransparency = 1
-    MineOreStats.Text = ""
-    MineOreStats.TextColor3 = LYRA.dim
-    MineOreStats.Font = Enum.Font.Code
-    MineOreStats.TextSize = 11
-    MineOreStats.TextXAlignment = Enum.TextXAlignment.Left
-    MineOreStats.TextWrapped = true
-    MineOreStats.Parent = MiningScroll
-
-    local AutoMineESPBtn = Instance.new("TextButton")
-    AutoMineESPBtn.Size = UDim2.new(1, -20, 0, 32)
-    AutoMineESPBtn.BackgroundColor3 = LYRA.warn
-    AutoMineESPBtn.TextColor3 = Color3.new(1, 1, 1)
-    AutoMineESPBtn.Font = Enum.Font.GothamBold
-    AutoMineESPBtn.TextSize = 12
-    AutoMineESPBtn.Text = "Hotspot ESP: OFF"
-    AutoMineESPBtn.BorderSizePixel = 0
-    AutoMineESPBtn.Parent = MiningScroll
-    Instance.new("UICorner", AutoMineESPBtn).CornerRadius = UDim.new(0, 10)
-
     -- Separator
-    local MineSep = Instance.new("Frame")
-    MineSep.Size = UDim2.new(1, -20, 0, 1)
-    MineSep.BackgroundColor3 = LYRA.dim
-    MineSep.BackgroundTransparency = 0.7
-    MineSep.BorderSizePixel = 0
-    MineSep.Parent = MiningScroll
+    local MineSep1 = Instance.new("Frame")
+    MineSep1.Size = UDim2.new(1, -20, 0, 1)
+    MineSep1.Position = UDim2.new(0, 10, 0, 260)
+    MineSep1.BackgroundColor3 = LYRA.panel2
+    MineSep1.BorderSizePixel = 0
+    MineSep1.Parent = MiningScroll
 
-    -- Auto Sell Ore section
-    local AutoSellOreBtn = Instance.new("TextButton")
-    AutoSellOreBtn.Size = UDim2.new(1, -20, 0, 36)
-    AutoSellOreBtn.BackgroundColor3 = LYRA.warn
-    AutoSellOreBtn.TextColor3 = Color3.new(1, 1, 1)
-    AutoSellOreBtn.Font = Enum.Font.GothamBold
-    AutoSellOreBtn.TextSize = 13
-    AutoSellOreBtn.Text = "Auto Sell Ore: OFF"
-    AutoSellOreBtn.BorderSizePixel = 0
-    AutoSellOreBtn.Parent = MiningScroll
-    Instance.new("UICorner", AutoSellOreBtn).CornerRadius = UDim.new(0, 10)
-
-    local SellOreNowBtn = Instance.new("TextButton")
-    SellOreNowBtn.Size = UDim2.new(1, -20, 0, 36)
-    SellOreNowBtn.BackgroundColor3 = LYRA.accent
-    SellOreNowBtn.TextColor3 = Color3.new(1, 1, 1)
-    SellOreNowBtn.Font = Enum.Font.GothamBold
-    SellOreNowBtn.TextSize = 13
-    SellOreNowBtn.Text = "Sell Ore Now"
-    SellOreNowBtn.BorderSizePixel = 0
-    SellOreNowBtn.Parent = MiningScroll
-    Instance.new("UICorner", SellOreNowBtn).CornerRadius = UDim.new(0, 10)
-
+    -- Sell interval
     local OreSellIntervalLbl = Instance.new("TextLabel")
     OreSellIntervalLbl.Size = UDim2.new(0, 100, 0, 20)
+    OreSellIntervalLbl.Position = UDim2.new(0, 10, 0, 268)
     OreSellIntervalLbl.BackgroundTransparency = 1
     OreSellIntervalLbl.Text = "Sell Interval (s):"
     OreSellIntervalLbl.TextColor3 = LYRA.dim
@@ -860,6 +780,7 @@ return function(config)
 
     local OreSellIntervalInput = Instance.new("TextBox")
     OreSellIntervalInput.Size = UDim2.new(0, 60, 0, 20)
+    OreSellIntervalInput.Position = UDim2.new(0, 112, 0, 268)
     OreSellIntervalInput.BackgroundColor3 = LYRA.bg2
     OreSellIntervalInput.TextColor3 = LYRA.text
     OreSellIntervalInput.Text = "3600"
@@ -870,8 +791,10 @@ return function(config)
     OreSellIntervalInput.Parent = MiningScroll
     Instance.new("UICorner", OreSellIntervalInput).CornerRadius = UDim.new(0, 4)
 
+    -- Sell Rarities
     local OreSellRarityTitle = Instance.new("TextLabel")
     OreSellRarityTitle.Size = UDim2.new(1, -20, 0, 16)
+    OreSellRarityTitle.Position = UDim2.new(0, 10, 0, 296)
     OreSellRarityTitle.BackgroundTransparency = 1
     OreSellRarityTitle.Text = "Sell Rarities:"
     OreSellRarityTitle.TextColor3 = LYRA.dim
@@ -882,29 +805,58 @@ return function(config)
 
     local oreRarities = {"Common", "Uncommon", "Rare", "Epic", "Legend", "Mythic", "Ancient"}
     local OreSellRarityButtons = {}
-    local OreSellRarityFrame = Instance.new("Frame")
-    OreSellRarityFrame.Size = UDim2.new(1, -20, 0, 52)
-    OreSellRarityFrame.BackgroundTransparency = 1
-    OreSellRarityFrame.Parent = MiningScroll
-
     for i, rarity in ipairs(oreRarities) do
         local btn = Instance.new("TextButton")
         btn.Text = rarity
         btn.Size = UDim2.new(0, 56, 0, 20)
-        btn.Position = UDim2.new(0, ((i - 1) % 5) * 62, 0, math.floor((i - 1) / 5) * 26)
+        btn.Position = UDim2.new(0, 10 + ((i - 1) % 5) * 62, 0, 316 + math.floor((i - 1) / 5) * 26)
         btn.BackgroundColor3 = LYRA.success
         btn.BackgroundTransparency = 0.2
         btn.TextColor3 = Color3.new(1, 1, 1)
         btn.Font = Enum.Font.GothamBold
         btn.TextSize = 9
         btn.BorderSizePixel = 0
-        btn.Parent = OreSellRarityFrame
+        btn.Parent = MiningScroll
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
         OreSellRarityButtons[rarity] = btn
     end
 
-    -- Update canvas size for more content
-    MiningScroll.CanvasSize = UDim2.new(0, 0, 0, 700)
+    -- Separator 2
+    local MineSep2 = Instance.new("Frame")
+    MineSep2.Size = UDim2.new(1, -20, 0, 1)
+    MineSep2.Position = UDim2.new(0, 10, 0, 374)
+    MineSep2.BackgroundColor3 = LYRA.panel2
+    MineSep2.BorderSizePixel = 0
+    MineSep2.Parent = MiningScroll
+
+    -- Mine Stats
+    local MineStatsTitle = Instance.new("TextLabel")
+    MineStatsTitle.Size = UDim2.new(1, -20, 0, 18)
+    MineStatsTitle.Position = UDim2.new(0, 10, 0, 382)
+    MineStatsTitle.BackgroundTransparency = 1
+    MineStatsTitle.Text = "📊 Mine Stats"
+    MineStatsTitle.TextColor3 = LYRA.accentGlow
+    MineStatsTitle.Font = Enum.Font.GothamBold
+    MineStatsTitle.TextSize = 11
+    MineStatsTitle.TextXAlignment = Enum.TextXAlignment.Left
+    MineStatsTitle.Parent = MiningScroll
+
+    local MineOreStats = Instance.new("TextLabel")
+    MineOreStats.Size = UDim2.new(1, -20, 0, 100)
+    MineOreStats.Position = UDim2.new(0, 10, 0, 404)
+    MineOreStats.BackgroundTransparency = 1
+    MineOreStats.TextColor3 = LYRA.dim
+    MineOreStats.Text = "Total Mined: 0"
+    MineOreStats.Font = Enum.Font.Code
+    MineOreStats.TextSize = 10
+    MineOreStats.TextWrapped = true
+    MineOreStats.TextXAlignment = Enum.TextXAlignment.Left
+    MineOreStats.TextYAlignment = Enum.TextYAlignment.Top
+    MineOreStats.Parent = MiningScroll
+        btn.Parent = MiningScroll
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+        OreSellRarityButtons[rarity] = btn
+    end
 
     -- ═══════════════════════════════════════════
     -- FUN THINGS TAB (Auto Clicker + Auto Gacha)

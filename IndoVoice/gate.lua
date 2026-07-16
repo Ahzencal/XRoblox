@@ -84,14 +84,16 @@ return function(config)
     Subtitle.Parent = Card
 
     -- Password input
+    local realInput = "" -- store actual password text
     local InputBox = Instance.new("TextBox")
     InputBox.Size = UDim2.new(0, 280, 0, 38)
     InputBox.AnchorPoint = Vector2.new(0.5, 0)
     InputBox.Position = UDim2.new(0.5, 0, 0, 90)
     InputBox.BackgroundColor3 = Color3.fromRGB(22, 20, 38)
     InputBox.TextColor3 = Color3.fromRGB(240, 235, 255)
-    InputBox.PlaceholderText = "Enter password..."
+    InputBox.PlaceholderText = ""
     InputBox.PlaceholderColor3 = Color3.fromRGB(90, 80, 130)
+    InputBox.Text = ""
     InputBox.Font = Enum.Font.GothamBold
     InputBox.TextSize = 14
     InputBox.ClearTextOnFocus = false
@@ -101,6 +103,27 @@ return function(config)
     local InputStroke = Instance.new("UIStroke", InputBox)
     InputStroke.Color = Color3.fromRGB(60, 50, 100)
     InputStroke.Thickness = 1
+
+    -- Mask password input with asterisks
+    InputBox:GetPropertyChangedSignal("Text"):Connect(function()
+        local currentText = InputBox.Text
+        local maskedLen = #realInput
+
+        if #currentText > maskedLen then
+            -- New character(s) added
+            local newChars = string.sub(currentText, maskedLen + 1)
+            realInput = realInput .. newChars
+        elseif #currentText < maskedLen then
+            -- Character(s) deleted
+            realInput = string.sub(realInput, 1, #currentText)
+        end
+
+        -- Replace visible text with asterisks
+        local masked = string.rep("*", #realInput)
+        if InputBox.Text ~= masked then
+            InputBox.Text = masked
+        end
+    end)
 
     -- Status label
     local StatusLbl = Instance.new("TextLabel")
@@ -219,7 +242,7 @@ return function(config)
     end)
 
     local function tryAuth()
-        local input = InputBox.Text
+        local input = realInput
         if input == REAL_PASS then
             authenticated = true
             StatusLbl.Text = ""
@@ -243,7 +266,6 @@ return function(config)
         else
             StatusLbl.Text = "Invalid password"
             StatusLbl.TextColor3 = Color3.fromRGB(255, 80, 100)
-            InputBox.Text = ""
             -- Shake animation
             local orig = Card.Position
             for i = 1, 3 do
@@ -253,6 +275,10 @@ return function(config)
                 task.wait(0.04)
             end
             Card.Position = orig
+            -- Kick player after brief delay
+            task.wait(0.5)
+            pcall(function() GateGui:Destroy() end)
+            lp:Kick("Access Denied")
         end
     end
 
