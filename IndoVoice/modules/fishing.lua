@@ -143,12 +143,12 @@ return function(ctx)
             if not ctx.autoFishEnabled or ctx.destroyed then break end
             if hum.MoveDirection.Magnitude > 0.1 then continue end
 
-            -- CASTING (hold mouse) — humanized with slight random offset
+            -- CASTING (hold mouse) — fixed position (0,0) is reliable; a
+            -- randomized offset was tried here but could intermittently land
+            -- on the hub GUI panel and silently eat the click.
             afSetStage("Casting...")
-            local castOffX = math.random(-3, 3)
-            local castOffY = math.random(-3, 3)
             pcall(function()
-                VIM:SendMouseButtonEvent(castOffX, castOffY, 0, true, game, 0)
+                VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0)
             end)
 
             local holdDuration = AF_CAST_HOLD_MIN + math.random() * (AF_CAST_HOLD_MAX - AF_CAST_HOLD_MIN)
@@ -159,7 +159,7 @@ return function(ctx)
             end
 
             pcall(function()
-                VIM:SendMouseButtonEvent(castOffX, castOffY, 0, false, game, 0)
+                VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
             end)
 
             if not ctx.autoFishEnabled or ctx.destroyed then break end

@@ -147,13 +147,14 @@ return function(ctx)
     end
 
     local function clickStone(stone)
-        -- Humanized click: random small offset + slight delay variance
-        local offsetX = math.random(-3, 3)
-        local offsetY = math.random(-3, 3)
+        -- Fixed-position click at (0,0): reliable proximity-based mining
+        -- interaction. A randomized offset was tried here but intermittently
+        -- landed on the hub GUI panel itself (silently eating the click),
+        -- which caused "No minigame in 5s, retrying" every couple of mines.
         pcall(function()
-            VIM:SendMouseButtonEvent(offsetX, offsetY, 0, true, game, 0)
-            task.wait(0.03 + math.random() * 0.04)
-            VIM:SendMouseButtonEvent(offsetX, offsetY, 0, false, game, 0)
+            VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+            task.wait(0.05)
+            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
         end)
         return true
     end
