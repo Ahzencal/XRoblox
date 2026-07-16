@@ -295,7 +295,7 @@ return function(config)
     Title.Parent = Sidebar
 
     local Subtitle = Instance.new("TextLabel")
-    Subtitle.Text = "v3.0 | MINIG!!!"
+    Subtitle.Text = "v3.0 | NEW MINING"
     Subtitle.Size = UDim2.new(1, 0, 0, 14)
     Subtitle.Position = UDim2.new(0, 0, 0, 46)
     Subtitle.BackgroundTransparency = 1
@@ -338,8 +338,8 @@ return function(config)
     TabsBar.Parent = Sidebar
 
     -- Sidebar nav buttons (full text, vertical)
-    local tabNames = {"About", "Players", "Fishing", "Fun", "Mining", "Settings", "Logs"}
-    local tabIcons = {"About", "Players", "Fishing", "Fun", "Mining", "Settings", "Logs"}
+    local tabNames = {"About", "Players", "Fishing", "Mining", "Fun", "Settings", "Logs"}
+    local tabIcons = {"About", "Players", "Fishing", "Mining", "Fun", "Settings", "Logs"}
     local TabButtons = {}
 
     for i, name in ipairs(tabNames) do
@@ -462,7 +462,7 @@ return function(config)
     AboutDesc.Size = UDim2.new(1, -20, 0, 60)
     AboutDesc.Position = UDim2.new(0, 10, 0, 164)
     AboutDesc.BackgroundTransparency = 1
-    AboutDesc.Text = "LyraHub is a multi-feature automation hub for IndoVoice. It provides auto fishing, zone management, gacha rolling, player ESP, webhook logging, and more — all in a sleek custom UI with persistent settings."
+    AboutDesc.Text = "LyraHub is a multi-feature automation hub for IndoVoice. Features include auto fishing, auto mining, zone TP, ore/fish selling, gacha rolling, player ESP/TP/beam, hotspot ESP, auto clicker, webhook logging, and more — all in a custom UI with persistent settings."
     AboutDesc.TextColor3 = LYRA.dim
     AboutDesc.Font = Enum.Font.Gotham
     AboutDesc.TextSize = 11
@@ -487,7 +487,7 @@ return function(config)
     AboutVersion.Size = UDim2.new(1, -20, 0, 20)
     AboutVersion.Position = UDim2.new(0, 10, 1, -30)
     AboutVersion.BackgroundTransparency = 1
-    AboutVersion.Text = "v2.0 | Lyra Engine"
+    AboutVersion.Text = "v3.0 | NEW MINING"
     AboutVersion.TextColor3 = LYRA.dim
     AboutVersion.Font = Enum.Font.Code
     AboutVersion.TextSize = 10

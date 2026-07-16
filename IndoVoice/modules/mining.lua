@@ -17,7 +17,7 @@ return function(ctx)
     local autoMineStage = "Idle"
 
     local MINING_STONES_PATH = workspace:FindFirstChild("Main") and workspace.Main:FindFirstChild("ActiveMiningStones")
-    local AM_MINIGAME_TIMEOUT = 45
+    local AM_MINIGAME_TIMEOUT = 30
     local AM_POST_MINE_DELAY = 0.5
 
     local function amSetStage(stage)
@@ -431,14 +431,14 @@ return function(ctx)
     local ORE_SELL_INTERVAL = 3600
     local oreSellRarities = {
         Common = true, Uncommon = true, Rare = true,
-        Epic = true, Legend = true, Mythic = true, Ancient = true,
+        Epic = true, Legend = true, Mythic = false, Ancient = false,
     }
 
     local SellOreRemote = nil
     task.spawn(function()
         local rf = ReplicatedStorage:WaitForChild("GameRemoteFunctions", 10)
         if rf then
-            SellOreRemote = rf:WaitForChild("SellAllOreFunctionEvent", 10)
+            SellOreRemote = rf:WaitForChild("SellAllOreFunction", 10)
         end
     end)
 
