@@ -15,6 +15,9 @@ return function(ctx)
     local autoMineTPEnabled = false
     local autoMineCounts = {}
     local autoMineStage = "Idle"
+    local mineSessionStart = 0
+    local MINE_BREAK_INTERVAL = 3600 -- 60 min
+    local MINE_BREAK_DURATION = 300 -- 5 min pause
 
     local MINING_STONES_PATH = workspace:FindFirstChild("Main") and workspace.Main:FindFirstChild("ActiveMiningStones")
     local AM_MINIGAME_TIMEOUT = 30
@@ -39,12 +42,20 @@ return function(ctx)
     local function getPickaxeFromBackpack()
         local backpack = lp:FindFirstChildOfClass("Backpack")
         if not backpack then return nil end
+        local bestPick = nil
+        local bestLevel = -1
         for _, tool in ipairs(backpack:GetChildren()) do
             if tool:IsA("Tool") and (tool:FindFirstChild("Mine") or tool:FindFirstChild("MineResultEvent") or string.find(string.lower(tool.Name), "pickaxe") or string.find(string.lower(tool.Name), "pick")) then
-                return tool
+                local level = tool:GetAttribute("Level") or tool:GetAttribute("Tier") or 0
+                if level > bestLevel then
+                    bestLevel = level
+                    bestPick = tool
+                elseif bestPick == nil then
+                    bestPick = tool
+                end
             end
         end
-        return nil
+        return bestPick
     end
 
     local function equipPickaxe()
@@ -116,10 +127,13 @@ return function(ctx)
     end
 
     local function clickStone(stone)
+        -- Humanized click: random small offset + slight delay variance
+        local offsetX = math.random(-3, 3)
+        local offsetY = math.random(-3, 3)
         pcall(function()
-            VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-            task.wait(0.05)
-            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+            VIM:SendMouseButtonEvent(offsetX, offsetY, 0, true, game, 0)
+            task.wait(0.03 + math.random() * 0.04)
+            VIM:SendMouseButtonEvent(offsetX, offsetY, 0, false, game, 0)
         end)
         return true
     end
@@ -199,6 +213,7 @@ return function(ctx)
     local function autoMineLoop()
         log("AutoMine: Engine started", THEME.success)
         gui.Mining.Status.TextColor3 = THEME.success
+        mineSessionStart = tick()
 
         while ctx.autoMineEnabled and not ctx.destroyed do
             local char = lp.Character
@@ -387,6 +402,15 @@ return function(ctx)
             -- POST DELAY
             amSetStage("Resetting...")
             task.wait(AM_POST_MINE_DELAY)
+
+            -- Break system: every 60 min, pause 5 min
+            if (tick() - mineSessionStart) >= MINE_BREAK_INTERVAL then
+                amSetStage("Taking break (5 min)...")
+                log("AutoMine: 60 min reached, pausing 5 min", THEME.warn)
+                task.wait(MINE_BREAK_DURATION)
+                mineSessionStart = tick()
+                log("AutoMine: Break over, resuming", THEME.success)
+            end
         end
 
         amSetStage("Idle")

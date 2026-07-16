@@ -1227,6 +1227,31 @@ return function(gui, config)
         end)
     end
 
+    -- ═══════════════════════════════════════════
+    -- AUTO-RECONNECT (works for private servers)
+    -- ═══════════════════════════════════════════
+    ctx.autoReconnectEnabled = false
+    local savedJobId = game.JobId
+    local savedPlaceId = game.PlaceId
+
+    local function attemptReconnect()
+        pcall(function()
+            local TeleportService = game:GetService("TeleportService")
+            TeleportService:TeleportToPlaceInstance(savedPlaceId, savedJobId, lp)
+        end)
+    end
+    ctx.attemptReconnect = attemptReconnect
+
+    -- Listen for kick/disconnect
+    task.spawn(function()
+        lp.OnTeleport:Connect(function(state)
+            if state == Enum.TeleportState.Failed and ctx.autoReconnectEnabled then
+                task.wait(5)
+                attemptReconnect()
+            end
+        end)
+    end)
+
 
     -- ═══════════════════════════════════════════
     -- WEBHOOK & PERFORMANCE MONITOR
@@ -1326,8 +1351,15 @@ return function(gui, config)
             totalCaught = totalCaught + count
         end
 
+        -- Earnings per hour calculation
+        local elapsed = tick() - ctx.perfStartTime
+        local earningsPerHour = 0
+        if elapsed > 0 then
+            earningsPerHour = (ctx.perfTotalEarnings / elapsed) * 3600
+        end
+
         pcall(function()
-            gui.FishZone.FishTotalLbl.Text = "Total Fish: " .. tostring(totalCaught)
+            gui.FishZone.FishTotalLbl.Text = "Total Fish: " .. tostring(totalCaught) .. " | Rp/hr: " .. formatNumber(earningsPerHour)
         end)
 
         local mythic = ctx.perfRarityCounts["Mythic"] or 0
@@ -1343,6 +1375,7 @@ return function(gui, config)
         if ancient > 0 then
             statsText = "Ancient: " .. ancient .. "\n" .. statsText
         end
+        statsText = statsText .. "\nTotal Earnings: Rp " .. formatNumber(ctx.perfTotalEarnings)
 
         pcall(function()
             gui.FishZone.FishRarityStats.Text = statsText
@@ -1446,6 +1479,9 @@ return function(gui, config)
             webhookRarities = getActiveWebhookRarities(),
             sellRarities = getActiveSellRarities(),
             sellInterval = ctx.AUTO_SELL_INTERVAL,
+            -- Mining stats persistence
+            perfRarityCounts = ctx.perfRarityCounts,
+            perfTotalEarnings = ctx.perfTotalEarnings,
         }
         local ok, err = pcall(function()
             local HttpService = game:GetService("HttpService")
@@ -1506,6 +1542,13 @@ return function(gui, config)
             if result.sellInterval then
                 ctx.AUTO_SELL_INTERVAL = tonumber(result.sellInterval) or ctx.AUTO_SELL_INTERVAL
                 gui.FishZone.SellIntervalInput.Text = tostring(ctx.AUTO_SELL_INTERVAL)
+            end
+            -- Load mining/fishing stats
+            if result.perfRarityCounts and type(result.perfRarityCounts) == "table" then
+                ctx.perfRarityCounts = result.perfRarityCounts
+            end
+            if result.perfTotalEarnings then
+                ctx.perfTotalEarnings = tonumber(result.perfTotalEarnings) or 0
             end
             gui.Settings.WebhookToggleBtn.Text = ctx.webhookEnabled and "Webhook: ON" or "Webhook: OFF"
             gui.Settings.WebhookToggleBtn.BackgroundColor3 = ctx.webhookEnabled and THEME.success or THEME.panel2
