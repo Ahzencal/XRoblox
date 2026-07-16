@@ -55,8 +55,13 @@ local ctx = coreFactory(gui, config)
 local modules = {"fishing", "mining", "gacha", "shopgacha", "rodshop", "ui"}
 for _, name in ipairs(modules) do
     local ok, err = pcall(function()
-        local mod = loadModule(name)
-        mod(ctx)
+        local modChunk = loadModule(name)
+        local modFactory = modChunk()
+        if type(modFactory) == "function" then
+            modFactory(ctx)
+        else
+            warn("[IndoVoice] Module '" .. name .. "' did not return a function")
+        end
     end)
     if not ok then
         warn("[IndoVoice] Failed to load module '" .. name .. "': " .. tostring(err))
