@@ -295,7 +295,7 @@ return function(config)
     Title.Parent = Sidebar
 
     local Subtitle = Instance.new("TextLabel")
-    Subtitle.Text = "v2.5"
+    Subtitle.Text = "v3.0 | MINIG!!!"
     Subtitle.Size = UDim2.new(1, 0, 0, 14)
     Subtitle.Position = UDim2.new(0, 0, 0, 46)
     Subtitle.BackgroundTransparency = 1
@@ -719,25 +719,92 @@ return function(config)
     -- ═══════════════════════════════════════════
     -- MINING TAB
     -- ═══════════════════════════════════════════
+    local MiningScroll = Instance.new("ScrollingFrame")
+    MiningScroll.Size = UDim2.new(1, 0, 1, -55)
+    MiningScroll.Position = UDim2.new(0, 0, 0, 55)
+    MiningScroll.BackgroundTransparency = 1
+    MiningScroll.ScrollBarThickness = 4
+    MiningScroll.BorderSizePixel = 0
+    MiningScroll.CanvasSize = UDim2.new(0, 0, 0, 400)
+    MiningScroll.Parent = Tabs.Mining
+    local MiningLayout = Instance.new("UIListLayout", MiningScroll)
+    MiningLayout.Padding = UDim.new(0, 8)
+    MiningLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    Instance.new("UIPadding", MiningScroll).PaddingLeft = UDim.new(0, 10)
+
     local MiningTitle = Instance.new("TextLabel")
     MiningTitle.Size = UDim2.new(1, -20, 0, 30)
-    MiningTitle.Position = UDim2.new(0, 10, 0, 60)
     MiningTitle.BackgroundTransparency = 1
-    MiningTitle.Text = "⛏️ Mining"
+    MiningTitle.Text = "⛏️ Auto Mining"
     MiningTitle.TextColor3 = LYRA.accentGlow
     MiningTitle.Font = Enum.Font.GothamBold
     MiningTitle.TextSize = 18
-    MiningTitle.Parent = Tabs.Mining
+    MiningTitle.TextXAlignment = Enum.TextXAlignment.Left
+    MiningTitle.Parent = MiningScroll
 
-    local MiningMsg = Instance.new("TextLabel")
-    MiningMsg.Size = UDim2.new(1, -20, 0, 40)
-    MiningMsg.Position = UDim2.new(0, 10, 0, 100)
-    MiningMsg.BackgroundTransparency = 1
-    MiningMsg.Text = "Available Soon"
-    MiningMsg.TextColor3 = LYRA.dim
-    MiningMsg.Font = Enum.Font.Gotham
-    MiningMsg.TextSize = 14
-    MiningMsg.Parent = Tabs.Mining
+    local AutoMineToggleBtn = Instance.new("TextButton")
+    AutoMineToggleBtn.Size = UDim2.new(1, -20, 0, 36)
+    AutoMineToggleBtn.BackgroundColor3 = LYRA.accent
+    AutoMineToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+    AutoMineToggleBtn.Font = Enum.Font.GothamBold
+    AutoMineToggleBtn.TextSize = 13
+    AutoMineToggleBtn.Text = "Auto Mine: OFF"
+    AutoMineToggleBtn.BorderSizePixel = 0
+    AutoMineToggleBtn.Parent = MiningScroll
+    Instance.new("UICorner", AutoMineToggleBtn).CornerRadius = UDim.new(0, 10)
+
+    local AutoMineStatus = Instance.new("TextLabel")
+    AutoMineStatus.Size = UDim2.new(1, -20, 0, 20)
+    AutoMineStatus.BackgroundTransparency = 1
+    AutoMineStatus.Text = "Status: Idle"
+    AutoMineStatus.TextColor3 = LYRA.dim
+    AutoMineStatus.Font = Enum.Font.Gotham
+    AutoMineStatus.TextSize = 12
+    AutoMineStatus.TextXAlignment = Enum.TextXAlignment.Left
+    AutoMineStatus.Parent = MiningScroll
+
+    local AutoMineLastOre = Instance.new("TextLabel")
+    AutoMineLastOre.Size = UDim2.new(1, -20, 0, 20)
+    AutoMineLastOre.BackgroundTransparency = 1
+    AutoMineLastOre.Text = "Last: —"
+    AutoMineLastOre.TextColor3 = LYRA.dim
+    AutoMineLastOre.Font = Enum.Font.Gotham
+    AutoMineLastOre.TextSize = 12
+    AutoMineLastOre.TextXAlignment = Enum.TextXAlignment.Left
+    AutoMineLastOre.Parent = MiningScroll
+
+    local AutoMineHotspotBtn = Instance.new("TextButton")
+    AutoMineHotspotBtn.Size = UDim2.new(1, -20, 0, 32)
+    AutoMineHotspotBtn.BackgroundColor3 = LYRA.tp
+    AutoMineHotspotBtn.TextColor3 = Color3.new(1, 1, 1)
+    AutoMineHotspotBtn.Font = Enum.Font.GothamBold
+    AutoMineHotspotBtn.TextSize = 12
+    AutoMineHotspotBtn.Text = "Hotspot Only: OFF"
+    AutoMineHotspotBtn.BorderSizePixel = 0
+    AutoMineHotspotBtn.Parent = MiningScroll
+    Instance.new("UICorner", AutoMineHotspotBtn).CornerRadius = UDim.new(0, 10)
+
+    local AutoMineTPBtn = Instance.new("TextButton")
+    AutoMineTPBtn.Size = UDim2.new(1, -20, 0, 32)
+    AutoMineTPBtn.BackgroundColor3 = LYRA.tp
+    AutoMineTPBtn.TextColor3 = Color3.new(1, 1, 1)
+    AutoMineTPBtn.Font = Enum.Font.GothamBold
+    AutoMineTPBtn.TextSize = 12
+    AutoMineTPBtn.Text = "Auto TP to Stones: OFF"
+    AutoMineTPBtn.BorderSizePixel = 0
+    AutoMineTPBtn.Parent = MiningScroll
+    Instance.new("UICorner", AutoMineTPBtn).CornerRadius = UDim.new(0, 10)
+
+    local MineOreStats = Instance.new("TextLabel")
+    MineOreStats.Size = UDim2.new(1, -20, 0, 50)
+    MineOreStats.BackgroundTransparency = 1
+    MineOreStats.Text = ""
+    MineOreStats.TextColor3 = LYRA.dim
+    MineOreStats.Font = Enum.Font.Code
+    MineOreStats.TextSize = 11
+    MineOreStats.TextXAlignment = Enum.TextXAlignment.Left
+    MineOreStats.TextWrapped = true
+    MineOreStats.Parent = MiningScroll
 
     -- ═══════════════════════════════════════════
     -- FUN THINGS TAB (Auto Clicker + Auto Gacha)
@@ -1565,6 +1632,14 @@ return function(config)
             RodRows = RodRows,
             Status = RodShopStatus,
             SearchBox = RodSearchBox,
+        },
+        Mining = {
+            ToggleBtn = AutoMineToggleBtn,
+            Status = AutoMineStatus,
+            LastOre = AutoMineLastOre,
+            HotspotBtn = AutoMineHotspotBtn,
+            TPBtn = AutoMineTPBtn,
+            OreStats = MineOreStats,
         },
         Settings = {
             HideKeyLbl = HideKeyLbl,

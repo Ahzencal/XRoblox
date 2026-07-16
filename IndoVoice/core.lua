@@ -786,6 +786,7 @@ return function(gui, config)
         autoTPEnabled = false
         autoSellEnabled = false
         autoFishEnabled = false
+        autoMineEnabled = false
         autoGachaEnabled = false
         shopGachaEnabled = false
         autoClaimDailyRewardEnabled = false
@@ -1792,6 +1793,334 @@ return function(gui, config)
                 activeAnimConn:Disconnect()
                 activeAnimConn = nil
             end
+        end
+    end)
+
+    -- ═══════════════════════════════════════════
+    -- AUTO MINING SYSTEM
+    -- ═══════════════════════════════════════════
+    local autoMineEnabled = false
+    local autoMineHotspotOnly = false
+    local autoMineTPEnabled = false
+    local autoMineCounts = {}
+    local autoMineStage = "Idle"
+
+    local MINING_STONES_PATH = workspace:FindFirstChild("Main") and workspace.Main:FindFirstChild("ActiveMiningStones")
+    local AM_MINIGAME_TIMEOUT = 40
+    local AM_POST_MINE_DELAY = 0.5
+
+    local function amSetStage(stage)
+        autoMineStage = stage
+        gui.Mining.Status.Text = "Status: " .. stage
+    end
+
+    local function getPickaxe()
+        local char = lp.Character
+        if not char then return nil end
+        for _, tool in ipairs(char:GetChildren()) do
+            if tool:IsA("Tool") and (tool:FindFirstChild("Mine") or string.find(string.lower(tool.Name), "pickaxe") or string.find(string.lower(tool.Name), "pick")) then
+                return tool
+            end
+        end
+        return nil
+    end
+
+    local function getPickaxeFromBackpack()
+        local backpack = lp:FindFirstChildOfClass("Backpack")
+        if not backpack then return nil end
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and (tool:FindFirstChild("Mine") or string.find(string.lower(tool.Name), "pickaxe") or string.find(string.lower(tool.Name), "pick")) then
+                return tool
+            end
+        end
+        return nil
+    end
+
+    local function equipPickaxe()
+        local char = lp.Character
+        if not char then return false end
+        if getPickaxe() then return true end
+        local pick = getPickaxeFromBackpack()
+        if pick then
+            pick.Parent = char
+            log("AutoMine: Equipped " .. pick.Name, THEME.dim)
+            task.wait(0.3)
+            return true
+        end
+        return false
+    end
+
+    local function getMiningStones()
+        if not MINING_STONES_PATH then
+            MINING_STONES_PATH = workspace:FindFirstChild("Main") and workspace.Main:FindFirstChild("ActiveMiningStones")
+        end
+        if not MINING_STONES_PATH then return {} end
+        local stones = {}
+        for _, stone in ipairs(MINING_STONES_PATH:GetChildren()) do
+            if stone:IsA("BasePart") or stone:IsA("Model") then
+                table.insert(stones, stone)
+            end
+        end
+        return stones
+    end
+
+    local function getNearestStone()
+        local hrp = getHRP(lp.Character)
+        if not hrp then return nil end
+        local best, bestDist = nil, math.huge
+        for _, stone in ipairs(getMiningStones()) do
+            if autoMineHotspotOnly and not stone:GetAttribute("IsHotspot") then
+                continue
+            end
+            local pos = stone:IsA("Model") and stone:GetPivot().Position or stone.Position
+            local d = (hrp.Position - pos).Magnitude
+            if d < bestDist then
+                bestDist = d
+                best = stone
+            end
+        end
+        return best, bestDist
+    end
+
+    local function tpToStone(stone)
+        local hrp = getHRP(lp.Character)
+        if not hrp or not stone then return end
+        local pos = stone:IsA("Model") and stone:GetPivot().Position or stone.Position
+        hrp.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0))
+    end
+
+    local function updateMineStats()
+        local total = 0
+        for _, count in pairs(autoMineCounts) do
+            total = total + count
+        end
+        local statsText = "Total Mined: " .. total
+        local parts = {}
+        for rarity, count in pairs(autoMineCounts) do
+            table.insert(parts, rarity .. ": " .. count)
+        end
+        if #parts > 0 then
+            statsText = statsText .. "\n" .. table.concat(parts, " | ")
+        end
+        pcall(function()
+            gui.Mining.OreStats.Text = statsText
+        end)
+    end
+
+    local function autoMineLoop()
+        log("AutoMine: Engine started", THEME.success)
+        gui.Mining.Status.TextColor3 = THEME.success
+
+        while autoMineEnabled and not destroyed do
+            local char = lp.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+            if not char or not hum then
+                amSetStage("No character")
+                task.wait(1)
+                continue
+            end
+
+            -- Ensure pickaxe is equipped
+            if not getPickaxe() then
+                amSetStage("Equipping pickaxe...")
+                if not equipPickaxe() then
+                    amSetStage("No pickaxe found!")
+                    gui.Mining.Status.TextColor3 = THEME.danger
+                    log("AutoMine: No pickaxe in character or backpack", THEME.danger)
+                    task.wait(2)
+                    continue
+                end
+            end
+
+            -- TP to nearest stone if enabled
+            if autoMineTPEnabled then
+                local stone, dist = getNearestStone()
+                if stone and dist > 15 then
+                    amSetStage("TP to stone...")
+                    tpToStone(stone)
+                    task.wait(0.5)
+                elseif not stone then
+                    amSetStage("No stones available")
+                    task.wait(2)
+                    continue
+                end
+            end
+
+            -- ── MINE (invoke Mine remote) ──
+            amSetStage("Mining...")
+            local pick = getPickaxe()
+            local mineRemote = pick and pick:FindFirstChild("Mine")
+
+            if not mineRemote then
+                log("AutoMine: Mine remote not found", THEME.danger)
+                task.wait(2)
+                continue
+            end
+
+            local mineSuccess = false
+            pcall(function()
+                local result = mineRemote:InvokeServer(tick())
+                mineSuccess = result == true
+            end)
+
+            if not mineSuccess then
+                amSetStage("Mine failed, retrying...")
+                task.wait(1)
+                continue
+            end
+
+            if not autoMineEnabled or destroyed then break end
+
+            -- ── FIRE MinigameOpenedEvent ──
+            local minigameOpened = pick:FindFirstChild("MinigameOpenedEvent")
+            if minigameOpened then
+                pcall(function()
+                    minigameOpened:FireServer(tick())
+                end)
+            end
+
+            -- ── WAIT FOR STARTMINIGAME (ore info) ──
+            amSetStage("Waiting for minigame...")
+            local minigameStarted = false
+            local mineData = nil
+            local minigameConn = nil
+
+            local startMinigame = pick:FindFirstChild("StartMinigame")
+            if startMinigame and startMinigame:IsA("RemoteEvent") then
+                minigameConn = startMinigame.OnClientEvent:Connect(function(rarity, info)
+                    minigameStarted = true
+                    if info and type(info) == "table" then
+                        mineData = info
+                        mineData.Rarity = rarity
+                    end
+                end)
+            end
+
+            local mgWaitStart = tick()
+            while not minigameStarted and (tick() - mgWaitStart) < AM_MINIGAME_TIMEOUT and autoMineEnabled do
+                task.wait(0.1)
+            end
+
+            if minigameConn then minigameConn:Disconnect() end
+
+            if not autoMineEnabled or destroyed then break end
+
+            if not minigameStarted then
+                log("AutoMine: Minigame timeout", THEME.warn)
+                task.wait(1)
+                continue
+            end
+
+            -- ── SKIP MINIGAME (random 5-10s delay) ──
+            amSetStage("Minigame active, waiting...")
+            local skipDelay = 5 + math.random() * 5
+            task.wait(skipDelay)
+
+            if not autoMineEnabled or destroyed then break end
+
+            -- ── WAIT FOR MINERESULT ──
+            amSetStage("Waiting for result...")
+            local resultData = nil
+            local resultConn = nil
+            local mineResult = pick:FindFirstChild("MineResult")
+
+            if mineResult and mineResult:IsA("RemoteEvent") then
+                resultConn = mineResult.OnClientEvent:Connect(function(info)
+                    if info and type(info) == "table" then
+                        resultData = info
+                    end
+                end)
+            end
+
+            local resultWait = tick()
+            while not resultData and (tick() - resultWait) < 10 and autoMineEnabled do
+                task.wait(0.1)
+            end
+
+            if resultConn then resultConn:Disconnect() end
+
+            if not autoMineEnabled or destroyed then break end
+
+            -- ── FIRE MineResultEvent ──
+            amSetStage("Confirming result...")
+            local mineResultEvent = pick:FindFirstChild("MineResultEvent")
+            if mineResultEvent then
+                pcall(function()
+                    mineResultEvent:FireServer(true)
+                end)
+            end
+
+            -- ── LOG RESULT ──
+            local oreName = resultData and resultData.OreName or (mineData and mineData.Rarity or "Unknown")
+            local oreRarity = resultData and resultData.Rarity or (mineData and mineData.Rarity or "?")
+            local orePrice = resultData and resultData.Price or nil
+
+            gui.Mining.LastOre.Text = "Last: " .. oreName .. " [" .. oreRarity .. "]"
+            log("AutoMine: Mined " .. oreName .. " (" .. oreRarity .. ")", THEME.success)
+
+            -- Track counts
+            autoMineCounts[oreRarity] = (autoMineCounts[oreRarity] or 0) + 1
+            if orePrice and tonumber(orePrice) then
+                perfTotalEarnings = perfTotalEarnings + tonumber(orePrice)
+            end
+
+            -- Webhook for rare ores
+            if webhookEnabled and shouldLogRarity(oreRarity) then
+                local priceStr = orePrice and ("Rp." .. tostring(math.floor(tonumber(orePrice) or 0))) or "?"
+                sendWebhook("⛏️ Rare Ore Mined!", "**" .. oreName .. "** [" .. oreRarity .. "]\nPrice: " .. priceStr, 16753920)
+            end
+
+            updateMineStats()
+
+            -- ── POST DELAY ──
+            amSetStage("Resetting...")
+            task.wait(AM_POST_MINE_DELAY)
+        end
+
+        amSetStage("Idle")
+        gui.Mining.Status.TextColor3 = THEME.dim
+        log("AutoMine: Stopped", THEME.dim)
+    end
+
+    -- Mining toggle button
+    bind(gui.Mining.ToggleBtn.MouseButton1Click, function()
+        autoMineEnabled = not autoMineEnabled
+        if autoMineEnabled then
+            gui.Mining.ToggleBtn.Text = "Auto Mine: ON"
+            gui.Mining.ToggleBtn.BackgroundColor3 = THEME.success
+            task.spawn(autoMineLoop)
+        else
+            gui.Mining.ToggleBtn.Text = "Auto Mine: OFF"
+            gui.Mining.ToggleBtn.BackgroundColor3 = THEME.accent
+        end
+    end)
+
+    -- Hotspot only toggle
+    bind(gui.Mining.HotspotBtn.MouseButton1Click, function()
+        autoMineHotspotOnly = not autoMineHotspotOnly
+        if autoMineHotspotOnly then
+            gui.Mining.HotspotBtn.Text = "Hotspot Only: ON"
+            gui.Mining.HotspotBtn.BackgroundColor3 = THEME.success
+            log("AutoMine: Hotspot Only ON", THEME.success)
+        else
+            gui.Mining.HotspotBtn.Text = "Hotspot Only: OFF"
+            gui.Mining.HotspotBtn.BackgroundColor3 = THEME.tp
+            log("AutoMine: Hotspot Only OFF", THEME.dim)
+        end
+    end)
+
+    -- Auto TP toggle
+    bind(gui.Mining.TPBtn.MouseButton1Click, function()
+        autoMineTPEnabled = not autoMineTPEnabled
+        if autoMineTPEnabled then
+            gui.Mining.TPBtn.Text = "Auto TP to Stones: ON"
+            gui.Mining.TPBtn.BackgroundColor3 = THEME.success
+            log("AutoMine: Auto TP ON", THEME.success)
+        else
+            gui.Mining.TPBtn.Text = "Auto TP to Stones: OFF"
+            gui.Mining.TPBtn.BackgroundColor3 = THEME.tp
+            log("AutoMine: Auto TP OFF", THEME.dim)
         end
     end)
 
