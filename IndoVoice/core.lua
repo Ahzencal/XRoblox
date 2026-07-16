@@ -801,6 +801,12 @@ return function(gui, config)
         for part in pairs(zoneObjects) do removeZoneESP(part) end
         for player in pairs(beamStates) do stopBeam(player) end
         for _, list in pairs(playerConnections) do disconnectList(list) end
+        -- Cleanup mine ESP
+        pcall(function()
+            for stone in pairs(mineESPObjects) do
+                removeMineESP(stone)
+            end
+        end)
         playCloseAnimation()
         task.wait(0.05)
         pcall(function() gui.MainGui:Destroy() end)
@@ -2059,49 +2065,30 @@ return function(gui, config)
                 continue
             end
 
-            -- ── SKIP MINIGAME (random 5-10s delay) ──
-            amSetStage("Minigame active, waiting...")
-            local skipDelay = 5 + math.random() * 5
+            -- ── SKIP MINIGAME (random 10-15s delay then fire MineResultEvent) ──
+            amSetStage("Minigame active, waiting to mine...")
+            local skipDelay = 10 + math.random() * 5
             task.wait(skipDelay)
 
             if not autoMineEnabled or destroyed then break end
 
-            -- ── WAIT FOR MINERESULT ──
-            amSetStage("Waiting for result...")
-            local resultData = nil
-            local resultConn = nil
-            local mineResult = pick and pick:FindFirstChild("MineResult")
-
-            if mineResult and mineResult:IsA("RemoteEvent") then
-                resultConn = mineResult.OnClientEvent:Connect(function(info)
-                    if info and type(info) == "table" then
-                        resultData = info
-                    end
-                end)
-            end
-
-            local resultWait = tick()
-            while not resultData and (tick() - resultWait) < 10 and autoMineEnabled do
-                task.wait(0.1)
-            end
-
-            if resultConn then resultConn:Disconnect() end
-
-            if not autoMineEnabled or destroyed then break end
-
-            -- ── FIRE MineResultEvent ──
-            amSetStage("Confirming result...")
+            -- ── FIRE MineResultEvent (catch) ──
+            amSetStage("Mining!")
             local mineResultEvent = pick and pick:FindFirstChild("MineResultEvent")
             if mineResultEvent then
                 pcall(function()
                     mineResultEvent:FireServer(true)
                 end)
+            else
+                log("AutoMine: MineResultEvent not found", THEME.danger)
+                task.wait(1)
+                continue
             end
 
             -- ── LOG RESULT ──
-            local oreName = resultData and resultData.OreName or "Unknown"
-            local oreRarity = resultData and resultData.Rarity or (mineData and mineData.Rarity or "?")
-            local orePrice = resultData and resultData.Price or nil
+            local oreName = mineData and mineData.OreName or "Unknown"
+            local oreRarity = mineData and mineData.Rarity or "?"
+            local orePrice = mineData and mineData.Price or nil
 
             gui.Mining.LastOre.Text = "Last: " .. oreName .. " [" .. oreRarity .. "]"
             log("AutoMine: Mined " .. oreName .. " (" .. oreRarity .. ")", THEME.success)
