@@ -1484,6 +1484,12 @@ return function(config)
     WebhookTestBtn.Position = UDim2.new(0.5, 5, 0, 340)
 
     local SaveSettingsBtn = makeActionButton(SettingsScroll, "Save All Settings", 378, LYRA.success)
+    SaveSettingsBtn.Size = UDim2.new(0.48, -10, 0, 30)
+    SaveSettingsBtn.Position = UDim2.new(0, 10, 0, 378)
+
+    local LoadSettingsBtn = makeActionButton(SettingsScroll, "Load Config", 378, LYRA.tp)
+    LoadSettingsBtn.Size = UDim2.new(0.48, -10, 0, 30)
+    LoadSettingsBtn.Position = UDim2.new(0.5, 5, 0, 378)
 
     local SaveStatus = Instance.new("TextLabel")
     SaveStatus.Size = UDim2.new(1, -20, 0, 18)
@@ -1705,6 +1711,7 @@ return function(config)
             WebhookTestBtn = WebhookTestBtn,
             WebhookRarityButtons = WebhookRarityButtons,
             SaveSettingsBtn = SaveSettingsBtn,
+            LoadSettingsBtn = LoadSettingsBtn,
             SaveStatus = SaveStatus,
             ColorTitle = ColorTitle,
             AccentPreview = AccentPreview,

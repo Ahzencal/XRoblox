@@ -44,6 +44,45 @@ local gateFactory = gateChunk()
 assert(type(gateFactory) == "function", "gate.lua must return a function")
 gateFactory(config)
 
+-- Error recovery: show error GUI if something fails
+local function showErrorGui(msg)
+    local Players = game:GetService("Players")
+    local lp = Players.LocalPlayer
+    local errGui = Instance.new("ScreenGui")
+    errGui.Name = "LyraHub_Error"
+    errGui.ResetOnSpawn = false
+    errGui.DisplayOrder = 9999
+    pcall(function() errGui.Parent = game:GetService("CoreGui") end)
+    if not errGui.Parent then errGui.Parent = lp:WaitForChild("PlayerGui") end
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 400, 0, 120)
+    frame.AnchorPoint = Vector2.new(0.5, 0.5)
+    frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(30, 10, 10)
+    frame.BorderSizePixel = 0
+    frame.Parent = errGui
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.Color = Color3.fromRGB(255, 80, 80)
+    stroke.Thickness = 1.5
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -20, 1, -20)
+    lbl.Position = UDim2.new(0, 10, 0, 10)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = "LyraHub Error:\n" .. tostring(msg)
+    lbl.TextColor3 = Color3.fromRGB(255, 100, 100)
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 12
+    lbl.TextWrapped = true
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.TextYAlignment = Enum.TextYAlignment.Top
+    lbl.Parent = frame
+
+    task.delay(15, function() pcall(function() errGui:Destroy() end) end)
+end
+
 -- Load main UI after authentication
 local guiChunk = compile(fetch(BASE_URL .. "gui.lua", "gui.lua"), "gui.lua")
 local coreChunk = compile(fetch(BASE_URL .. "core.lua", "core.lua"), "core.lua")
@@ -51,23 +90,23 @@ local guiFactory = guiChunk()
 local coreFactory = coreChunk()
 
 if type(guiFactory) ~= "function" then
-    warn("[IndoVoice] gui.lua returned: " .. type(guiFactory) .. " (expected function)")
+    showErrorGui("gui.lua returned: " .. type(guiFactory) .. " (expected function)")
     return
 end
 if type(coreFactory) ~= "function" then
-    warn("[IndoVoice] core.lua returned: " .. type(coreFactory) .. " (expected function)")
+    showErrorGui("core.lua returned: " .. type(coreFactory) .. " (expected function)")
     return
 end
 
 local guiOk, gui = pcall(guiFactory, config)
 if not guiOk then
-    warn("[IndoVoice] gui.lua failed: " .. tostring(gui))
+    showErrorGui("gui.lua execution failed:\n" .. tostring(gui))
     return
 end
 
 local coreOk, ctx = pcall(coreFactory, gui, config)
 if not coreOk then
-    warn("[IndoVoice] core.lua failed: " .. tostring(ctx))
+    showErrorGui("core.lua execution failed:\n" .. tostring(ctx))
     return
 end
 
@@ -80,10 +119,10 @@ for _, name in ipairs(modules) do
         if type(modFactory) == "function" then
             modFactory(ctx)
         else
-            warn("[IndoVoice] Module '" .. name .. "' did not return a function, got: " .. type(modFactory))
+            showErrorGui("Module '" .. name .. "' did not return a function")
         end
     end)
     if not ok then
-        warn("[IndoVoice] Failed to load module '" .. name .. "': " .. tostring(err))
+        showErrorGui("Module '" .. name .. "' failed:\n" .. tostring(err))
     end
 end

@@ -79,6 +79,16 @@ return function(gui, config)
     ctx.mineESPOn = false
     ctx.mineESPObjects = {}
 
+    -- Mining defaults (module fills in behavior; declared here so Settings
+    -- load/save works correctly even before modules/mining.lua has loaded)
+    ctx.autoMineHotspotOnly = false
+    ctx.autoMineTPEnabled = false
+    ctx.ORE_SELL_INTERVAL = 3600
+    ctx.oreSellRarities = {
+        Common = true, Uncommon = true, Rare = true,
+        Epic = true, Legend = true, Mythic = false, Ancient = false,
+    }
+
     -- Performance/sell tracking
     ctx.perfStartTime = tick()
     ctx.perfRarityCounts = {}
@@ -1227,6 +1237,31 @@ return function(gui, config)
         end)
     end
 
+    -- ═══════════════════════════════════════════
+    -- AUTO-RECONNECT (works for private servers)
+    -- ═══════════════════════════════════════════
+    ctx.autoReconnectEnabled = false
+    local savedJobId = game.JobId
+    local savedPlaceId = game.PlaceId
+
+    local function attemptReconnect()
+        pcall(function()
+            local TeleportService = game:GetService("TeleportService")
+            TeleportService:TeleportToPlaceInstance(savedPlaceId, savedJobId, lp)
+        end)
+    end
+    ctx.attemptReconnect = attemptReconnect
+
+    -- Listen for kick/disconnect
+    task.spawn(function()
+        lp.OnTeleport:Connect(function(state)
+            if state == Enum.TeleportState.Failed and ctx.autoReconnectEnabled then
+                task.wait(5)
+                attemptReconnect()
+            end
+        end)
+    end)
+
 
     -- ═══════════════════════════════════════════
     -- WEBHOOK & PERFORMANCE MONITOR
@@ -1326,8 +1361,15 @@ return function(gui, config)
             totalCaught = totalCaught + count
         end
 
+        -- Earnings per hour calculation
+        local elapsed = tick() - ctx.perfStartTime
+        local earningsPerHour = 0
+        if elapsed > 0 then
+            earningsPerHour = (ctx.perfTotalEarnings / elapsed) * 3600
+        end
+
         pcall(function()
-            gui.FishZone.FishTotalLbl.Text = "Total Fish: " .. tostring(totalCaught)
+            gui.FishZone.FishTotalLbl.Text = "Total Fish: " .. tostring(totalCaught) .. " | Rp/hr: " .. formatNumber(earningsPerHour)
         end)
 
         local mythic = ctx.perfRarityCounts["Mythic"] or 0
@@ -1343,6 +1385,7 @@ return function(gui, config)
         if ancient > 0 then
             statsText = "Ancient: " .. ancient .. "\n" .. statsText
         end
+        statsText = statsText .. "\nTotal Earnings: Rp " .. formatNumber(ctx.perfTotalEarnings)
 
         pcall(function()
             gui.FishZone.FishRarityStats.Text = statsText
@@ -1439,13 +1482,44 @@ return function(gui, config)
     end
 
     local function saveSettings()
+        -- Ore sell rarities: convert bool-map to a name list (mirrors getActiveSellRarities)
+        local oreSellRaritiesList = {}
+        if ctx.oreSellRarities then
+            for r, on in pairs(ctx.oreSellRarities) do
+                if on then table.insert(oreSellRaritiesList, r) end
+            end
+        end
+
         local data = {
+            -- Webhook
             webhookURL = ctx.webhookURL,
             webhookEnabled = ctx.webhookEnabled,
             webhookLogSells = ctx.webhookLogSells,
             webhookRarities = getActiveWebhookRarities(),
+
+            -- Fishing: sell interval + rarities
             sellRarities = getActiveSellRarities(),
             sellInterval = ctx.AUTO_SELL_INTERVAL,
+
+            -- Mining: sell interval + rarities + toggles
+            oreSellInterval = ctx.ORE_SELL_INTERVAL,
+            oreSellRarities = oreSellRaritiesList,
+            autoMineHotspotOnly = ctx.autoMineHotspotOnly,
+            autoMineTPEnabled = ctx.autoMineTPEnabled,
+            mineESPOn = ctx.mineESPOn,
+
+            -- Settings tab toggles
+            antiIdleEnabled = ctx.antiIdleEnabled,
+            autoClaimDailyRewardEnabled = ctx.autoClaimDailyRewardEnabled,
+            autoClaimSessionRewardEnabled = ctx.autoClaimSessionRewardEnabled,
+
+            -- Auto Clicker (Fun tab)
+            clickCPS = ctx.clickCPS,
+            toggleKey = tostring(ctx.TOGGLE_KEY):gsub("Enum.KeyCode.", ""),
+
+            -- Fishing/mining stats persistence
+            perfRarityCounts = ctx.perfRarityCounts,
+            perfTotalEarnings = ctx.perfTotalEarnings,
         }
         local ok, err = pcall(function()
             local HttpService = game:GetService("HttpService")
@@ -1507,6 +1581,98 @@ return function(gui, config)
                 ctx.AUTO_SELL_INTERVAL = tonumber(result.sellInterval) or ctx.AUTO_SELL_INTERVAL
                 gui.FishZone.SellIntervalInput.Text = tostring(ctx.AUTO_SELL_INTERVAL)
             end
+
+            -- Mining: sell rarities + interval
+            if result.oreSellRarities then
+                ctx.oreSellRarities = {}
+                for _, r in ipairs(result.oreSellRarities) do
+                    ctx.oreSellRarities[r] = true
+                end
+                if ctx.updateOreSellRarityUI then ctx.updateOreSellRarityUI() end
+            end
+            if result.oreSellInterval and gui.Mining then
+                ctx.ORE_SELL_INTERVAL = tonumber(result.oreSellInterval) or ctx.ORE_SELL_INTERVAL
+                gui.Mining.SellIntervalInput.Text = tostring(ctx.ORE_SELL_INTERVAL)
+            end
+
+            -- Mining toggles
+            if result.autoMineHotspotOnly ~= nil then
+                ctx.autoMineHotspotOnly = result.autoMineHotspotOnly
+                if ctx.updateHotspotBtnUI then ctx.updateHotspotBtnUI() end
+            end
+            if result.autoMineTPEnabled ~= nil then
+                ctx.autoMineTPEnabled = result.autoMineTPEnabled
+                if ctx.updateMineTPBtnUI then ctx.updateMineTPBtnUI() end
+            end
+            if result.mineESPOn ~= nil then
+                ctx.mineESPOn = result.mineESPOn
+                if gui.Mining then
+                    if ctx.mineESPOn then
+                        gui.Mining.ESPBtn.Text = "Hotspot ESP: ON"
+                        gui.Mining.ESPBtn.BackgroundColor3 = THEME.success
+                    else
+                        gui.Mining.ESPBtn.Text = "Hotspot ESP: OFF"
+                        gui.Mining.ESPBtn.BackgroundColor3 = THEME.warn
+                    end
+                end
+            end
+
+            -- Settings tab: Anti-Idle / Auto Claim toggles are restored by calling
+            -- the same enable logic used by their buttons (defined earlier in this scope).
+            if result.antiIdleEnabled and not ctx.antiIdleEnabled then
+                enableAntiIdle()
+            end
+            if result.autoClaimDailyRewardEnabled and not ctx.autoClaimDailyRewardEnabled then
+                ctx.autoClaimDailyRewardEnabled = true
+                updateRewardButtons()
+                log("Daily Reward: Auto-claim ON (restored, every 1h)", THEME.success)
+                task.spawn(function()
+                    while ctx.autoClaimDailyRewardEnabled and not ctx.destroyed do
+                        local success, message = claimDailyReward()
+                        if success then
+                            log("Daily Reward: CLAIMED - " .. tostring(message), THEME.success)
+                        else
+                            log("Daily Reward: " .. tostring(message), THEME.dim)
+                        end
+                        task.wait(3600)
+                    end
+                end)
+            end
+            if result.autoClaimSessionRewardEnabled and not ctx.autoClaimSessionRewardEnabled then
+                ctx.autoClaimSessionRewardEnabled = true
+                updateRewardButtons()
+                log("Session Reward: Auto-claim ON (restored, every 1h)", THEME.success)
+                task.spawn(function()
+                    while ctx.autoClaimSessionRewardEnabled and not ctx.destroyed do
+                        local success, message = claimSessionReward()
+                        if success then
+                            log("Session Reward: " .. tostring(message), THEME.success)
+                        else
+                            log("Session Reward: " .. tostring(message), THEME.dim)
+                        end
+                        task.wait(3600)
+                    end
+                end)
+            end
+
+            -- Auto Clicker (Fun tab): CPS + keybind
+            if result.clickCPS then
+                ctx.clickCPS = tonumber(result.clickCPS) or ctx.clickCPS
+                ctx.clickDelay = 1 / ctx.clickCPS
+                if ctx.updateClickerSliderUI then ctx.updateClickerSliderUI() end
+            end
+            if result.toggleKey and Enum.KeyCode[result.toggleKey] then
+                ctx.TOGGLE_KEY = Enum.KeyCode[result.toggleKey]
+                if ctx.updateKeybindUI then ctx.updateKeybindUI() end
+            end
+
+            -- Load mining/fishing stats
+            if result.perfRarityCounts and type(result.perfRarityCounts) == "table" then
+                ctx.perfRarityCounts = result.perfRarityCounts
+            end
+            if result.perfTotalEarnings then
+                ctx.perfTotalEarnings = tonumber(result.perfTotalEarnings) or 0
+            end
             gui.Settings.WebhookToggleBtn.Text = ctx.webhookEnabled and "Webhook: ON" or "Webhook: OFF"
             gui.Settings.WebhookToggleBtn.BackgroundColor3 = ctx.webhookEnabled and THEME.success or THEME.panel2
             updateSellRarityUI()
@@ -1561,6 +1727,22 @@ return function(gui, config)
         ctx.webhookURL = gui.Settings.WebhookInput.Text
         saveSettings()
     end)
+
+    -- Load config button: re-reads LyraHub_Settings.json and re-applies it
+    if gui.Settings.LoadSettingsBtn then
+        bind(gui.Settings.LoadSettingsBtn.MouseButton1Click, function()
+            loadSettings()
+            updateSellRarityUI()
+            updateWebhookRarityUI()
+            gui.Settings.SaveStatus.Text = "Config loaded!"
+            gui.Settings.SaveStatus.TextColor3 = THEME.success
+            task.delay(3, function()
+                if gui.Settings.SaveStatus and gui.Settings.SaveStatus.Parent then
+                    gui.Settings.SaveStatus.Text = ""
+                end
+            end)
+        end)
+    end
 
     -- Auto-load settings on start
     loadSettings()

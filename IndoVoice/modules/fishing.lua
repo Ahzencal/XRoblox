@@ -16,6 +16,9 @@ return function(ctx)
     local autoFishTimeouts = 0
     local autoFishStage = "Idle"
     local activeAnimConn = nil
+    local fishSessionStart = 0
+    local FISH_BREAK_INTERVAL = 3600 -- 60 min
+    local FISH_BREAK_DURATION = 300 -- 5 min pause
 
     -- Timing config
     local AF_PRE_CAST_DELAY = 0.3
@@ -105,6 +108,7 @@ return function(ctx)
     local function autoFishLoop()
         log("AutoFish: Engine started", THEME.success)
         gui.AutoFish.Status.TextColor3 = THEME.success
+        fishSessionStart = tick()
 
         while ctx.autoFishEnabled and not ctx.destroyed do
             local char = lp.Character
@@ -139,7 +143,9 @@ return function(ctx)
             if not ctx.autoFishEnabled or ctx.destroyed then break end
             if hum.MoveDirection.Magnitude > 0.1 then continue end
 
-            -- CASTING (hold mouse)
+            -- CASTING (hold mouse) — fixed position (0,0) is reliable; a
+            -- randomized offset was tried here but could intermittently land
+            -- on the hub GUI panel and silently eat the click.
             afSetStage("Casting...")
             pcall(function()
                 VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0)

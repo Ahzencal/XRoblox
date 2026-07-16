@@ -112,6 +112,16 @@ return function(ctx)
             and ("Stop [" .. keyName .. "]")
             or ("Start [" .. keyName .. "]")
     end
+    ctx.updateKeybindUI = updateKeybindUI
+
+    -- Sync the CPS slider visuals to the current ctx.clickCPS (used after loading settings)
+    local function updateClickerSliderUI()
+        local ratio = math.clamp(ctx.clickCPS / 100, 0, 1)
+        gui.Clicker.SliderFill.Size = UDim2.new(ratio, 0, 1, 0)
+        gui.Clicker.SliderKnob.Position = UDim2.new(ratio, -8, 0.5, -8)
+        gui.Clicker.CPSLbl.Text = "CPS: " .. ctx.clickCPS
+    end
+    ctx.updateClickerSliderUI = updateClickerSliderUI
 
     bind(gui.Clicker.KeybindBtn.MouseButton1Click, function()
         if isListeningKeybind then return end
@@ -259,15 +269,22 @@ return function(ctx)
 
     -- Periodic performance monitor update + clicker + autoTP heartbeat
     local lastPerfUpdate = 0
+    local lastAutoSave = tick()
     bind(RunService.Heartbeat, function()
         if ctx.destroyed then return end
 
         local now = tick()
         if now - lastPerfUpdate > 10 then
             lastPerfUpdate = now
-            if ctx.autoFishEnabled then
+            if ctx.autoFishEnabled or ctx.autoMineEnabled then
                 updatePerfMonitor()
             end
+        end
+
+        -- Auto-save every 5 minutes
+        if now - lastAutoSave > 300 then
+            lastAutoSave = now
+            pcall(function() ctx.saveSettings() end)
         end
 
         if ctx.clicking then
