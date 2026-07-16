@@ -30,6 +30,10 @@ local function deepClone(t)
     return copy
 end
 
+local function loadModule(name)
+    return compile(fetch(BASE_URL .. "modules/" .. name .. ".lua", name), name)
+end
+
 local configChunk = compile(fetch(BASE_URL .. "config.lua", "config.lua"), "config.lua")
 local guiChunk = compile(fetch(BASE_URL .. "gui.lua", "gui.lua"), "gui.lua")
 local coreChunk = compile(fetch(BASE_URL .. "core.lua", "core.lua"), "core.lua")
@@ -43,4 +47,18 @@ assert(type(guiFactory) == "function", "gui.lua must return a function")
 assert(type(coreFactory) == "function", "core.lua must return a function")
 
 local gui = guiFactory(config)
-coreFactory(gui, config)
+
+-- Core sets up shared context
+local ctx = coreFactory(gui, config)
+
+-- Load modules
+local modules = {"fishing", "mining", "gacha", "shopgacha", "rodshop", "ui"}
+for _, name in ipairs(modules) do
+    local ok, err = pcall(function()
+        local mod = loadModule(name)
+        mod(ctx)
+    end)
+    if not ok then
+        warn("[IndoVoice] Failed to load module '" .. name .. "': " .. tostring(err))
+    end
+end
