@@ -50,13 +50,26 @@ local coreChunk = compile(fetch(BASE_URL .. "core.lua", "core.lua"), "core.lua")
 local guiFactory = guiChunk()
 local coreFactory = coreChunk()
 
-assert(type(guiFactory) == "function", "gui.lua must return a function")
-assert(type(coreFactory) == "function", "core.lua must return a function")
+if type(guiFactory) ~= "function" then
+    warn("[IndoVoice] gui.lua returned: " .. type(guiFactory) .. " (expected function)")
+    return
+end
+if type(coreFactory) ~= "function" then
+    warn("[IndoVoice] core.lua returned: " .. type(coreFactory) .. " (expected function)")
+    return
+end
 
-local gui = guiFactory(config)
+local guiOk, gui = pcall(guiFactory, config)
+if not guiOk then
+    warn("[IndoVoice] gui.lua failed: " .. tostring(gui))
+    return
+end
 
--- Core sets up shared context
-local ctx = coreFactory(gui, config)
+local coreOk, ctx = pcall(coreFactory, gui, config)
+if not coreOk then
+    warn("[IndoVoice] core.lua failed: " .. tostring(ctx))
+    return
+end
 
 -- Load modules
 local modules = {"fishing", "mining", "gacha", "shopgacha", "rodshop", "ui"}
@@ -67,7 +80,7 @@ for _, name in ipairs(modules) do
         if type(modFactory) == "function" then
             modFactory(ctx)
         else
-            warn("[IndoVoice] Module '" .. name .. "' did not return a function")
+            warn("[IndoVoice] Module '" .. name .. "' did not return a function, got: " .. type(modFactory))
         end
     end)
     if not ok then
