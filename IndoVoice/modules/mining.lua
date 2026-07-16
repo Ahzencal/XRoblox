@@ -172,7 +172,7 @@ return function(ctx)
         end
         if not ctx.mineESPOn then return end
         for _, stone in ipairs(getMiningStones()) do
-            if stone:GetAttribute("IsHotspot") then
+            if stone:GetAttribute("IsHotspot") and isStoneAvailable(stone) then
                 addMineESP(stone)
             end
         end
@@ -378,6 +378,11 @@ return function(ctx)
             end
 
             updateMineStats()
+
+            -- Refresh ESP (remove depleted stones, highlight new hotspots)
+            if ctx.mineESPOn then
+                refreshMineESP()
+            end
 
             -- POST DELAY
             amSetStage("Resetting...")
