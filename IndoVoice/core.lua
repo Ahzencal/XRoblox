@@ -1804,6 +1804,8 @@ return function(gui, config)
     local autoMineTPEnabled = false
     local autoMineCounts = {}
     local autoMineStage = "Idle"
+    local mineESPOn = false
+    local mineESPObjects = {}
 
     local MINING_STONES_PATH = workspace:FindFirstChild("Main") and workspace.Main:FindFirstChild("ActiveMiningStones")
     local AM_MINIGAME_TIMEOUT = 40
@@ -1818,7 +1820,7 @@ return function(gui, config)
         local char = lp.Character
         if not char then return nil end
         for _, tool in ipairs(char:GetChildren()) do
-            if tool:IsA("Tool") and (tool:FindFirstChild("Mine") or string.find(string.lower(tool.Name), "pickaxe") or string.find(string.lower(tool.Name), "pick")) then
+            if tool:IsA("Tool") and (tool:FindFirstChild("Mine") or tool:FindFirstChild("MineResultEvent") or string.find(string.lower(tool.Name), "pickaxe") or string.find(string.lower(tool.Name), "pick")) then
                 return tool
             end
         end
@@ -1829,7 +1831,7 @@ return function(gui, config)
         local backpack = lp:FindFirstChildOfClass("Backpack")
         if not backpack then return nil end
         for _, tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and (tool:FindFirstChild("Mine") or string.find(string.lower(tool.Name), "pickaxe") or string.find(string.lower(tool.Name), "pick")) then
+            if tool:IsA("Tool") and (tool:FindFirstChild("Mine") or tool:FindFirstChild("MineResultEvent") or string.find(string.lower(tool.Name), "pickaxe") or string.find(string.lower(tool.Name), "pick")) then
                 return tool
             end
         end
@@ -1857,7 +1859,7 @@ return function(gui, config)
         if not MINING_STONES_PATH then return {} end
         local stones = {}
         for _, stone in ipairs(MINING_STONES_PATH:GetChildren()) do
-            if stone:IsA("BasePart") or stone:IsA("Model") then
+            if stone:IsA("Model") then
                 table.insert(stones, stone)
             end
         end
@@ -1872,7 +1874,7 @@ return function(gui, config)
             if autoMineHotspotOnly and not stone:GetAttribute("IsHotspot") then
                 continue
             end
-            local pos = stone:IsA("Model") and stone:GetPivot().Position or stone.Position
+            local pos = stone:GetPivot().Position
             local d = (hrp.Position - pos).Magnitude
             if d < bestDist then
                 bestDist = d
@@ -1885,8 +1887,73 @@ return function(gui, config)
     local function tpToStone(stone)
         local hrp = getHRP(lp.Character)
         if not hrp or not stone then return end
-        local pos = stone:IsA("Model") and stone:GetPivot().Position or stone.Position
+        local pos = stone:GetPivot().Position
         hrp.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0))
+    end
+
+    local function clickStone(stone)
+        -- Just need to be near the stone and click anywhere
+        pcall(function()
+            VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+            task.wait(0.05)
+            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+        end)
+        return true
+    end
+
+    -- ── HOTSPOT ESP ──
+    local function removeMineESP(stone)
+        local obj = mineESPObjects[stone]
+        if not obj then return end
+        if obj.highlight then obj.highlight:Destroy() end
+        if obj.billboard then obj.billboard:Destroy() end
+        mineESPObjects[stone] = nil
+    end
+
+    local function addMineESP(stone)
+        if mineESPObjects[stone] then return end
+        if not stone:GetAttribute("IsHotspot") then return end
+
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = stone
+        highlight.FillColor = THEME.warn
+        highlight.FillTransparency = 0.7
+        highlight.OutlineColor = THEME.warn
+        highlight.OutlineTransparency = 0.3
+        highlight.Parent = stone
+
+        local bb = Instance.new("BillboardGui")
+        bb.Adornee = stone
+        bb.AlwaysOnTop = true
+        bb.Size = UDim2.new(0, 140, 0, 28)
+        bb.StudsOffset = Vector3.new(0, 6, 0)
+        bb.Parent = stone
+
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.new(1, 0, 1, 0)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = "⛏️ Hotspot"
+        lbl.TextColor3 = THEME.warn
+        lbl.TextStrokeTransparency = 0
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextSize = 13
+        lbl.Parent = bb
+
+        mineESPObjects[stone] = { highlight = highlight, billboard = bb }
+    end
+
+    local function refreshMineESP()
+        -- Remove all existing
+        for stone in pairs(mineESPObjects) do
+            removeMineESP(stone)
+        end
+        if not mineESPOn then return end
+        -- Add for hotspot stones
+        for _, stone in ipairs(getMiningStones()) do
+            if stone:GetAttribute("IsHotspot") then
+                addMineESP(stone)
+            end
+        end
     end
 
     local function updateMineStats()
@@ -1933,52 +2000,31 @@ return function(gui, config)
                 end
             end
 
-            -- TP to nearest stone if enabled
-            if autoMineTPEnabled then
-                local stone, dist = getNearestStone()
-                if stone and dist > 15 then
-                    amSetStage("TP to stone...")
-                    tpToStone(stone)
-                    task.wait(0.5)
-                elseif not stone then
-                    amSetStage("No stones available")
-                    task.wait(2)
-                    continue
-                end
-            end
-
-            -- ── MINE (invoke Mine remote) ──
-            amSetStage("Mining...")
-            local pick = getPickaxe()
-            local mineRemote = pick and pick:FindFirstChild("Mine")
-
-            if not mineRemote then
-                log("AutoMine: Mine remote not found", THEME.danger)
+            -- Find nearest stone
+            local stone, dist = getNearestStone()
+            if not stone then
+                amSetStage("No stones available")
                 task.wait(2)
                 continue
             end
 
-            local mineSuccess = false
-            pcall(function()
-                local result = mineRemote:InvokeServer(tick())
-                mineSuccess = result == true
-            end)
+            -- TP to stone if enabled and far away
+            if autoMineTPEnabled and dist > 15 then
+                amSetStage("TP to stone...")
+                tpToStone(stone)
+                task.wait(0.5)
+            end
 
-            if not mineSuccess then
-                amSetStage("Mine failed, retrying...")
+            -- ── CLICK THE STONE ──
+            amSetStage("Clicking stone...")
+            local clicked = clickStone(stone)
+            if not clicked then
+                log("AutoMine: Failed to click stone", THEME.warn)
                 task.wait(1)
                 continue
             end
 
             if not autoMineEnabled or destroyed then break end
-
-            -- ── FIRE MinigameOpenedEvent ──
-            local minigameOpened = pick:FindFirstChild("MinigameOpenedEvent")
-            if minigameOpened then
-                pcall(function()
-                    minigameOpened:FireServer(tick())
-                end)
-            end
 
             -- ── WAIT FOR STARTMINIGAME (ore info) ──
             amSetStage("Waiting for minigame...")
@@ -1986,7 +2032,8 @@ return function(gui, config)
             local mineData = nil
             local minigameConn = nil
 
-            local startMinigame = pick:FindFirstChild("StartMinigame")
+            local pick = getPickaxe()
+            local startMinigame = pick and pick:FindFirstChild("StartMinigame")
             if startMinigame and startMinigame:IsA("RemoteEvent") then
                 minigameConn = startMinigame.OnClientEvent:Connect(function(rarity, info)
                     minigameStarted = true
@@ -2023,7 +2070,7 @@ return function(gui, config)
             amSetStage("Waiting for result...")
             local resultData = nil
             local resultConn = nil
-            local mineResult = pick:FindFirstChild("MineResult")
+            local mineResult = pick and pick:FindFirstChild("MineResult")
 
             if mineResult and mineResult:IsA("RemoteEvent") then
                 resultConn = mineResult.OnClientEvent:Connect(function(info)
@@ -2044,7 +2091,7 @@ return function(gui, config)
 
             -- ── FIRE MineResultEvent ──
             amSetStage("Confirming result...")
-            local mineResultEvent = pick:FindFirstChild("MineResultEvent")
+            local mineResultEvent = pick and pick:FindFirstChild("MineResultEvent")
             if mineResultEvent then
                 pcall(function()
                     mineResultEvent:FireServer(true)
@@ -2052,7 +2099,7 @@ return function(gui, config)
             end
 
             -- ── LOG RESULT ──
-            local oreName = resultData and resultData.OreName or (mineData and mineData.Rarity or "Unknown")
+            local oreName = resultData and resultData.OreName or "Unknown"
             local oreRarity = resultData and resultData.Rarity or (mineData and mineData.Rarity or "?")
             local orePrice = resultData and resultData.Price or nil
 
@@ -2122,6 +2169,21 @@ return function(gui, config)
             gui.Mining.TPBtn.BackgroundColor3 = THEME.tp
             log("AutoMine: Auto TP OFF", THEME.dim)
         end
+    end)
+
+    -- Hotspot ESP toggle
+    bind(gui.Mining.ESPBtn.MouseButton1Click, function()
+        mineESPOn = not mineESPOn
+        if mineESPOn then
+            gui.Mining.ESPBtn.Text = "Hotspot ESP: ON"
+            gui.Mining.ESPBtn.BackgroundColor3 = THEME.success
+            log("AutoMine: Hotspot ESP ON", THEME.success)
+        else
+            gui.Mining.ESPBtn.Text = "Hotspot ESP: OFF"
+            gui.Mining.ESPBtn.BackgroundColor3 = THEME.warn
+            log("AutoMine: Hotspot ESP OFF", THEME.dim)
+        end
+        refreshMineESP()
     end)
 
     -- ═══════════════════════════════════════════

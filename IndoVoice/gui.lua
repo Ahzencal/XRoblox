@@ -806,6 +806,17 @@ return function(config)
     MineOreStats.TextWrapped = true
     MineOreStats.Parent = MiningScroll
 
+    local AutoMineESPBtn = Instance.new("TextButton")
+    AutoMineESPBtn.Size = UDim2.new(1, -20, 0, 32)
+    AutoMineESPBtn.BackgroundColor3 = LYRA.warn
+    AutoMineESPBtn.TextColor3 = Color3.new(1, 1, 1)
+    AutoMineESPBtn.Font = Enum.Font.GothamBold
+    AutoMineESPBtn.TextSize = 12
+    AutoMineESPBtn.Text = "Hotspot ESP: OFF"
+    AutoMineESPBtn.BorderSizePixel = 0
+    AutoMineESPBtn.Parent = MiningScroll
+    Instance.new("UICorner", AutoMineESPBtn).CornerRadius = UDim.new(0, 10)
+
     -- ═══════════════════════════════════════════
     -- FUN THINGS TAB (Auto Clicker + Auto Gacha)
     -- ═══════════════════════════════════════════
@@ -1639,6 +1650,7 @@ return function(config)
             LastOre = AutoMineLastOre,
             HotspotBtn = AutoMineHotspotBtn,
             TPBtn = AutoMineTPBtn,
+            ESPBtn = AutoMineESPBtn,
             OreStats = MineOreStats,
         },
         Settings = {
