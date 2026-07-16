@@ -817,6 +817,95 @@ return function(config)
     AutoMineESPBtn.Parent = MiningScroll
     Instance.new("UICorner", AutoMineESPBtn).CornerRadius = UDim.new(0, 10)
 
+    -- Separator
+    local MineSep = Instance.new("Frame")
+    MineSep.Size = UDim2.new(1, -20, 0, 1)
+    MineSep.BackgroundColor3 = LYRA.dim
+    MineSep.BackgroundTransparency = 0.7
+    MineSep.BorderSizePixel = 0
+    MineSep.Parent = MiningScroll
+
+    -- Auto Sell Ore section
+    local AutoSellOreBtn = Instance.new("TextButton")
+    AutoSellOreBtn.Size = UDim2.new(1, -20, 0, 36)
+    AutoSellOreBtn.BackgroundColor3 = LYRA.warn
+    AutoSellOreBtn.TextColor3 = Color3.new(1, 1, 1)
+    AutoSellOreBtn.Font = Enum.Font.GothamBold
+    AutoSellOreBtn.TextSize = 13
+    AutoSellOreBtn.Text = "Auto Sell Ore: OFF"
+    AutoSellOreBtn.BorderSizePixel = 0
+    AutoSellOreBtn.Parent = MiningScroll
+    Instance.new("UICorner", AutoSellOreBtn).CornerRadius = UDim.new(0, 10)
+
+    local SellOreNowBtn = Instance.new("TextButton")
+    SellOreNowBtn.Size = UDim2.new(1, -20, 0, 36)
+    SellOreNowBtn.BackgroundColor3 = LYRA.accent
+    SellOreNowBtn.TextColor3 = Color3.new(1, 1, 1)
+    SellOreNowBtn.Font = Enum.Font.GothamBold
+    SellOreNowBtn.TextSize = 13
+    SellOreNowBtn.Text = "Sell Ore Now"
+    SellOreNowBtn.BorderSizePixel = 0
+    SellOreNowBtn.Parent = MiningScroll
+    Instance.new("UICorner", SellOreNowBtn).CornerRadius = UDim.new(0, 10)
+
+    local OreSellIntervalLbl = Instance.new("TextLabel")
+    OreSellIntervalLbl.Size = UDim2.new(0, 100, 0, 20)
+    OreSellIntervalLbl.BackgroundTransparency = 1
+    OreSellIntervalLbl.Text = "Sell Interval (s):"
+    OreSellIntervalLbl.TextColor3 = LYRA.dim
+    OreSellIntervalLbl.Font = Enum.Font.Gotham
+    OreSellIntervalLbl.TextSize = 10
+    OreSellIntervalLbl.TextXAlignment = Enum.TextXAlignment.Left
+    OreSellIntervalLbl.Parent = MiningScroll
+
+    local OreSellIntervalInput = Instance.new("TextBox")
+    OreSellIntervalInput.Size = UDim2.new(0, 60, 0, 20)
+    OreSellIntervalInput.BackgroundColor3 = LYRA.bg2
+    OreSellIntervalInput.TextColor3 = LYRA.text
+    OreSellIntervalInput.Text = "3600"
+    OreSellIntervalInput.Font = Enum.Font.Code
+    OreSellIntervalInput.TextSize = 10
+    OreSellIntervalInput.ClearTextOnFocus = false
+    OreSellIntervalInput.BorderSizePixel = 0
+    OreSellIntervalInput.Parent = MiningScroll
+    Instance.new("UICorner", OreSellIntervalInput).CornerRadius = UDim.new(0, 4)
+
+    local OreSellRarityTitle = Instance.new("TextLabel")
+    OreSellRarityTitle.Size = UDim2.new(1, -20, 0, 16)
+    OreSellRarityTitle.BackgroundTransparency = 1
+    OreSellRarityTitle.Text = "Sell Rarities:"
+    OreSellRarityTitle.TextColor3 = LYRA.dim
+    OreSellRarityTitle.Font = Enum.Font.Gotham
+    OreSellRarityTitle.TextSize = 10
+    OreSellRarityTitle.TextXAlignment = Enum.TextXAlignment.Left
+    OreSellRarityTitle.Parent = MiningScroll
+
+    local oreRarities = {"Common", "Uncommon", "Rare", "Epic", "Legend", "Mythic", "Ancient"}
+    local OreSellRarityButtons = {}
+    local OreSellRarityFrame = Instance.new("Frame")
+    OreSellRarityFrame.Size = UDim2.new(1, -20, 0, 52)
+    OreSellRarityFrame.BackgroundTransparency = 1
+    OreSellRarityFrame.Parent = MiningScroll
+
+    for i, rarity in ipairs(oreRarities) do
+        local btn = Instance.new("TextButton")
+        btn.Text = rarity
+        btn.Size = UDim2.new(0, 56, 0, 20)
+        btn.Position = UDim2.new(0, ((i - 1) % 5) * 62, 0, math.floor((i - 1) / 5) * 26)
+        btn.BackgroundColor3 = LYRA.success
+        btn.BackgroundTransparency = 0.2
+        btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 9
+        btn.BorderSizePixel = 0
+        btn.Parent = OreSellRarityFrame
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+        OreSellRarityButtons[rarity] = btn
+    end
+
+    -- Update canvas size for more content
+    MiningScroll.CanvasSize = UDim2.new(0, 0, 0, 700)
+
     -- ═══════════════════════════════════════════
     -- FUN THINGS TAB (Auto Clicker + Auto Gacha)
     -- ═══════════════════════════════════════════
@@ -1652,6 +1741,10 @@ return function(config)
             TPBtn = AutoMineTPBtn,
             ESPBtn = AutoMineESPBtn,
             OreStats = MineOreStats,
+            AutoSellBtn = AutoSellOreBtn,
+            SellNowBtn = SellOreNowBtn,
+            SellIntervalInput = OreSellIntervalInput,
+            SellRarityButtons = OreSellRarityButtons,
         },
         Settings = {
             HideKeyLbl = HideKeyLbl,

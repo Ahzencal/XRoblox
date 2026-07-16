@@ -787,6 +787,7 @@ return function(gui, config)
         autoSellEnabled = false
         autoFishEnabled = false
         autoMineEnabled = false
+        autoSellOreEnabled = false
         autoGachaEnabled = false
         shopGachaEnabled = false
         autoClaimDailyRewardEnabled = false
@@ -1482,8 +1483,8 @@ return function(gui, config)
     local AF_CAST_HOLD_MIN = 0.4
     local AF_CAST_HOLD_MAX = 0.6
     local AF_VERIFY_CAST_TIMEOUT = 2.5
-    local AF_BAIT_LANDED_TIMEOUT = 40
-    local AF_MINIGAME_TIMEOUT = 40
+    local AF_BAIT_LANDED_TIMEOUT = 45
+    local AF_MINIGAME_TIMEOUT = 45
     local AF_POST_END_DELAY = 0.3
 
     -- Animation IDs (IndoVoice fishing game)
@@ -1814,7 +1815,7 @@ return function(gui, config)
     local mineESPObjects = {}
 
     local MINING_STONES_PATH = workspace:FindFirstChild("Main") and workspace.Main:FindFirstChild("ActiveMiningStones")
-    local AM_MINIGAME_TIMEOUT = 40
+    local AM_MINIGAME_TIMEOUT = 45
     local AM_POST_MINE_DELAY = 0.5
 
     local function amSetStage(stage)
@@ -2086,17 +2087,27 @@ return function(gui, config)
                 continue
             end
 
-            -- ── SKIP MINIGAME (random 8-15s delay then fire MineResult) ──
+            -- ── SKIP MINIGAME (random 5-10s delay then fire MineResult) ──
             amSetStage("Minigame active, waiting to mine...")
-            local skipDelay = 8 + math.random() * 7
+            local skipDelay = 5 + math.random() * 5
             task.wait(skipDelay)
 
             if not autoMineEnabled or destroyed then break end
 
-            -- ── FIRE MineResult (catch) ──
+            -- ── LISTEN FOR MINERESULT DATA + FIRE MineResult (catch) ──
             amSetStage("Mining!")
+            local oreResultData = nil
+            local resultConn = nil
             local mineResultRemote = pick and (pick:FindFirstChild("MineResult"))
+
             if mineResultRemote and mineResultRemote:IsA("RemoteEvent") then
+                -- Listen for the server response with ore data
+                resultConn = mineResultRemote.OnClientEvent:Connect(function(info)
+                    if info and type(info) == "table" then
+                        oreResultData = info
+                    end
+                end)
+                -- Fire to confirm catch
                 pcall(function()
                     mineResultRemote:FireServer(true)
                 end)
@@ -2105,6 +2116,13 @@ return function(gui, config)
                 task.wait(1)
                 continue
             end
+
+            -- Wait briefly for ore data response
+            local dataWait = tick()
+            while not oreResultData and (tick() - dataWait) < 3 do
+                task.wait(0.1)
+            end
+            if resultConn then resultConn:Disconnect() end
 
             -- ── FIRE MinigameOpenedEvent (close minigame) ──
             local minigameOpened = pick and pick:FindFirstChild("MinigameOpenedEvent")
@@ -2128,9 +2146,10 @@ return function(gui, config)
             end)
 
             -- ── LOG RESULT ──
-            local oreName = mineData and mineData.OreName or "Unknown"
-            local oreRarity = mineData and mineData.Rarity or "?"
-            local orePrice = mineData and mineData.Price or nil
+            local oreName = (oreResultData and oreResultData.OreName) or (mineData and mineData.OreName) or "Unknown"
+            local oreRarity = (oreResultData and oreResultData.Rarity) or (mineData and mineData.Rarity) or "?"
+            local orePrice = (oreResultData and oreResultData.Price) or (mineData and mineData.Price) or nil
+            local oreDensity = (oreResultData and oreResultData.Density) or nil
 
             gui.Mining.LastOre.Text = "Last: " .. oreName .. " [" .. oreRarity .. "]"
             log("AutoMine: Mined " .. oreName .. " (" .. oreRarity .. ")", THEME.success)
@@ -2214,6 +2233,165 @@ return function(gui, config)
         end
         refreshMineESP()
     end)
+
+    -- ═══════════════════════════════════════════
+    -- AUTO SELL ORE SYSTEM
+    -- ═══════════════════════════════════════════
+    local autoSellOreEnabled = false
+    local ORE_SELL_INTERVAL = 3600
+    local oreSellRarities = {
+        Common = true, Uncommon = true, Rare = true,
+        Epic = true, Legend = true, Mythic = true, Ancient = true,
+    }
+
+    local SellOreRemote = nil
+    task.spawn(function()
+        local rf = ReplicatedStorage:WaitForChild("GameRemoteFunctions", 10)
+        if rf then
+            SellOreRemote = rf:WaitForChild("SellAllOreFunctionEvent", 10)
+        end
+    end)
+
+    local function getActiveOreSellRarities()
+        local list = {}
+        for r, on in pairs(oreSellRarities) do
+            if on then table.insert(list, r) end
+        end
+        return list
+    end
+
+    local function updateOreSellRarityUI()
+        for rarity, btn in pairs(gui.Mining.SellRarityButtons) do
+            if oreSellRarities[rarity] then
+                btn.BackgroundColor3 = THEME.success
+                btn.BackgroundTransparency = 0.2
+                btn.TextColor3 = Color3.new(1, 1, 1)
+            else
+                btn.BackgroundColor3 = THEME.panel2
+                btn.BackgroundTransparency = 0.6
+                btn.TextColor3 = THEME.dim
+            end
+        end
+    end
+
+    local function performOreSell()
+        local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return false, "No HumanoidRootPart" end
+
+        -- Find OreShop
+        local oreShop = nil
+        local world = workspace:FindFirstChild("World")
+        if world then
+            for _, mapName in ipairs({"Map_01", "Map_02", "Map_03"}) do
+                local currentMap = world:FindFirstChild(mapName)
+                if currentMap then
+                    local s = currentMap:FindFirstChild("Asset")
+                    if s then s = s:FindFirstChild("ShopNPC") end
+                    if s then s = s:FindFirstChild("OreShop") end
+                    if s then
+                        oreShop = s
+                        break
+                    end
+                end
+            end
+        end
+
+        if not oreShop then return false, "OreShop not found!" end
+
+        -- Save state
+        local wasAutoMine = autoMineEnabled
+        local wasAutoTP = autoTPEnabled
+        autoTPEnabled = false
+        local oldCFrame = hrp.CFrame
+        local oldAnchorPos = frozenAnchor and frozenAnchor.Position
+
+        -- TP to OreShop
+        local shopPivot = oreShop:GetPivot()
+        local targetPos = (shopPivot * CFrame.new(0, 3, 12)).Position
+        hrp.CFrame = CFrame.new(targetPos)
+        if frozenAnchor and frozenAnchor.Parent then
+            frozenAnchor.Position = targetPos
+        end
+
+        task.wait(0.3)
+
+        -- Sell
+        local raritiesList = getActiveOreSellRarities()
+        local result
+        local success, err = pcall(function()
+            if SellOreRemote then
+                result = SellOreRemote:InvokeServer(raritiesList)
+            end
+        end)
+
+        -- TP back
+        hrp.CFrame = oldCFrame
+        if frozenAnchor and frozenAnchor.Parent and oldAnchorPos then
+            frozenAnchor.Position = oldAnchorPos
+        end
+        autoTPEnabled = wasAutoTP
+
+        return success, result or err
+    end
+
+    -- Sell rarity toggles
+    for rarity, btn in pairs(gui.Mining.SellRarityButtons) do
+        bind(btn.MouseButton1Click, function()
+            oreSellRarities[rarity] = not oreSellRarities[rarity]
+            updateOreSellRarityUI()
+        end)
+    end
+
+    -- Sell interval input
+    bind(gui.Mining.SellIntervalInput.FocusLost, function()
+        local val = tonumber(gui.Mining.SellIntervalInput.Text)
+        if val and val >= 10 then
+            ORE_SELL_INTERVAL = val
+            log("Ore Sell interval: " .. val .. "s", THEME.dim)
+        else
+            gui.Mining.SellIntervalInput.Text = tostring(ORE_SELL_INTERVAL)
+        end
+    end)
+
+    -- Auto sell ore toggle
+    bind(gui.Mining.AutoSellBtn.MouseButton1Click, function()
+        autoSellOreEnabled = not autoSellOreEnabled
+        if autoSellOreEnabled then
+            gui.Mining.AutoSellBtn.Text = "Auto Sell Ore: ON"
+            gui.Mining.AutoSellBtn.BackgroundColor3 = THEME.success
+            log("Auto Sell Ore: ON (interval " .. ORE_SELL_INTERVAL .. "s)", THEME.success)
+            task.spawn(function()
+                while autoSellOreEnabled and not destroyed do
+                    if SellOreRemote then
+                        local ok, msg = performOreSell()
+                        log("Auto Sell Ore: " .. tostring(msg), ok and THEME.success or THEME.danger)
+                    end
+                    task.wait(ORE_SELL_INTERVAL)
+                end
+            end)
+        else
+            gui.Mining.AutoSellBtn.Text = "Auto Sell Ore: OFF"
+            gui.Mining.AutoSellBtn.BackgroundColor3 = THEME.warn
+            log("Auto Sell Ore: OFF", THEME.dim)
+        end
+    end)
+
+    -- Sell ore now button
+    bind(gui.Mining.SellNowBtn.MouseButton1Click, function()
+        log("Sell Ore Now: Attempting TP & sell...", THEME.warn)
+        if not SellOreRemote then
+            log("Sell Ore Now: FAILED - remote not loaded", THEME.danger)
+            return
+        end
+        local success, msg = performOreSell()
+        if success then
+            log("Sell Ore Now: SUCCESS - " .. tostring(msg), THEME.success)
+        else
+            log("Sell Ore Now: FAILED - " .. tostring(msg), THEME.danger)
+        end
+    end)
+
+    updateOreSellRarityUI()
 
     -- ═══════════════════════════════════════════
     -- AUTO GACHA SYSTEM
