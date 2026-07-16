@@ -1872,12 +1872,24 @@ return function(gui, config)
         return stones
     end
 
+    local function isStoneAvailable(stone)
+        local available = stone:GetAttribute("AvailableSlot")
+        if available and available <= 0 then return false end
+        local consumed = stone:GetAttribute("ConsumedSlot")
+        local maxSlot = stone:GetAttribute("MaxSlot")
+        if consumed and maxSlot and consumed >= maxSlot then return false end
+        return true
+    end
+
     local function getNearestStone()
         local hrp = getHRP(lp.Character)
-        if not hrp then return nil end
+        if not hrp then return nil, math.huge end
         local best, bestDist = nil, math.huge
         for _, stone in ipairs(getMiningStones()) do
             if autoMineHotspotOnly and not stone:GetAttribute("IsHotspot") then
+                continue
+            end
+            if not isStoneAvailable(stone) then
                 continue
             end
             local pos = stone:GetPivot().Position
@@ -1894,7 +1906,7 @@ return function(gui, config)
         local hrp = getHRP(lp.Character)
         if not hrp or not stone then return end
         local pos = stone:GetPivot().Position
-        hrp.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0))
+        hrp.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
     end
 
     local function clickStone(stone)
@@ -2006,19 +2018,24 @@ return function(gui, config)
                 end
             end
 
-            -- Find nearest stone
+            -- Find nearest stone (auto-switches when current stone is full)
             local stone, dist = getNearestStone()
             if not stone then
                 amSetStage("No stones available")
-                task.wait(2)
+                log("AutoMine: All stones full or filtered out", THEME.warn)
+                task.wait(3)
                 continue
             end
 
-            -- TP to stone if enabled and far away
-            if autoMineTPEnabled and dist > 15 then
+            -- TP to stone if enabled
+            if autoMineTPEnabled then
                 amSetStage("TP to stone...")
                 tpToStone(stone)
                 task.wait(0.5)
+            elseif dist > 15 then
+                amSetStage("Too far from stone, enable Auto TP")
+                task.wait(2)
+                continue
             end
 
             -- ── CLICK THE STONE ──
@@ -2065,22 +2082,22 @@ return function(gui, config)
                 continue
             end
 
-            -- ── SKIP MINIGAME (random 10-15s delay then fire MineResultEvent) ──
+            -- ── SKIP MINIGAME (random 8-15s delay then fire MineResult) ──
             amSetStage("Minigame active, waiting to mine...")
-            local skipDelay = 10 + math.random() * 5
+            local skipDelay = 8 + math.random() * 7
             task.wait(skipDelay)
 
             if not autoMineEnabled or destroyed then break end
 
-            -- ── FIRE MineResultEvent (catch) ──
+            -- ── FIRE MineResult (catch) ──
             amSetStage("Mining!")
-            local mineResultEvent = pick and pick:FindFirstChild("MineResultEvent")
-            if mineResultEvent then
+            local mineResultRemote = pick and (pick:FindFirstChild("MineResult"))
+            if mineResultRemote and mineResultRemote:IsA("RemoteEvent") then
                 pcall(function()
-                    mineResultEvent:FireServer(true)
+                    mineResultRemote:FireServer(true)
                 end)
             else
-                log("AutoMine: MineResultEvent not found", THEME.danger)
+                log("AutoMine: MineResult remote not found", THEME.danger)
                 task.wait(1)
                 continue
             end
