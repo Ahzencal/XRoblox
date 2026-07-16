@@ -1906,7 +1906,11 @@ return function(gui, config)
         local hrp = getHRP(lp.Character)
         if not hrp or not stone then return end
         local pos = stone:GetPivot().Position
-        hrp.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
+        -- TP 3-5 studs beside the stone (random offset), not inside it
+        local offset = 3 + math.random() * 2
+        local angle = math.random() * math.pi * 2
+        local beside = pos + Vector3.new(math.cos(angle) * offset, 3, math.sin(angle) * offset)
+        hrp.CFrame = CFrame.new(beside, pos)
     end
 
     local function clickStone(stone)
@@ -2101,6 +2105,27 @@ return function(gui, config)
                 task.wait(1)
                 continue
             end
+
+            -- ── FIRE MinigameOpenedEvent (close minigame) ──
+            local minigameOpened = pick and pick:FindFirstChild("MinigameOpenedEvent")
+            if minigameOpened then
+                pcall(function()
+                    minigameOpened:FireServer(tick())
+                end)
+            end
+
+            -- ── DESTROY MINIGAME GUI ──
+            pcall(function()
+                local playerGui = lp:FindFirstChild("PlayerGui")
+                if playerGui then
+                    for _, g in pairs(playerGui:GetChildren()) do
+                        if g:IsA("ScreenGui") and (g:FindFirstChild("MiningHolder", true) or g:FindFirstChild("FishingHolder", true)) then
+                            g:Destroy()
+                            break
+                        end
+                    end
+                end
+            end)
 
             -- ── LOG RESULT ──
             local oreName = mineData and mineData.OreName or "Unknown"
