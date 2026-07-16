@@ -35,14 +35,21 @@ local function loadModule(name)
 end
 
 local configChunk = compile(fetch(BASE_URL .. "config.lua", "config.lua"), "config.lua")
+local config = deepClone(configChunk())
+assert(type(config) == "table", "config.lua must return a table")
+
+-- Password gate (blocks until authenticated)
+local gateChunk = compile(fetch(BASE_URL .. "gate.lua", "gate.lua"), "gate.lua")
+local gateFactory = gateChunk()
+assert(type(gateFactory) == "function", "gate.lua must return a function")
+gateFactory(config)
+
+-- Load main UI after authentication
 local guiChunk = compile(fetch(BASE_URL .. "gui.lua", "gui.lua"), "gui.lua")
 local coreChunk = compile(fetch(BASE_URL .. "core.lua", "core.lua"), "core.lua")
-
-local config = deepClone(configChunk())
 local guiFactory = guiChunk()
 local coreFactory = coreChunk()
 
-assert(type(config) == "table", "config.lua must return a table")
 assert(type(guiFactory) == "function", "gui.lua must return a function")
 assert(type(coreFactory) == "function", "core.lua must return a function")
 
