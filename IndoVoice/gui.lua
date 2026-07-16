@@ -853,10 +853,6 @@ return function(config)
     MineOreStats.TextXAlignment = Enum.TextXAlignment.Left
     MineOreStats.TextYAlignment = Enum.TextYAlignment.Top
     MineOreStats.Parent = MiningScroll
-        btn.Parent = MiningScroll
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
-        OreSellRarityButtons[rarity] = btn
-    end
 
     -- ═══════════════════════════════════════════
     -- FUN THINGS TAB (Auto Clicker + Auto Gacha)
