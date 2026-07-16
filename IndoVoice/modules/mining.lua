@@ -11,8 +11,9 @@ return function(ctx)
     local VIM = ctx.VIM
     local ReplicatedStorage = ctx.ReplicatedStorage
 
-    local autoMineHotspotOnly = false
-    local autoMineTPEnabled = false
+    -- Exposed on ctx (with defaults) so Settings save/load can persist these toggles
+    ctx.autoMineHotspotOnly = ctx.autoMineHotspotOnly or false
+    ctx.autoMineTPEnabled = ctx.autoMineTPEnabled or false
     local autoMineCounts = {}
     local autoMineStage = "Idle"
     local mineSessionStart = 0
@@ -100,7 +101,7 @@ return function(ctx)
         if not hrp then return nil, math.huge end
         local best, bestDist = nil, math.huge
         for _, stone in ipairs(getMiningStones()) do
-            if autoMineHotspotOnly and not stone:GetAttribute("IsHotspot") then
+            if ctx.autoMineHotspotOnly and not stone:GetAttribute("IsHotspot") then
                 continue
             end
             if not isStoneAvailable(stone) then
@@ -124,6 +125,25 @@ return function(ctx)
         local angle = math.random() * math.pi * 2
         local beside = pos + Vector3.new(math.cos(angle) * offset, 3, math.sin(angle) * offset)
         hrp.CFrame = CFrame.new(beside, pos)
+    end
+
+    -- Standalone Auto TP loop: runs independently of Auto Mine so the player
+    -- can be auto-positioned near stones while manually choosing which one to
+    -- click. When this toggle is OFF, the player walks/selects stones freely.
+    local stoneTPLoopRunning = false
+    local function startStoneTPLoop()
+        if stoneTPLoopRunning then return end
+        stoneTPLoopRunning = true
+        task.spawn(function()
+            while ctx.autoMineTPEnabled and not ctx.destroyed do
+                local stone, dist = getNearestStone()
+                if stone and dist > 8 then
+                    tpToStone(stone)
+                end
+                task.wait(1)
+            end
+            stoneTPLoopRunning = false
+        end)
     end
 
     local function clickStone(stone)
@@ -244,10 +264,11 @@ return function(ctx)
                 continue
             end
 
-            if autoMineTPEnabled then
+            if ctx.autoMineTPEnabled then
+                -- The standalone TP loop (startStoneTPLoop) keeps the player
+                -- positioned near stones; just wait briefly for it to settle.
                 amSetStage("TP to stone...")
-                tpToStone(stone)
-                task.wait(0.5)
+                task.wait(0.3)
             elseif dist > 15 then
                 amSetStage("Too far from stone, enable Auto TP")
                 task.wait(2)
@@ -432,30 +453,43 @@ return function(ctx)
     end)
 
     -- Hotspot only toggle
-    bind(gui.Mining.HotspotBtn.MouseButton1Click, function()
-        autoMineHotspotOnly = not autoMineHotspotOnly
-        if autoMineHotspotOnly then
+    local function updateHotspotBtnUI()
+        if ctx.autoMineHotspotOnly then
             gui.Mining.HotspotBtn.Text = "Hotspot Only: ON"
             gui.Mining.HotspotBtn.BackgroundColor3 = THEME.success
-            log("AutoMine: Hotspot Only ON", THEME.success)
         else
             gui.Mining.HotspotBtn.Text = "Hotspot Only: OFF"
             gui.Mining.HotspotBtn.BackgroundColor3 = THEME.tp
-            log("AutoMine: Hotspot Only OFF", THEME.dim)
         end
+    end
+    ctx.updateHotspotBtnUI = updateHotspotBtnUI
+
+    bind(gui.Mining.HotspotBtn.MouseButton1Click, function()
+        ctx.autoMineHotspotOnly = not ctx.autoMineHotspotOnly
+        updateHotspotBtnUI()
+        log("AutoMine: Hotspot Only " .. (ctx.autoMineHotspotOnly and "ON" or "OFF"),
+            ctx.autoMineHotspotOnly and THEME.success or THEME.dim)
     end)
 
     -- Auto TP toggle
-    bind(gui.Mining.TPBtn.MouseButton1Click, function()
-        autoMineTPEnabled = not autoMineTPEnabled
-        if autoMineTPEnabled then
+    local function updateMineTPBtnUI()
+        if ctx.autoMineTPEnabled then
             gui.Mining.TPBtn.Text = "Auto TP to Stones: ON"
             gui.Mining.TPBtn.BackgroundColor3 = THEME.success
-            log("AutoMine: Auto TP ON", THEME.success)
         else
             gui.Mining.TPBtn.Text = "Auto TP to Stones: OFF"
             gui.Mining.TPBtn.BackgroundColor3 = THEME.tp
-            log("AutoMine: Auto TP OFF", THEME.dim)
+        end
+    end
+    ctx.updateMineTPBtnUI = updateMineTPBtnUI
+
+    bind(gui.Mining.TPBtn.MouseButton1Click, function()
+        ctx.autoMineTPEnabled = not ctx.autoMineTPEnabled
+        updateMineTPBtnUI()
+        log("AutoMine: Auto TP " .. (ctx.autoMineTPEnabled and "ON" or "OFF"),
+            ctx.autoMineTPEnabled and THEME.success or THEME.dim)
+        if ctx.autoMineTPEnabled then
+            startStoneTPLoop()
         end
     end)
 
@@ -477,8 +511,10 @@ return function(ctx)
     -- ═══════════════════════════════════════════
     -- AUTO SELL ORE SYSTEM
     -- ═══════════════════════════════════════════
-    local ORE_SELL_INTERVAL = 3600
-    local oreSellRarities = {
+    -- ctx.ORE_SELL_INTERVAL / ctx.oreSellRarities are exposed (with defaults)
+    -- so Settings save/load persistence works across sessions.
+    ctx.ORE_SELL_INTERVAL = ctx.ORE_SELL_INTERVAL or 3600
+    ctx.oreSellRarities = ctx.oreSellRarities or {
         Common = true, Uncommon = true, Rare = true,
         Epic = true, Legend = true, Mythic = false, Ancient = false,
     }
@@ -493,7 +529,7 @@ return function(ctx)
 
     local function getActiveOreSellRarities()
         local list = {}
-        for r, on in pairs(oreSellRarities) do
+        for r, on in pairs(ctx.oreSellRarities) do
             if on then table.insert(list, r) end
         end
         return list
@@ -501,7 +537,7 @@ return function(ctx)
 
     local function updateOreSellRarityUI()
         for rarity, btn in pairs(gui.Mining.SellRarityButtons) do
-            if oreSellRarities[rarity] then
+            if ctx.oreSellRarities[rarity] then
                 btn.BackgroundColor3 = THEME.success
                 btn.BackgroundTransparency = 0.2
                 btn.TextColor3 = Color3.new(1, 1, 1)
@@ -512,6 +548,7 @@ return function(ctx)
             end
         end
     end
+    ctx.updateOreSellRarityUI = updateOreSellRarityUI
 
     local function performOreSell()
         local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
@@ -616,7 +653,7 @@ return function(ctx)
     -- Sell rarity toggles
     for rarity, btn in pairs(gui.Mining.SellRarityButtons) do
         bind(btn.MouseButton1Click, function()
-            oreSellRarities[rarity] = not oreSellRarities[rarity]
+            ctx.oreSellRarities[rarity] = not ctx.oreSellRarities[rarity]
             updateOreSellRarityUI()
         end)
     end
@@ -625,10 +662,10 @@ return function(ctx)
     bind(gui.Mining.SellIntervalInput.FocusLost, function()
         local val = tonumber(gui.Mining.SellIntervalInput.Text)
         if val and val >= 10 then
-            ORE_SELL_INTERVAL = val
+            ctx.ORE_SELL_INTERVAL = val
             log("Ore Sell interval: " .. val .. "s", THEME.dim)
         else
-            gui.Mining.SellIntervalInput.Text = tostring(ORE_SELL_INTERVAL)
+            gui.Mining.SellIntervalInput.Text = tostring(ctx.ORE_SELL_INTERVAL)
         end
     end)
 
@@ -638,14 +675,14 @@ return function(ctx)
         if ctx.autoSellOreEnabled then
             gui.Mining.AutoSellBtn.Text = "Auto Sell Ore: ON"
             gui.Mining.AutoSellBtn.BackgroundColor3 = THEME.success
-            log("Auto Sell Ore: ON (interval " .. ORE_SELL_INTERVAL .. "s)", THEME.success)
+            log("Auto Sell Ore: ON (interval " .. ctx.ORE_SELL_INTERVAL .. "s)", THEME.success)
             task.spawn(function()
                 while ctx.autoSellOreEnabled and not ctx.destroyed do
                     if SellOreRemote then
                         local ok, msg = performOreSell()
                         log("Auto Sell Ore: " .. tostring(msg), ok and THEME.success or THEME.danger)
                     end
-                    task.wait(ORE_SELL_INTERVAL)
+                    task.wait(ctx.ORE_SELL_INTERVAL)
                 end
             end)
         else
@@ -671,4 +708,12 @@ return function(ctx)
     end)
 
     updateOreSellRarityUI()
+    updateHotspotBtnUI()
+    updateMineTPBtnUI()
+    gui.Mining.SellIntervalInput.Text = tostring(ctx.ORE_SELL_INTERVAL)
+
+    -- If Auto TP was restored as ON from saved settings, start the standalone loop
+    if ctx.autoMineTPEnabled then
+        startStoneTPLoop()
+    end
 end
