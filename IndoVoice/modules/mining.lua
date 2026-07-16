@@ -250,14 +250,21 @@ return function(ctx)
 
             if not ctx.autoMineEnabled or ctx.destroyed then break end
 
-            -- WAIT FOR STARTMINIGAME (ore info)
+            -- WAIT FOR STARTMINIGAME (ore info) — timeout 5s, reset if pickaxe unequipped
             amSetStage("Waiting for minigame...")
             local minigameStarted = false
             local mineData = nil
             local minigameConn = nil
 
             local pick = getPickaxe()
-            local startMinigame = pick and pick:FindFirstChild("StartMinigame")
+            if not pick then
+                amSetStage("Pickaxe unequipped, resetting...")
+                log("AutoMine: Pickaxe lost, re-equipping", THEME.warn)
+                task.wait(0.5)
+                continue
+            end
+
+            local startMinigame = pick:FindFirstChild("StartMinigame")
             if startMinigame and startMinigame:IsA("RemoteEvent") then
                 minigameConn = startMinigame.OnClientEvent:Connect(function(rarity, info)
                     minigameStarted = true
@@ -269,7 +276,11 @@ return function(ctx)
             end
 
             local mgWaitStart = tick()
-            while not minigameStarted and (tick() - mgWaitStart) < AM_MINIGAME_TIMEOUT and ctx.autoMineEnabled do
+            while not minigameStarted and (tick() - mgWaitStart) < 5 and ctx.autoMineEnabled do
+                -- Reset if pickaxe got unequipped during wait
+                if not getPickaxe() then
+                    break
+                end
                 task.wait(0.1)
             end
 
@@ -277,9 +288,18 @@ return function(ctx)
 
             if not ctx.autoMineEnabled or ctx.destroyed then break end
 
+            -- Reset if pickaxe was lost
+            if not getPickaxe() then
+                amSetStage("Pickaxe unequipped, resetting...")
+                log("AutoMine: Pickaxe lost during wait, re-equipping", THEME.warn)
+                task.wait(0.5)
+                continue
+            end
+
             if not minigameStarted then
-                log("AutoMine: Minigame timeout", THEME.warn)
-                task.wait(1)
+                amSetStage("No minigame response, resetting...")
+                log("AutoMine: No minigame in 5s, retrying", THEME.warn)
+                task.wait(0.5)
                 continue
             end
 

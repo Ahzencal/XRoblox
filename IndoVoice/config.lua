@@ -3,7 +3,7 @@
 
 return {
     Gate = {
-        Password = "bHlyYWh1Ym9udG9w", -- base64 encoded password
+        Password = "S0VZLUpVTFktQVVHVVNU", -- base64 encoded password
     },
 
     Keys = {
