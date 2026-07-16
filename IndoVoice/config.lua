@@ -2,6 +2,10 @@
 -- Config table only (NOT a function wrapper)
 
 return {
+    Gate = {
+        Password = "S0VZLUpVTFktQVVHVVNU", -- base64 encoded password
+    },
+
     Keys = {
         ToggleClicker = Enum.KeyCode.F,
         HideUI = Enum.KeyCode.K,

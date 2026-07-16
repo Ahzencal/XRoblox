@@ -1,5 +1,6 @@
 -- FishZone/core.lua
--- Unified latest core logic, keeps rewards + sell + ESP + clicker + FishZone
+-- Shared context: services, utilities, ESP, clicker, webhook, settings, sell, rewards, anti-idle
+-- Modules are loaded separately via main.lua
 return function(gui, config)
     local Players = game:GetService("Players")
     local UserInputService = game:GetService("UserInputService")
@@ -15,11 +16,6 @@ return function(gui, config)
     local AUTO_SELL_INTERVAL = config.AutoSell and config.AutoSell.Interval or 300
     local AUTO_SELL_RARITIES = config.AutoSell and config.AutoSell.Rarities or
     { "Legend", "Epic", "Rare", "Uncommon", "Common" }
-    local autoSellEnabled = false
-    local autoClaimDailyRewardEnabled = false
-    local autoClaimSessionRewardEnabled = false
-    local antiIdleEnabled = false
-    local antiIdleConnections = {}
     local TOGGLE_KEY = config.Keys.ToggleClicker
     local HIDE_KEY = config.Keys.HideUI
     local PICK_KEY = config.Keys.PickPosition
@@ -31,47 +27,101 @@ return function(gui, config)
     local BLACKLISTED_POSITIONS = config.FishZone.BlacklistedPositions
     local BLACKLIST_THRESHOLD = config.FishZone.BlacklistThreshold
 
-    local clicking = false
-    local destroyed = false
-    local clickCPS = DEFAULT_CPS
-    local clickDelay = 1 / DEFAULT_CPS
-    local savedX, savedY = FIXED_X, FIXED_Y
-    local autoTPEnabled = false
-    local currentZone = nil
-    local frozenAnchor = nil
-    local frozenGyro = nil
-    local hideUI = false
-    local zoneESPOn = false
-    local playerSearchText = ""
-    local minimized = false
-    local draggingUI = false
-    local draggingSlider = false
-    local dragStart, startPos
-    local lastClick = 0
-    local activeTab = "Players"
+    -- ═══════════════════════════════════════════
+    -- SHARED MUTABLE STATE (ctx table)
+    -- ═══════════════════════════════════════════
+    -- All mutable booleans/state live in ctx so modules can read/write them in sync
+    local ctx = {}
 
-    -- Performance/sell tracking (declared early for use in performSell)
-    local perfStartTime = tick()
-    local perfRarityCounts = {}
-    local perfTotalSellValue = 0
-    local perfTotalEarnings = 0
-    local webhookSellEnabled = false
+    ctx.gui = gui
+    ctx.config = config
+    ctx.THEME = gui.Theme
+    ctx.lp = lp
+    ctx.cam = cam
+    ctx.mouse = mouse
+    ctx.Players = Players
+    ctx.UserInputService = UserInputService
+    ctx.RunService = RunService
+    ctx.TweenService = TweenService
+    ctx.ReplicatedStorage = ReplicatedStorage
+    ctx.TextChatService = TextChatService
 
-    local espObjects = {}
-    local zoneObjects = {}
-    local playerRows = {}
-    local beamStates = {}
-    local connections = {}
-    local playerConnections = {}
-    local zoneAttributeConnections = {}
+    -- Mutable state flags
+    ctx.clicking = false
+    ctx.destroyed = false
+    ctx.clickCPS = DEFAULT_CPS
+    ctx.clickDelay = 1 / DEFAULT_CPS
+    ctx.savedX = FIXED_X
+    ctx.savedY = FIXED_Y
+    ctx.autoTPEnabled = false
+    ctx.autoSellEnabled = false
+    ctx.autoFishEnabled = false
+    ctx.autoMineEnabled = false
+    ctx.autoSellOreEnabled = false
+    ctx.autoGachaEnabled = false
+    ctx.shopGachaEnabled = false
+    ctx.autoClaimDailyRewardEnabled = false
+    ctx.autoClaimSessionRewardEnabled = false
+    ctx.antiIdleEnabled = false
+    ctx.currentZone = nil
+    ctx.frozenAnchor = nil
+    ctx.frozenGyro = nil
+    ctx.hideUI = false
+    ctx.zoneESPOn = false
+    ctx.playerSearchText = ""
+    ctx.minimized = false
+    ctx.draggingUI = false
+    ctx.draggingSlider = false
+    ctx.dragStart = nil
+    ctx.startPos = nil
+    ctx.lastClick = 0
+    ctx.activeTab = "Players"
+    ctx.mineESPOn = false
+    ctx.mineESPObjects = {}
 
-    local THEME = gui.Theme
+    -- Performance/sell tracking
+    ctx.perfStartTime = tick()
+    ctx.perfRarityCounts = {}
+    ctx.perfTotalSellValue = 0
+    ctx.perfTotalEarnings = 0
+    ctx.webhookSellEnabled = false
 
+    -- Collections
+    ctx.espObjects = {}
+    ctx.zoneObjects = {}
+    ctx.playerRows = {}
+    ctx.beamStates = {}
+    ctx.connections = {}
+    ctx.playerConnections = {}
+    ctx.zoneAttributeConnections = {}
+    ctx.antiIdleConnections = {}
+
+    -- Config values exposed for modules
+    ctx.AUTO_SELL_INTERVAL = AUTO_SELL_INTERVAL
+    ctx.AUTO_SELL_RARITIES = AUTO_SELL_RARITIES
+    ctx.TOGGLE_KEY = TOGGLE_KEY
+    ctx.HIDE_KEY = HIDE_KEY
+    ctx.PICK_KEY = PICK_KEY
+    ctx.DEFAULT_CPS = DEFAULT_CPS
+    ctx.POSITION_MODE = POSITION_MODE
+    ctx.FIXED_X = FIXED_X
+    ctx.FIXED_Y = FIXED_Y
+    ctx.FISHING_ZONE_PATH = FISHING_ZONE_PATH
+    ctx.FLOAT_HEIGHT = FLOAT_HEIGHT
+    ctx.BLACKLISTED_POSITIONS = BLACKLISTED_POSITIONS
+    ctx.BLACKLIST_THRESHOLD = BLACKLIST_THRESHOLD
+
+    local THEME = ctx.THEME
+
+    -- ═══════════════════════════════════════════
+    -- UTILITY FUNCTIONS
+    -- ═══════════════════════════════════════════
     local function bind(signal, fn)
         local c = signal:Connect(fn)
-        table.insert(connections, c)
+        table.insert(ctx.connections, c)
         return c
     end
+    ctx.bind = bind
 
     local function disconnectList(list)
         for _, c in ipairs(list) do
@@ -79,6 +129,7 @@ return function(gui, config)
         end
         table.clear(list)
     end
+    ctx.disconnectList = disconnectList
 
     -- ═══════════════════════════════════════════
     -- LOGGING SYSTEM
@@ -90,7 +141,6 @@ return function(gui, config)
         color = color or THEME.dim
         logEntries = logEntries + 1
         if logEntries > MAX_LOG_ENTRIES then
-            -- Remove oldest entry
             local children = gui.Logs.LogScroll:GetChildren()
             for _, child in ipairs(children) do
                 if child:IsA("TextLabel") then
@@ -116,11 +166,11 @@ return function(gui, config)
 
         gui.Logs.LogCount.Text = logEntries .. " entries"
 
-        -- Auto-scroll to bottom
         task.defer(function()
             gui.Logs.LogScroll.CanvasPosition = Vector2.new(0, gui.Logs.LogScroll.AbsoluteCanvasSize.Y)
         end)
     end
+    ctx.log = log
 
     -- Clear logs button
     bind(gui.Logs.ClearLogsBtn.MouseButton1Click, function()
@@ -136,10 +186,12 @@ return function(gui, config)
     local function getHRP(char)
         return char and char:FindFirstChild("HumanoidRootPart")
     end
+    ctx.getHRP = getHRP
 
     local function getHum(char)
         return char and char:FindFirstChildOfClass("Humanoid")
     end
+    ctx.getHum = getHum
 
     local function resolvePosition()
         if POSITION_MODE == "center" then
@@ -148,13 +200,15 @@ return function(gui, config)
         elseif POSITION_MODE == "custom" then
             return FIXED_X or 960, FIXED_Y or 540
         else
-            return savedX, savedY
+            return ctx.savedX, ctx.savedY
         end
     end
+    ctx.resolvePosition = resolvePosition
 
     local function lower(s)
         return string.lower(tostring(s or ""))
     end
+    ctx.lower = lower
 
     local function isBlacklisted(part)
         for _, bpos in ipairs(BLACKLISTED_POSITIONS) do
@@ -164,10 +218,12 @@ return function(gui, config)
         end
         return false
     end
+    ctx.isBlacklisted = isBlacklisted
 
     local function isActiveZone(part)
         return part and part:IsA("BasePart") and part:GetAttribute("IsActive") == true and not isBlacklisted(part)
     end
+    ctx.isActiveZone = isActiveZone
 
     local function getZoneParts()
         local parts = {}
@@ -178,6 +234,7 @@ return function(gui, config)
         end
         return parts
     end
+    ctx.getZoneParts = getZoneParts
 
     local function getActiveZoneParts()
         local parts = {}
@@ -188,6 +245,7 @@ return function(gui, config)
         end
         return parts
     end
+    ctx.getActiveZoneParts = getActiveZoneParts
 
     local function isInsidePart(hrp, part)
         if not hrp or not part then return false end
@@ -197,6 +255,7 @@ return function(gui, config)
             and math.abs(rel.Y) <= half.Y + FLOAT_HEIGHT + 1.5
             and math.abs(rel.Z) <= half.Z
     end
+    ctx.isInsidePart = isInsidePart
 
     local function isInsideAnyActiveZone(hrp)
         if not hrp then return false, nil end
@@ -207,6 +266,7 @@ return function(gui, config)
         end
         return false, nil
     end
+    ctx.isInsideAnyActiveZone = isInsideAnyActiveZone
 
     local function nearestActiveZonePart()
         local hrp = getHRP(lp.Character)
@@ -221,14 +281,17 @@ return function(gui, config)
         end
         return best
     end
+    ctx.nearestActiveZonePart = nearestActiveZonePart
 
     local VIM = pcall(function()
         return cloneref(game:GetService("VirtualInputManager"))
     end) and cloneref(game:GetService("VirtualInputManager")) or game:GetService("VirtualInputManager")
+    ctx.VIM = VIM
 
     local useVIM = pcall(function()
         VIM:SendMouseButtonEvent(0, 0, 0, false, game, 1)
     end)
+    ctx.useVIM = useVIM
 
     local function silentClick(x, y)
         if useVIM then
@@ -242,15 +305,17 @@ return function(gui, config)
             mousemoveabs(cx, cy)
         end
     end
+    ctx.silentClick = silentClick
 
     local function unfreezeCharacter()
-        if frozenAnchor and frozenAnchor.Parent then frozenAnchor:Destroy() end
-        frozenAnchor = nil
-        if frozenGyro and frozenGyro.Parent then frozenGyro:Destroy() end
-        frozenGyro = nil
+        if ctx.frozenAnchor and ctx.frozenAnchor.Parent then ctx.frozenAnchor:Destroy() end
+        ctx.frozenAnchor = nil
+        if ctx.frozenGyro and ctx.frozenGyro.Parent then ctx.frozenGyro:Destroy() end
+        ctx.frozenGyro = nil
         local hum = getHum(lp.Character)
         if hum then hum.PlatformStand = false end
     end
+    ctx.unfreezeCharacter = unfreezeCharacter
 
     local function freezeAt(pos)
         local char = lp.Character
@@ -262,7 +327,7 @@ return function(gui, config)
         hrp.CFrame = rotCF
         if hum then hum.PlatformStand = true end
 
-        if frozenAnchor and frozenAnchor.Parent then frozenAnchor:Destroy() end
+        if ctx.frozenAnchor and ctx.frozenAnchor.Parent then ctx.frozenAnchor:Destroy() end
         local bp = Instance.new("BodyPosition")
         bp.Name = "AhzencalZoneFreeze"
         bp.Position = pos
@@ -270,9 +335,9 @@ return function(gui, config)
         bp.P = 2e4
         bp.D = 1200
         bp.Parent = hrp
-        frozenAnchor = bp
+        ctx.frozenAnchor = bp
 
-        if frozenGyro and frozenGyro.Parent then frozenGyro:Destroy() end
+        if ctx.frozenGyro and ctx.frozenGyro.Parent then ctx.frozenGyro:Destroy() end
         local bg = Instance.new("BodyGyro")
         bg.Name = "AhzencalZoneGyro"
         bg.CFrame = CFrame.Angles(0, math.rad(89), 0)
@@ -280,16 +345,18 @@ return function(gui, config)
         bg.P = 1e5
         bg.D = 500
         bg.Parent = hrp
-        frozenGyro = bg
+        ctx.frozenGyro = bg
     end
+    ctx.freezeAt = freezeAt
 
     local function tpToZone(part)
         if not isActiveZone(part) then return false end
         local pos = part.Position + Vector3.new(0, part.Size.Y / 2 + FLOAT_HEIGHT, 0)
         freezeAt(pos)
-        currentZone = part
+        ctx.currentZone = part
         return true
     end
+    ctx.tpToZone = tpToZone
 
     local function tpToPlayer(target)
         local hrp = getHRP(lp.Character)
@@ -298,7 +365,12 @@ return function(gui, config)
             hrp.CFrame = targetHRP.CFrame
         end
     end
+    ctx.tpToPlayer = tpToPlayer
 
+
+    -- ═══════════════════════════════════════════
+    -- PLAYER ESP / BEAM / ROWS
+    -- ═══════════════════════════════════════════
     local function sendAdonisRefresh(msg)
         pcall(function()
             local defaultEvent = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
@@ -325,17 +397,19 @@ return function(gui, config)
             sendAdonisRefresh("/refresh")
         end)
     end
+    ctx.refreshCharacterAdonis = refreshCharacterAdonis
 
     local function removeESPForPlayer(player)
-        local obj = espObjects[player]
+        local obj = ctx.espObjects[player]
         if not obj then return end
         if obj.billboard then obj.billboard:Destroy() end
         if obj.box then obj.box:Destroy() end
-        espObjects[player] = nil
+        ctx.espObjects[player] = nil
     end
+    ctx.removeESPForPlayer = removeESPForPlayer
 
     local function makeESPForPlayer(player)
-        if espObjects[player] then return end
+        if ctx.espObjects[player] then return end
 
         local box = Instance.new("BoxHandleAdornment")
         box.Name = "ESP_Box"
@@ -373,27 +447,29 @@ return function(gui, config)
         end
 
         if player.Character then attach(player.Character) end
-        playerConnections[player] = playerConnections[player] or {}
-        table.insert(playerConnections[player], player.CharacterAdded:Connect(attach))
-        espObjects[player] = { box = box, billboard = bb }
+        ctx.playerConnections[player] = ctx.playerConnections[player] or {}
+        table.insert(ctx.playerConnections[player], player.CharacterAdded:Connect(attach))
+        ctx.espObjects[player] = { box = box, billboard = bb }
     end
+    ctx.makeESPForPlayer = makeESPForPlayer
 
     local function stopBeam(player)
-        local state = beamStates[player]
+        local state = ctx.beamStates[player]
         if not state then return end
         state.enabled = false
         if state.beam then state.beam:Destroy() end
         if state.a0 then state.a0:Destroy() end
         if state.a1 then state.a1:Destroy() end
-        beamStates[player] = nil
+        ctx.beamStates[player] = nil
     end
+    ctx.stopBeam = stopBeam
 
     local function startBeam(player)
         stopBeam(player)
         local state = { enabled = true }
-        beamStates[player] = state
+        ctx.beamStates[player] = state
         task.spawn(function()
-            while state.enabled and not destroyed do
+            while state.enabled and not ctx.destroyed do
                 local myHRP = getHRP(lp.Character)
                 local targetHRP = getHRP(player.Character)
                 if myHRP and targetHRP then
@@ -422,22 +498,25 @@ return function(gui, config)
             stopBeam(player)
         end)
     end
+    ctx.startBeam = startBeam
 
     local function passesSearch(player)
         if player == lp then return false end
-        if playerSearchText == "" then return true end
-        return lower(player.Name):find(lower(playerSearchText), 1, true) ~= nil
-            or lower(player.DisplayName):find(lower(playerSearchText), 1, true) ~= nil
+        if ctx.playerSearchText == "" then return true end
+        return lower(player.Name):find(lower(ctx.playerSearchText), 1, true) ~= nil
+            or lower(player.DisplayName):find(lower(ctx.playerSearchText), 1, true) ~= nil
     end
+    ctx.passesSearch = passesSearch
 
     local function refreshPlayerRows()
-        for player, row in pairs(playerRows) do
+        for player, row in pairs(ctx.playerRows) do
             row.Visible = passesSearch(player)
         end
     end
+    ctx.refreshPlayerRows = refreshPlayerRows
 
     local function makePlayerRow(player)
-        if player == lp or playerRows[player] then return end
+        if player == lp or ctx.playerRows[player] then return end
 
         local row = Instance.new("Frame")
         row.Size = UDim2.new(1, -8, 0, 38)
@@ -458,7 +537,6 @@ return function(gui, config)
         name.TextTruncate = Enum.TextTruncate.AtEnd
         name.Parent = row
 
-        -- Buttons positioned from the RIGHT side
         local function miniBtn(txt, offsetFromRight, color)
             local b = Instance.new("TextButton")
             b.Text = txt
@@ -512,37 +590,42 @@ return function(gui, config)
         end)
 
         bind(inspectBtn.MouseButton1Click, function()
-            -- Open avatar inspect menu for this player
             pcall(function()
                 game:GetService("GuiService"):InspectPlayerFromUserId(player.UserId)
             end)
         end)
 
-        playerRows[player] = row
+        ctx.playerRows[player] = row
         row.Visible = passesSearch(player)
     end
+    ctx.makePlayerRow = makePlayerRow
 
     local function removePlayerRow(player)
-        if playerRows[player] then
-            playerRows[player]:Destroy(); playerRows[player] = nil
+        if ctx.playerRows[player] then
+            ctx.playerRows[player]:Destroy(); ctx.playerRows[player] = nil
         end
         removeESPForPlayer(player)
         stopBeam(player)
-        if playerConnections[player] then
-            disconnectList(playerConnections[player]); playerConnections[player] = nil
+        if ctx.playerConnections[player] then
+            disconnectList(ctx.playerConnections[player]); ctx.playerConnections[player] = nil
         end
     end
+    ctx.removePlayerRow = removePlayerRow
 
+    -- ═══════════════════════════════════════════
+    -- ZONE ESP
+    -- ═══════════════════════════════════════════
     local function removeZoneESP(part)
-        local obj = zoneObjects[part]
+        local obj = ctx.zoneObjects[part]
         if not obj then return end
         if obj.highlight then obj.highlight:Destroy() end
         if obj.billboard then obj.billboard:Destroy() end
-        zoneObjects[part] = nil
+        ctx.zoneObjects[part] = nil
     end
+    ctx.removeZoneESP = removeZoneESP
 
     local function addZoneESP(part)
-        if zoneObjects[part] or not isActiveZone(part) then return end
+        if ctx.zoneObjects[part] or not isActiveZone(part) then return end
 
         local sb = Instance.new("SelectionBox")
         sb.Adornee = part
@@ -569,18 +652,20 @@ return function(gui, config)
         lbl.TextSize = 13
         lbl.Parent = bb
 
-        zoneObjects[part] = { highlight = sb, billboard = bb }
+        ctx.zoneObjects[part] = { highlight = sb, billboard = bb }
     end
+    ctx.addZoneESP = addZoneESP
 
     local function refreshZoneESP()
         for _, part in ipairs(getZoneParts()) do
-            if zoneESPOn and isActiveZone(part) then
+            if ctx.zoneESPOn and isActiveZone(part) then
                 addZoneESP(part)
             else
                 removeZoneESP(part)
             end
         end
     end
+    ctx.refreshZoneESP = refreshZoneESP
 
     local function moveToNearestActiveZone()
         local nearest = nearestActiveZonePart()
@@ -590,31 +675,38 @@ return function(gui, config)
         end
         return false, nil
     end
+    ctx.moveToNearestActiveZone = moveToNearestActiveZone
 
     local function stopAutoTP()
-        autoTPEnabled = false
-        currentZone = nil
+        ctx.autoTPEnabled = false
+        ctx.currentZone = nil
         unfreezeCharacter()
         gui.FishZone.AutoTPBtn.Text = "Auto TP Active FishZone: OFF"
         gui.FishZone.AutoTPBtn.BackgroundColor3 = THEME.tp
     end
+    ctx.stopAutoTP = stopAutoTP
 
     local function startAutoTP()
-        autoTPEnabled = true
+        ctx.autoTPEnabled = true
         gui.FishZone.AutoTPBtn.Text = "Auto TP Active FishZone: ON"
         gui.FishZone.AutoTPBtn.BackgroundColor3 = THEME.success
     end
+    ctx.startAutoTP = startAutoTP
 
+
+    -- ═══════════════════════════════════════════
+    -- CLICKER UI HELPERS
+    -- ═══════════════════════════════════════════
     local function updateClickerUI()
-        if clicking then
+        if ctx.clicking then
             gui.Clicker.StatusLbl.Text = "Status: ON"
             gui.Clicker.StatusLbl.TextColor3 = THEME.success
-            gui.Clicker.ToggleBtn.Text = "Stop [" .. tostring(TOGGLE_KEY):gsub("Enum.KeyCode.", "") .. "]"
+            gui.Clicker.ToggleBtn.Text = "Stop [" .. tostring(ctx.TOGGLE_KEY):gsub("Enum.KeyCode.", "") .. "]"
             gui.Clicker.ToggleBtn.BackgroundColor3 = THEME.danger
         else
             gui.Clicker.StatusLbl.Text = "Status: OFF"
             gui.Clicker.StatusLbl.TextColor3 = THEME.danger
-            gui.Clicker.ToggleBtn.Text = "Start [" .. tostring(TOGGLE_KEY):gsub("Enum.KeyCode.", "") .. "]"
+            gui.Clicker.ToggleBtn.Text = "Start [" .. tostring(ctx.TOGGLE_KEY):gsub("Enum.KeyCode.", "") .. "]"
             gui.Clicker.ToggleBtn.BackgroundColor3 = THEME.accent
         end
 
@@ -626,43 +718,46 @@ return function(gui, config)
             gui.Clicker.PosLbl.Text = string.format("Target: (%d, %d)", math.floor(x), math.floor(y))
             gui.Clicker.PosLbl.TextColor3 = THEME.success
         else
-            gui.Clicker.PosLbl.Text = "Target: Not set (press " .. tostring(PICK_KEY):gsub("Enum.KeyCode.", "") .. ")"
+            gui.Clicker.PosLbl.Text = "Target: Not set (press " .. tostring(ctx.PICK_KEY):gsub("Enum.KeyCode.", "") .. ")"
             gui.Clicker.PosLbl.TextColor3 = THEME.dim
         end
     end
+    ctx.updateClickerUI = updateClickerUI
 
     local function updateRewardButtons()
         if gui.Settings.AutoClaimDailyRewardBtn then
-            gui.Settings.AutoClaimDailyRewardBtn.Text = autoClaimDailyRewardEnabled and "Auto Claim Daily Reward: ON" or
+            gui.Settings.AutoClaimDailyRewardBtn.Text = ctx.autoClaimDailyRewardEnabled and "Auto Claim Daily Reward: ON" or
             "Auto Claim Daily Reward: OFF"
-            gui.Settings.AutoClaimDailyRewardBtn.BackgroundColor3 = autoClaimDailyRewardEnabled and THEME.success or
+            gui.Settings.AutoClaimDailyRewardBtn.BackgroundColor3 = ctx.autoClaimDailyRewardEnabled and THEME.success or
             THEME.accent
         end
         if gui.Settings.AutoClaimSessionRewardBtn then
-            gui.Settings.AutoClaimSessionRewardBtn.Text = autoClaimSessionRewardEnabled and
+            gui.Settings.AutoClaimSessionRewardBtn.Text = ctx.autoClaimSessionRewardEnabled and
             "Auto Claim Session Reward: ON" or "Auto Claim Session Reward: OFF"
-            gui.Settings.AutoClaimSessionRewardBtn.BackgroundColor3 = autoClaimSessionRewardEnabled and THEME.success or
+            gui.Settings.AutoClaimSessionRewardBtn.BackgroundColor3 = ctx.autoClaimSessionRewardEnabled and THEME.success or
             THEME.tp
         end
     end
+    ctx.updateRewardButtons = updateRewardButtons
 
     local function toggleClicker()
         local x, y = resolvePosition()
         if not x or not y then
             gui.Clicker.PosLbl.Text = "Hover target and press " ..
-            tostring(PICK_KEY):gsub("Enum.KeyCode.", "") .. " first"
+            tostring(ctx.PICK_KEY):gsub("Enum.KeyCode.", "") .. " first"
             gui.Clicker.PosLbl.TextColor3 = THEME.warn
             log("Clicker: No target position set", THEME.warn)
             return
         end
-        clicking = not clicking
-        if clicking then
-            log("Clicker: ON at (" .. math.floor(x) .. ", " .. math.floor(y) .. ") CPS=" .. clickCPS, THEME.success)
+        ctx.clicking = not ctx.clicking
+        if ctx.clicking then
+            log("Clicker: ON at (" .. math.floor(x) .. ", " .. math.floor(y) .. ") CPS=" .. ctx.clickCPS, THEME.success)
         else
             log("Clicker: OFF", THEME.danger)
         end
         updateClickerUI()
     end
+    ctx.toggleClicker = toggleClicker
 
     local function applyTheme()
         gui.Main.BackgroundColor3 = THEME.bg
@@ -681,7 +776,7 @@ return function(gui, config)
         gui.Clicker.SliderFill.BackgroundColor3 = THEME.accent
 
         for name, btn in pairs(gui.TabButtons) do
-            if name == activeTab then
+            if name == ctx.activeTab then
                 btn.BackgroundColor3 = THEME.accent
                 btn.TextColor3 = Color3.new(1, 1, 1)
             else
@@ -690,14 +785,14 @@ return function(gui, config)
             end
         end
 
-        for _, obj in pairs(espObjects) do
+        for _, obj in pairs(ctx.espObjects) do
             if obj.box then obj.box.Color3 = THEME.accent end
             if obj.billboard and obj.billboard:FindFirstChildOfClass("TextLabel") then
                 obj.billboard:FindFirstChildOfClass("TextLabel").TextColor3 = THEME.accent
             end
         end
 
-        for _, obj in pairs(zoneObjects) do
+        for _, obj in pairs(ctx.zoneObjects) do
             if obj.highlight then
                 obj.highlight.Color3 = THEME.accent
                 obj.highlight.SurfaceColor3 = THEME.accent
@@ -710,25 +805,28 @@ return function(gui, config)
         updateClickerUI()
         updateRewardButtons()
     end
+    ctx.applyTheme = applyTheme
 
     local function switchTab(name)
-        activeTab = name
+        ctx.activeTab = name
         for tabName, frame in pairs(gui.Tabs) do
             frame.Visible = (tabName == name)
         end
         applyTheme()
     end
+    ctx.switchTab = switchTab
 
     local function beginDrag(input)
-        draggingUI = true
-        dragStart = input.Position
-        startPos = gui.Main.Position
+        ctx.draggingUI = true
+        ctx.dragStart = input.Position
+        ctx.startPos = gui.Main.Position
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
-                draggingUI = false
+                ctx.draggingUI = false
             end
         end)
     end
+    ctx.beginDrag = beginDrag
 
     local function playCloseAnimation()
         task.spawn(function()
@@ -778,67 +876,75 @@ return function(gui, config)
             CloseGui:Destroy()
         end)
     end
+    ctx.playCloseAnimation = playCloseAnimation
 
     local function destroyAll()
         log("Script unloading...", THEME.danger)
-        clicking = false
-        destroyed = true
-        autoTPEnabled = false
-        autoSellEnabled = false
-        autoFishEnabled = false
-        autoMineEnabled = false
-        autoGachaEnabled = false
-        shopGachaEnabled = false
-        autoClaimDailyRewardEnabled = false
-        autoClaimSessionRewardEnabled = false
-        antiIdleEnabled = false
+        ctx.clicking = false
+        ctx.destroyed = true
+        ctx.autoTPEnabled = false
+        ctx.autoSellEnabled = false
+        ctx.autoFishEnabled = false
+        ctx.autoMineEnabled = false
+        ctx.autoSellOreEnabled = false
+        ctx.autoGachaEnabled = false
+        ctx.shopGachaEnabled = false
+        ctx.autoClaimDailyRewardEnabled = false
+        ctx.autoClaimSessionRewardEnabled = false
+        ctx.antiIdleEnabled = false
         _G.__AhzencalESP_Destroy = nil
         unfreezeCharacter()
-        disconnectList(connections)
-        disconnectList(zoneAttributeConnections)
-        disconnectList(antiIdleConnections)
-        for player in pairs(espObjects) do removeESPForPlayer(player) end
-        for part in pairs(zoneObjects) do removeZoneESP(part) end
-        for player in pairs(beamStates) do stopBeam(player) end
-        for _, list in pairs(playerConnections) do disconnectList(list) end
+        disconnectList(ctx.connections)
+        disconnectList(ctx.zoneAttributeConnections)
+        disconnectList(ctx.antiIdleConnections)
+        for player in pairs(ctx.espObjects) do removeESPForPlayer(player) end
+        for part in pairs(ctx.zoneObjects) do removeZoneESP(part) end
+        for player in pairs(ctx.beamStates) do stopBeam(player) end
+        for _, list in pairs(ctx.playerConnections) do disconnectList(list) end
         -- Cleanup mine ESP
         pcall(function()
-            for stone in pairs(mineESPObjects) do
-                removeMineESP(stone)
+            for stone in pairs(ctx.mineESPObjects) do
+                ctx.removeMineESP(stone)
             end
         end)
         playCloseAnimation()
         task.wait(0.05)
         pcall(function() gui.MainGui:Destroy() end)
     end
+    ctx.destroyAll = destroyAll
 
     _G.__AhzencalESP_Destroy = destroyAll
 
-    local SellRemote = nil
-    local DailyRewardRemote = nil
-    local SessionRewardRemote = nil
+
+    -- ═══════════════════════════════════════════
+    -- SELL / REWARDS
+    -- ═══════════════════════════════════════════
+    ctx.SellRemote = nil
+    ctx.DailyRewardRemote = nil
+    ctx.SessionRewardRemote = nil
 
     task.spawn(function()
         local rf = ReplicatedStorage:WaitForChild("GameRemoteFunctions", 10)
         if rf then
-            SellRemote = rf:WaitForChild("SellAllFishFunction", 10)
-            DailyRewardRemote = rf:WaitForChild("CollectDailyRewardFunction", 10)
-            SessionRewardRemote = rf:WaitForChild("CollectSessionRewardFunctionEvent", 10)
+            ctx.SellRemote = rf:WaitForChild("SellAllFishFunction", 10)
+            ctx.DailyRewardRemote = rf:WaitForChild("CollectDailyRewardFunction", 10)
+            ctx.SessionRewardRemote = rf:WaitForChild("CollectSessionRewardFunctionEvent", 10)
         end
     end)
 
     local function claimDailyReward()
-        if not DailyRewardRemote then
+        if not ctx.DailyRewardRemote then
             return false, "Daily reward remote not loaded"
         end
         local ok, a, b = pcall(function()
-            return DailyRewardRemote:InvokeServer()
+            return ctx.DailyRewardRemote:InvokeServer()
         end)
         if not ok then
             return false, tostring(a)
         end
         return a, b
     end
+    ctx.claimDailyReward = claimDailyReward
 
     local function claimSessionReward()
         local rf = game:GetService("ReplicatedStorage"):FindFirstChild("GameRemoteFunctions")
@@ -886,6 +992,7 @@ return function(gui, config)
         end
         return false, "All slots on cooldown (" .. skipped .. "/12)"
     end
+    ctx.claimSessionReward = claimSessionReward
 
     local function performSell()
         local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
@@ -909,7 +1016,6 @@ return function(gui, config)
         if rodTool then
             local isCasting = rodTool:GetAttribute("IsCasting")
             local baitInWater = rodTool:GetAttribute("BaitLandedInWater")
-
             if isCasting == true or baitInWater == true then
                 isFishing = true
             end
@@ -941,67 +1047,67 @@ return function(gui, config)
         end
 
         local shopPivot = shopPart:GetPivot()
-        local wasAutoTP = autoTPEnabled
-        autoTPEnabled = false
+        local wasAutoTP = ctx.autoTPEnabled
+        ctx.autoTPEnabled = false
         local oldCFrame = hrp.CFrame
-        local oldAnchorPos = frozenAnchor and frozenAnchor.Position
+        local oldAnchorPos = ctx.frozenAnchor and ctx.frozenAnchor.Position
         local targetPos = (shopPivot * CFrame.new(0, 3, 12)).Position
 
         hrp.CFrame = CFrame.new(targetPos)
-        if frozenAnchor and frozenAnchor.Parent then
-            frozenAnchor.Position = targetPos
+        if ctx.frozenAnchor and ctx.frozenAnchor.Parent then
+            ctx.frozenAnchor.Position = targetPos
         end
 
         task.wait(0.3)
 
         local result
         local success, err = pcall(function()
-            if SellRemote:IsA("RemoteFunction") then
-                result = SellRemote:InvokeServer(AUTO_SELL_RARITIES)
-            elseif SellRemote:IsA("RemoteEvent") then
-                SellRemote:FireServer(AUTO_SELL_RARITIES)
+            if ctx.SellRemote:IsA("RemoteFunction") then
+                result = ctx.SellRemote:InvokeServer(ctx.AUTO_SELL_RARITIES)
+            elseif ctx.SellRemote:IsA("RemoteEvent") then
+                ctx.SellRemote:FireServer(ctx.AUTO_SELL_RARITIES)
                 result = "Fired RemoteEvent Payload"
             end
         end)
 
         hrp.CFrame = oldCFrame
-        if frozenAnchor and frozenAnchor.Parent and oldAnchorPos then
-            frozenAnchor.Position = oldAnchorPos
+        if ctx.frozenAnchor and ctx.frozenAnchor.Parent and oldAnchorPos then
+            ctx.frozenAnchor.Position = oldAnchorPos
         end
-        autoTPEnabled = wasAutoTP
+        ctx.autoTPEnabled = wasAutoTP
 
-        -- Track sell count
         if success then
-            perfTotalSellValue = perfTotalSellValue + 1
+            ctx.perfTotalSellValue = ctx.perfTotalSellValue + 1
         end
 
         return success, result or err
     end
+    ctx.performSell = performSell
 
     -- Sell interval input
     bind(gui.FishZone.SellIntervalInput.FocusLost, function()
         local val = tonumber(gui.FishZone.SellIntervalInput.Text)
         if val and val >= 10 then
-            AUTO_SELL_INTERVAL = val
+            ctx.AUTO_SELL_INTERVAL = val
             log("Auto Sell interval: " .. val .. "s", THEME.dim)
         else
-            gui.FishZone.SellIntervalInput.Text = tostring(AUTO_SELL_INTERVAL)
+            gui.FishZone.SellIntervalInput.Text = tostring(ctx.AUTO_SELL_INTERVAL)
         end
     end)
 
     bind(gui.FishZone.AutoSellBtn.MouseButton1Click, function()
-        autoSellEnabled = not autoSellEnabled
-        if autoSellEnabled then
+        ctx.autoSellEnabled = not ctx.autoSellEnabled
+        if ctx.autoSellEnabled then
             gui.FishZone.AutoSellBtn.Text = "Auto Sell Fish: ON"
             gui.FishZone.AutoSellBtn.BackgroundColor3 = THEME.success
-            log("Auto Sell: ON (interval " .. AUTO_SELL_INTERVAL .. "s)", THEME.success)
+            log("Auto Sell: ON (interval " .. ctx.AUTO_SELL_INTERVAL .. "s)", THEME.success)
             task.spawn(function()
-                while autoSellEnabled and not destroyed do
-                    if SellRemote then
+                while ctx.autoSellEnabled and not ctx.destroyed do
+                    if ctx.SellRemote then
                         local ok, msg = performSell()
                         log("Auto Sell executed: " .. tostring(msg), ok and THEME.success or THEME.danger)
                     end
-                    task.wait(AUTO_SELL_INTERVAL)
+                    task.wait(ctx.AUTO_SELL_INTERVAL)
                 end
             end)
         else
@@ -1013,7 +1119,7 @@ return function(gui, config)
 
     bind(gui.FishZone.SellNowBtn.MouseButton1Click, function()
         log("Sell Now: Attempting TP & sell...", THEME.warn)
-        if not SellRemote then
+        if not ctx.SellRemote then
             log("Sell Now: FAILED - remote not loaded", THEME.danger)
             return
         end
@@ -1027,12 +1133,12 @@ return function(gui, config)
 
     if gui.Settings.AutoClaimDailyRewardBtn then
         bind(gui.Settings.AutoClaimDailyRewardBtn.MouseButton1Click, function()
-            autoClaimDailyRewardEnabled = not autoClaimDailyRewardEnabled
+            ctx.autoClaimDailyRewardEnabled = not ctx.autoClaimDailyRewardEnabled
             updateRewardButtons()
-            if autoClaimDailyRewardEnabled then
+            if ctx.autoClaimDailyRewardEnabled then
                 log("Daily Reward: Auto-claim ON (every 1h)", THEME.success)
                 task.spawn(function()
-                    while autoClaimDailyRewardEnabled and not destroyed do
+                    while ctx.autoClaimDailyRewardEnabled and not ctx.destroyed do
                         local success, message = claimDailyReward()
                         if success then
                             log("Daily Reward: CLAIMED - " .. tostring(message), THEME.success)
@@ -1050,12 +1156,12 @@ return function(gui, config)
 
     if gui.Settings.AutoClaimSessionRewardBtn then
         bind(gui.Settings.AutoClaimSessionRewardBtn.MouseButton1Click, function()
-            autoClaimSessionRewardEnabled = not autoClaimSessionRewardEnabled
+            ctx.autoClaimSessionRewardEnabled = not ctx.autoClaimSessionRewardEnabled
             updateRewardButtons()
-            if autoClaimSessionRewardEnabled then
+            if ctx.autoClaimSessionRewardEnabled then
                 log("Session Reward: Auto-claim ON (every 1h)", THEME.success)
                 task.spawn(function()
-                    while autoClaimSessionRewardEnabled and not destroyed do
+                    while ctx.autoClaimSessionRewardEnabled and not ctx.destroyed do
                         local success, message = claimSessionReward()
                         if success then
                             log("Session Reward: " .. tostring(message), THEME.success)
@@ -1071,11 +1177,12 @@ return function(gui, config)
         end)
     end
 
-    -- Anti Idle
+    -- ═══════════════════════════════════════════
+    -- ANTI IDLE
+    -- ═══════════════════════════════════════════
     local function enableAntiIdle()
-        antiIdleEnabled = true
+        ctx.antiIdleEnabled = true
         local VirtualUser = game:GetService("VirtualUser")
-        -- Method 1: disconnect Idled connections (getconnections exploit)
         local success = pcall(function()
             if getconnections then
                 for _, connection in pairs(getconnections(lp.Idled)) do
@@ -1087,13 +1194,12 @@ return function(gui, config)
                 end
             end
         end)
-        -- Method 2: fallback - reconnect Idled to VirtualUser click
         if not success then
             local c = lp.Idled:Connect(function()
                 VirtualUser:CaptureController()
                 VirtualUser:ClickButton2(Vector2.new())
             end)
-            table.insert(antiIdleConnections, c)
+            table.insert(ctx.antiIdleConnections, c)
         end
         gui.Settings.AntiIdleBtn.Text = "Anti Idle: ON"
         gui.Settings.AntiIdleBtn.BackgroundColor3 = THEME.success
@@ -1101,11 +1207,11 @@ return function(gui, config)
     end
 
     local function disableAntiIdle()
-        antiIdleEnabled = false
-        for _, c in ipairs(antiIdleConnections) do
+        ctx.antiIdleEnabled = false
+        for _, c in ipairs(ctx.antiIdleConnections) do
             pcall(function() c:Disconnect() end)
         end
-        table.clear(antiIdleConnections)
+        table.clear(ctx.antiIdleConnections)
         gui.Settings.AntiIdleBtn.Text = "Anti Idle: OFF"
         gui.Settings.AntiIdleBtn.BackgroundColor3 = THEME.warn
         log("Anti Idle: OFF", THEME.dim)
@@ -1113,7 +1219,7 @@ return function(gui, config)
 
     if gui.Settings.AntiIdleBtn then
         bind(gui.Settings.AntiIdleBtn.MouseButton1Click, function()
-            if antiIdleEnabled then
+            if ctx.antiIdleEnabled then
                 disableAntiIdle()
             else
                 enableAntiIdle()
@@ -1121,25 +1227,27 @@ return function(gui, config)
         end)
     end
 
+
     -- ═══════════════════════════════════════════
     -- WEBHOOK & PERFORMANCE MONITOR
     -- ═══════════════════════════════════════════
-    local webhookEnabled = config.Webhook and config.Webhook.Enabled or false
-    local webhookURL = config.Webhook and config.Webhook.URL or ""
-    local webhookLogRarities = config.Webhook and config.Webhook.LogRarities or {"Ancient"}
-    local webhookLogSells = config.Webhook and config.Webhook.LogSells or false
+    ctx.webhookEnabled = config.Webhook and config.Webhook.Enabled or false
+    ctx.webhookURL = config.Webhook and config.Webhook.URL or ""
+    ctx.webhookLogRarities = config.Webhook and config.Webhook.LogRarities or {"Ancient"}
+    ctx.webhookLogSells = config.Webhook and config.Webhook.LogSells or false
 
     local function shouldLogRarity(rarity)
-        for _, r in ipairs(webhookLogRarities) do
+        for _, r in ipairs(ctx.webhookLogRarities) do
             if string.lower(r) == string.lower(tostring(rarity)) then
                 return true
             end
         end
         return false
     end
+    ctx.shouldLogRarity = shouldLogRarity
 
     local function sendWebhookRaw(payload)
-        if not webhookEnabled or webhookURL == "" then return end
+        if not ctx.webhookEnabled or ctx.webhookURL == "" then return end
         task.spawn(function()
             local ok, err = pcall(function()
                 local HttpService = game:GetService("HttpService")
@@ -1147,7 +1255,7 @@ return function(gui, config)
                 local request = (syn and syn.request) or (http and http.request) or http_request or request
                 if request then
                     request({
-                        Url = webhookURL,
+                        Url = ctx.webhookURL,
                         Method = "POST",
                         Headers = {["Content-Type"] = "application/json"},
                         Body = data,
@@ -1159,6 +1267,7 @@ return function(gui, config)
             end
         end)
     end
+    ctx.sendWebhookRaw = sendWebhookRaw
 
     local function sendWebhook(title, description, color)
         sendWebhookRaw({
@@ -1172,6 +1281,7 @@ return function(gui, config)
             }}
         })
     end
+    ctx.sendWebhook = sendWebhook
 
     local function webhookFishCaught(fishName, rarity, weight, price)
         if not shouldLogRarity(rarity) then return end
@@ -1197,6 +1307,7 @@ return function(gui, config)
             }}
         })
     end
+    ctx.webhookFishCaught = webhookFishCaught
 
     local function formatNumber(n)
         n = tonumber(n) or 0
@@ -1207,27 +1318,25 @@ return function(gui, config)
         else return tostring(math.floor(n))
         end
     end
+    ctx.formatNumber = formatNumber
 
     local function updatePerfMonitor()
-        -- Sum total from rarity counts
         local totalCaught = 0
-        for _, count in pairs(perfRarityCounts) do
+        for _, count in pairs(ctx.perfRarityCounts) do
             totalCaught = totalCaught + count
         end
 
-        -- Update total fish count
         pcall(function()
             gui.FishZone.FishTotalLbl.Text = "Total Fish: " .. tostring(totalCaught)
         end)
 
-        -- Update rarity breakdown
-        local mythic = perfRarityCounts["Mythic"] or 0
-        local legend = perfRarityCounts["Legend"] or 0
-        local epic = perfRarityCounts["Epic"] or 0
-        local rare = perfRarityCounts["Rare"] or 0
-        local uncommon = perfRarityCounts["Uncommon"] or 0
-        local common = perfRarityCounts["Common"] or 0
-        local ancient = perfRarityCounts["Ancient"] or 0
+        local mythic = ctx.perfRarityCounts["Mythic"] or 0
+        local legend = ctx.perfRarityCounts["Legend"] or 0
+        local epic = ctx.perfRarityCounts["Epic"] or 0
+        local rare = ctx.perfRarityCounts["Rare"] or 0
+        local uncommon = ctx.perfRarityCounts["Uncommon"] or 0
+        local common = ctx.perfRarityCounts["Common"] or 0
+        local ancient = ctx.perfRarityCounts["Ancient"] or 0
 
         local statsText = "Mythic: " .. mythic .. " | Legend: " .. legend .. " | Epic: " .. epic
             .. "\nRare: " .. rare .. " | Uncommon: " .. uncommon .. " | Common: " .. common
@@ -1239,48 +1348,51 @@ return function(gui, config)
             gui.FishZone.FishRarityStats.Text = statsText
         end)
     end
+    ctx.updatePerfMonitor = updatePerfMonitor
 
     -- ═══════════════════════════════════════════
     -- SETTINGS SAVE/LOAD (local file persistence)
     -- ═══════════════════════════════════════════
     local SETTINGS_FILE = "LyraHub_Settings.json"
 
-    -- Sell rarity state (which rarities to sell)
-    local sellRarities = {}
-    for _, r in ipairs(AUTO_SELL_RARITIES) do
-        sellRarities[r] = true
+    -- Sell rarity state
+    ctx.sellRarities = {}
+    for _, r in ipairs(ctx.AUTO_SELL_RARITIES) do
+        ctx.sellRarities[r] = true
     end
 
-    -- Webhook rarity state (which rarities to log)
-    local webhookRarityState = {}
-    for _, r in ipairs(webhookLogRarities) do
-        webhookRarityState[r] = true
+    -- Webhook rarity state
+    ctx.webhookRarityState = {}
+    for _, r in ipairs(ctx.webhookLogRarities) do
+        ctx.webhookRarityState[r] = true
     end
 
     local function getActiveSellRarities()
         local list = {}
-        for r, on in pairs(sellRarities) do
+        for r, on in pairs(ctx.sellRarities) do
             if on then table.insert(list, r) end
         end
         return list
     end
+    ctx.getActiveSellRarities = getActiveSellRarities
 
     local function getActiveWebhookRarities()
         local list = {}
-        for r, on in pairs(webhookRarityState) do
+        for r, on in pairs(ctx.webhookRarityState) do
             if on then table.insert(list, r) end
         end
         return list
     end
+    ctx.getActiveWebhookRarities = getActiveWebhookRarities
 
     -- Override shouldLogRarity to use dynamic state
-    shouldLogRarity = function(rarity)
-        return webhookRarityState[tostring(rarity)] == true
+    ctx.shouldLogRarity = function(rarity)
+        return ctx.webhookRarityState[tostring(rarity)] == true
     end
 
     local function updateSellRarityUI()
         for rarity, btn in pairs(gui.FishZone.SellRarityButtons) do
-            if sellRarities[rarity] then
+            if ctx.sellRarities[rarity] then
                 btn.BackgroundColor3 = THEME.success
                 btn.BackgroundTransparency = 0.2
                 btn.TextColor3 = Color3.new(1, 1, 1)
@@ -1291,10 +1403,11 @@ return function(gui, config)
             end
         end
     end
+    ctx.updateSellRarityUI = updateSellRarityUI
 
     local function updateWebhookRarityUI()
         for rarity, btn in pairs(gui.Settings.WebhookRarityButtons) do
-            if webhookRarityState[rarity] then
+            if ctx.webhookRarityState[rarity] then
                 btn.BackgroundColor3 = THEME.accent
                 btn.BackgroundTransparency = 0.2
                 btn.TextColor3 = Color3.new(1, 1, 1)
@@ -1305,33 +1418,34 @@ return function(gui, config)
             end
         end
     end
+    ctx.updateWebhookRarityUI = updateWebhookRarityUI
 
     -- Bind sell rarity toggles
     for rarity, btn in pairs(gui.FishZone.SellRarityButtons) do
         bind(btn.MouseButton1Click, function()
-            sellRarities[rarity] = not sellRarities[rarity]
+            ctx.sellRarities[rarity] = not ctx.sellRarities[rarity]
             updateSellRarityUI()
-            AUTO_SELL_RARITIES = getActiveSellRarities()
+            ctx.AUTO_SELL_RARITIES = getActiveSellRarities()
         end)
     end
 
     -- Bind webhook rarity toggles
     for rarity, btn in pairs(gui.Settings.WebhookRarityButtons) do
         bind(btn.MouseButton1Click, function()
-            webhookRarityState[rarity] = not webhookRarityState[rarity]
+            ctx.webhookRarityState[rarity] = not ctx.webhookRarityState[rarity]
             updateWebhookRarityUI()
-            webhookLogRarities = getActiveWebhookRarities()
+            ctx.webhookLogRarities = getActiveWebhookRarities()
         end)
     end
 
     local function saveSettings()
         local data = {
-            webhookURL = webhookURL,
-            webhookEnabled = webhookEnabled,
-            webhookLogSells = webhookLogSells,
+            webhookURL = ctx.webhookURL,
+            webhookEnabled = ctx.webhookEnabled,
+            webhookLogSells = ctx.webhookLogSells,
             webhookRarities = getActiveWebhookRarities(),
             sellRarities = getActiveSellRarities(),
-            sellInterval = AUTO_SELL_INTERVAL,
+            sellInterval = ctx.AUTO_SELL_INTERVAL,
         }
         local ok, err = pcall(function()
             local HttpService = game:GetService("HttpService")
@@ -1353,6 +1467,7 @@ return function(gui, config)
             end
         end)
     end
+    ctx.saveSettings = saveSettings
 
     local function loadSettings()
         local ok, result = pcall(function()
@@ -1365,59 +1480,59 @@ return function(gui, config)
         end)
         if ok and result then
             if result.webhookURL then
-                webhookURL = result.webhookURL
-                gui.Settings.WebhookInput.Text = webhookURL
+                ctx.webhookURL = result.webhookURL
+                gui.Settings.WebhookInput.Text = ctx.webhookURL
             end
             if result.webhookEnabled ~= nil then
-                webhookEnabled = result.webhookEnabled
+                ctx.webhookEnabled = result.webhookEnabled
             end
             if result.webhookLogSells ~= nil then
-                webhookLogSells = result.webhookLogSells
+                ctx.webhookLogSells = result.webhookLogSells
             end
             if result.webhookRarities then
-                webhookRarityState = {}
+                ctx.webhookRarityState = {}
                 for _, r in ipairs(result.webhookRarities) do
-                    webhookRarityState[r] = true
+                    ctx.webhookRarityState[r] = true
                 end
-                webhookLogRarities = result.webhookRarities
+                ctx.webhookLogRarities = result.webhookRarities
             end
             if result.sellRarities then
-                sellRarities = {}
+                ctx.sellRarities = {}
                 for _, r in ipairs(result.sellRarities) do
-                    sellRarities[r] = true
+                    ctx.sellRarities[r] = true
                 end
-                AUTO_SELL_RARITIES = result.sellRarities
+                ctx.AUTO_SELL_RARITIES = result.sellRarities
             end
             if result.sellInterval then
-                AUTO_SELL_INTERVAL = tonumber(result.sellInterval) or AUTO_SELL_INTERVAL
-                gui.FishZone.SellIntervalInput.Text = tostring(AUTO_SELL_INTERVAL)
+                ctx.AUTO_SELL_INTERVAL = tonumber(result.sellInterval) or ctx.AUTO_SELL_INTERVAL
+                gui.FishZone.SellIntervalInput.Text = tostring(ctx.AUTO_SELL_INTERVAL)
             end
-            -- Update UI
-            gui.Settings.WebhookToggleBtn.Text = webhookEnabled and "Webhook: ON" or "Webhook: OFF"
-            gui.Settings.WebhookToggleBtn.BackgroundColor3 = webhookEnabled and THEME.success or THEME.panel2
+            gui.Settings.WebhookToggleBtn.Text = ctx.webhookEnabled and "Webhook: ON" or "Webhook: OFF"
+            gui.Settings.WebhookToggleBtn.BackgroundColor3 = ctx.webhookEnabled and THEME.success or THEME.panel2
             updateSellRarityUI()
             updateWebhookRarityUI()
             log("Settings loaded", THEME.dim)
         end
     end
+    ctx.loadSettings = loadSettings
 
     -- Webhook toggle button
     bind(gui.Settings.WebhookToggleBtn.MouseButton1Click, function()
-        webhookEnabled = not webhookEnabled
-        gui.Settings.WebhookToggleBtn.Text = webhookEnabled and "Webhook: ON" or "Webhook: OFF"
-        gui.Settings.WebhookToggleBtn.BackgroundColor3 = webhookEnabled and THEME.success or THEME.panel2
-        log("Webhook: " .. (webhookEnabled and "ON" or "OFF"), webhookEnabled and THEME.success or THEME.dim)
+        ctx.webhookEnabled = not ctx.webhookEnabled
+        gui.Settings.WebhookToggleBtn.Text = ctx.webhookEnabled and "Webhook: ON" or "Webhook: OFF"
+        gui.Settings.WebhookToggleBtn.BackgroundColor3 = ctx.webhookEnabled and THEME.success or THEME.panel2
+        log("Webhook: " .. (ctx.webhookEnabled and "ON" or "OFF"), ctx.webhookEnabled and THEME.success or THEME.dim)
     end)
 
     -- Test webhook button
     bind(gui.Settings.WebhookTestBtn.MouseButton1Click, function()
-        webhookURL = gui.Settings.WebhookInput.Text
-        if webhookURL == "" then
+        ctx.webhookURL = gui.Settings.WebhookInput.Text
+        if ctx.webhookURL == "" then
             log("Webhook test: No URL set!", THEME.danger)
             return
         end
-        local oldEnabled = webhookEnabled
-        webhookEnabled = true
+        local oldEnabled = ctx.webhookEnabled
+        ctx.webhookEnabled = true
         sendWebhookRaw({
             embeds = {{
                 title = "🧪 LyraHub Webhook Test",
@@ -1432,18 +1547,18 @@ return function(gui, config)
                 timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
             }}
         })
-        webhookEnabled = oldEnabled
+        ctx.webhookEnabled = oldEnabled
         log("Webhook test sent!", THEME.success)
     end)
 
     -- Webhook URL input
     bind(gui.Settings.WebhookInput.FocusLost, function()
-        webhookURL = gui.Settings.WebhookInput.Text
+        ctx.webhookURL = gui.Settings.WebhookInput.Text
     end)
 
     -- Save settings button
     bind(gui.Settings.SaveSettingsBtn.MouseButton1Click, function()
-        webhookURL = gui.Settings.WebhookInput.Text
+        ctx.webhookURL = gui.Settings.WebhookInput.Text
         saveSettings()
     end)
 
@@ -1467,1509 +1582,5 @@ return function(gui, config)
         end)
     end)
 
-    -- ═══════════════════════════════════════════
-    -- AUTO FISH SYSTEM (animation-based, d8nte engine)
-    -- ═══════════════════════════════════════════
-    local autoFishEnabled = false
-    local autoFishCasts = 0
-    local autoFishCaught = 0
-    local autoFishTimeouts = 0
-    local autoFishStage = "Idle"
-    local activeAnimConn = nil
-
-    -- Timing config
-    local AF_PRE_CAST_DELAY = 0.3
-    local AF_CAST_HOLD_MIN = 0.4
-    local AF_CAST_HOLD_MAX = 0.6
-    local AF_VERIFY_CAST_TIMEOUT = 2.5
-    local AF_BAIT_LANDED_TIMEOUT = 40
-    local AF_MINIGAME_TIMEOUT = 40
-    local AF_POST_END_DELAY = 0.3
-
-    -- Animation IDs (IndoVoice fishing game)
-    local FISHING_ANIM_ID = "rbxassetid://107858786510758"
-
-    local function getRod()
-        local char = lp.Character
-        if not char then return nil end
-        for _, tool in ipairs(char:GetChildren()) do
-            if tool:IsA("Tool") and (tool:FindFirstChild("Cast") or tool:FindFirstChild("CatchEvent") or string.find(string.lower(tool.Name), "rod")) then
-                return tool
-            end
-        end
-        return nil
-    end
-
-    local function getRodFromBackpack()
-        local backpack = lp:FindFirstChildOfClass("Backpack")
-        if not backpack then return nil end
-        for _, tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and (tool:FindFirstChild("Cast") or tool:FindFirstChild("CatchEvent") or string.find(string.lower(tool.Name), "rod")) then
-                return tool
-            end
-        end
-        return nil
-    end
-
-    local function equipRod()
-        local char = lp.Character
-        if not char then return false end
-        if getRod() then return true end
-        local rod = getRodFromBackpack()
-        if rod then
-            rod.Parent = char
-            log("AutoFish: Equipped " .. rod.Name, THEME.dim)
-            task.wait(0.3)
-            return true
-        end
-        return false
-    end
-
-    local function reequipRod()
-        local char = lp.Character
-        if not char then return end
-        local current = getRod()
-        if current then
-            local backpack = lp:FindFirstChildOfClass("Backpack")
-            if backpack then
-                current.Parent = backpack
-            end
-        end
-        task.wait(0.3)
-        equipRod()
-    end
-
-    local function afSetStage(stage)
-        autoFishStage = stage
-        gui.AutoFish.Status.Text = "Status: " .. stage
-    end
-
-    local function afTimeout(reason)
-        autoFishTimeouts = autoFishTimeouts + 1
-        log("AutoFish: Timeout [" .. reason .. "] #" .. autoFishTimeouts, THEME.warn)
-
-        if activeAnimConn then
-            activeAnimConn:Disconnect()
-            activeAnimConn = nil
-        end
-
-        -- Release mouse in case it's held
-        pcall(function()
-            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-        end)
-
-        afSetStage("Re-equipping...")
-        task.spawn(reequipRod)
-        task.wait(0.5)
-    end
-
-    local function autoFishLoop()
-        log("AutoFish: Engine started", THEME.success)
-        gui.AutoFish.Status.TextColor3 = THEME.success
-
-        while autoFishEnabled and not destroyed do
-            local char = lp.Character
-            local hum = char and char:FindFirstChildOfClass("Humanoid")
-
-            if not char or not hum then
-                afSetStage("No character")
-                task.wait(1)
-                continue
-            end
-
-            -- Check if moving
-            if hum.MoveDirection.Magnitude > 0.1 then
-                afSetStage("Moving... waiting")
-                task.wait(0.2)
-                continue
-            end
-
-            -- Ensure rod is equipped
-            if not getRod() then
-                afSetStage("Equipping rod...")
-                if not equipRod() then
-                    afSetStage("No rod found!")
-                    gui.AutoFish.Status.TextColor3 = THEME.danger
-                    log("AutoFish: No rod in character or backpack", THEME.danger)
-                    task.wait(2)
-                    continue
-                end
-            end
-
-            -- ── PRE-CAST DELAY ──
-            afSetStage("Pre-cast...")
-            task.wait(AF_PRE_CAST_DELAY)
-            if not autoFishEnabled or destroyed then break end
-            if hum.MoveDirection.Magnitude > 0.1 then continue end
-
-            -- ── CASTING (hold mouse) ──
-            afSetStage("Casting...")
-            pcall(function()
-                VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-            end)
-
-            local holdDuration = AF_CAST_HOLD_MIN + math.random() * (AF_CAST_HOLD_MAX - AF_CAST_HOLD_MIN)
-            local holdElapsed = 0
-            while holdElapsed < holdDuration and autoFishEnabled do
-                task.wait(0.05)
-                holdElapsed = holdElapsed + 0.05
-            end
-
-            pcall(function()
-                VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-            end)
-
-            if not autoFishEnabled or destroyed then break end
-
-            -- ── VERIFY CAST (detect fishing animation) ──
-            afSetStage("Verify Cast...")
-            local castVerified = false
-
-            activeAnimConn = hum.AnimationPlayed:Connect(function(track)
-                if track.Animation and track.Animation.AnimationId == FISHING_ANIM_ID then
-                    castVerified = true
-                    if activeAnimConn then activeAnimConn:Disconnect(); activeAnimConn = nil end
-                end
-            end)
-
-            local verifyStart = tick()
-            while not castVerified and (tick() - verifyStart) < AF_VERIFY_CAST_TIMEOUT and autoFishEnabled do
-                task.wait(0.05)
-            end
-
-            if activeAnimConn then activeAnimConn:Disconnect(); activeAnimConn = nil end
-
-            if not autoFishEnabled or destroyed then break end
-
-            if not castVerified then
-                afTimeout("Verify Cast")
-                continue
-            end
-
-            autoFishCasts = autoFishCasts + 1
-
-            -- ── WAITING FOR STARTMINIGAME (fish bite + fish info) ──
-            afSetStage("Waiting for bite...")
-            local minigameStarted = false
-            local caughtFishData = nil
-            local minigameConn = nil
-
-            local rod2 = getRod()
-            local startMinigame = rod2 and rod2:FindFirstChild("StartMinigame")
-
-            if startMinigame and startMinigame:IsA("RemoteEvent") then
-                minigameConn = startMinigame.OnClientEvent:Connect(function(baitPart, fishInfo, luckData)
-                    minigameStarted = true
-                    if fishInfo and type(fishInfo) == "table" then
-                        caughtFishData = fishInfo
-                    end
-                end)
-            else
-                log("AutoFish: StartMinigame remote not found", THEME.warn)
-            end
-
-            local biteStart = tick()
-            while not minigameStarted and (tick() - biteStart) < AF_BAIT_LANDED_TIMEOUT and autoFishEnabled do
-                task.wait(0.1)
-            end
-
-            if minigameConn then minigameConn:Disconnect() end
-
-            if not autoFishEnabled or destroyed then break end
-
-            if not minigameStarted then
-                afTimeout("Waiting Bite")
-                continue
-            end
-
-            -- ── WAIT FOR MINIGAME GUI (confirm fishing is active) ──
-            afSetStage("Fish on! Detecting minigame...")
-            local playerGui = lp:FindFirstChild("PlayerGui")
-            local minigameGui = nil
-            local waitStart = tick()
-
-            -- Wait up to 3s for the minigame GUI to appear
-            while not minigameGui and (tick() - waitStart) < 3 and autoFishEnabled do
-                if playerGui then
-                    for _, g in pairs(playerGui:GetChildren()) do
-                        if g:IsA("ScreenGui") and g:FindFirstChild("FishingHolder", true) then
-                            minigameGui = g
-                            break
-                        end
-                    end
-                end
-                task.wait(0.1)
-            end
-
-            if not autoFishEnabled or destroyed then break end
-
-            if not minigameGui then
-                log("AutoFish: No minigame GUI detected", THEME.warn)
-                afTimeout("No Minigame GUI")
-                continue
-            end
-
-            -- ── SKIP MINIGAME (random 5-10s delay then catch) ──
-            afSetStage("Minigame active, waiting to catch...")
-            local skipDelay = 5 + math.random() * 5
-            task.wait(skipDelay)
-
-            if not autoFishEnabled or destroyed then break end
-
-            -- ── CATCH ──
-            afSetStage("Catching!")
-            local rod3 = getRod()
-            local catchRemote = rod3 and (rod3:FindFirstChild("CatchEvent") or rod3:FindFirstChild("Catch"))
-
-            if catchRemote then
-                pcall(function()
-                    catchRemote:FireServer(true)
-                end)
-                autoFishCaught = autoFishCaught + 1
-
-                -- Extract fish info from StartMinigame data
-                local fishName = caughtFishData and caughtFishData.FishName or "Unknown"
-                local fishRarity = caughtFishData and caughtFishData.Rarity or "?"
-                local fishWeight = caughtFishData and caughtFishData.Weight or nil
-                local fishPrice = caughtFishData and caughtFishData.Price or nil
-
-                gui.AutoFish.LastCatch.Text = "Last: " .. fishName .. " [" .. fishRarity .. "]"
-                log("AutoFish: Caught " .. fishName .. " (" .. fishRarity .. ")", THEME.success)
-
-                -- Track rarity counts and earnings
-                perfRarityCounts[fishRarity] = (perfRarityCounts[fishRarity] or 0) + 1
-                if fishPrice and tonumber(fishPrice) then
-                    perfTotalEarnings = perfTotalEarnings + tonumber(fishPrice)
-                end
-
-                -- Send webhook if rarity qualifies
-                webhookFishCaught(fishName, fishRarity, fishWeight, fishPrice)
-
-                -- Update performance monitor
-                updatePerfMonitor()
-            else
-                log("AutoFish: CatchEvent remote not found", THEME.danger)
-                afTimeout("Catch")
-                continue
-            end
-
-            -- ── END: clean up any leftover fishing UI ──
-            afSetStage("Cleaning up...")
-            pcall(function()
-                local playerGui2 = lp:FindFirstChild("PlayerGui")
-                if playerGui2 then
-                    for _, g in pairs(playerGui2:GetChildren()) do
-                        if g:IsA("ScreenGui") and g:FindFirstChild("FishingHolder", true) then
-                            g:Destroy()
-                            break
-                        end
-                    end
-                end
-            end)
-
-            -- ── POST-END DELAY ──
-            afSetStage("Resetting...")
-            task.wait(AF_POST_END_DELAY)
-        end
-
-        afSetStage("Idle")
-        gui.AutoFish.Status.TextColor3 = THEME.dim
-        log("AutoFish: Stopped", THEME.dim)
-
-        -- Release mouse just in case
-        pcall(function()
-            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-        end)
-    end
-
-    bind(gui.AutoFish.ToggleBtn.MouseButton1Click, function()
-        autoFishEnabled = not autoFishEnabled
-        if autoFishEnabled then
-            gui.AutoFish.ToggleBtn.Text = "Auto Fish: ON"
-            gui.AutoFish.ToggleBtn.BackgroundColor3 = THEME.success
-            task.spawn(autoFishLoop)
-        else
-            gui.AutoFish.ToggleBtn.Text = "Auto Fish: OFF"
-            gui.AutoFish.ToggleBtn.BackgroundColor3 = THEME.accent
-            -- Release mouse
-            pcall(function()
-                VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-            end)
-            if activeAnimConn then
-                activeAnimConn:Disconnect()
-                activeAnimConn = nil
-            end
-        end
-    end)
-
-    -- ═══════════════════════════════════════════
-    -- AUTO MINING SYSTEM
-    -- ═══════════════════════════════════════════
-    local autoMineEnabled = false
-    local autoMineHotspotOnly = false
-    local autoMineTPEnabled = false
-    local autoMineCounts = {}
-    local autoMineStage = "Idle"
-    local mineESPOn = false
-    local mineESPObjects = {}
-
-    local MINING_STONES_PATH = workspace:FindFirstChild("Main") and workspace.Main:FindFirstChild("ActiveMiningStones")
-    local AM_MINIGAME_TIMEOUT = 40
-    local AM_POST_MINE_DELAY = 0.5
-
-    local function amSetStage(stage)
-        autoMineStage = stage
-        gui.Mining.Status.Text = "Status: " .. stage
-    end
-
-    local function getPickaxe()
-        local char = lp.Character
-        if not char then return nil end
-        for _, tool in ipairs(char:GetChildren()) do
-            if tool:IsA("Tool") and (tool:FindFirstChild("Mine") or tool:FindFirstChild("MineResultEvent") or string.find(string.lower(tool.Name), "pickaxe") or string.find(string.lower(tool.Name), "pick")) then
-                return tool
-            end
-        end
-        return nil
-    end
-
-    local function getPickaxeFromBackpack()
-        local backpack = lp:FindFirstChildOfClass("Backpack")
-        if not backpack then return nil end
-        for _, tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and (tool:FindFirstChild("Mine") or tool:FindFirstChild("MineResultEvent") or string.find(string.lower(tool.Name), "pickaxe") or string.find(string.lower(tool.Name), "pick")) then
-                return tool
-            end
-        end
-        return nil
-    end
-
-    local function equipPickaxe()
-        local char = lp.Character
-        if not char then return false end
-        if getPickaxe() then return true end
-        local pick = getPickaxeFromBackpack()
-        if pick then
-            pick.Parent = char
-            log("AutoMine: Equipped " .. pick.Name, THEME.dim)
-            task.wait(0.3)
-            return true
-        end
-        return false
-    end
-
-    local function getMiningStones()
-        if not MINING_STONES_PATH then
-            MINING_STONES_PATH = workspace:FindFirstChild("Main") and workspace.Main:FindFirstChild("ActiveMiningStones")
-        end
-        if not MINING_STONES_PATH then return {} end
-        local stones = {}
-        for _, stone in ipairs(MINING_STONES_PATH:GetChildren()) do
-            if stone:IsA("Model") then
-                table.insert(stones, stone)
-            end
-        end
-        return stones
-    end
-
-    local function isStoneAvailable(stone)
-        local available = stone:GetAttribute("AvailableSlot")
-        if available and available <= 0 then return false end
-        local consumed = stone:GetAttribute("ConsumedSlot")
-        local maxSlot = stone:GetAttribute("MaxSlot")
-        if consumed and maxSlot and consumed >= maxSlot then return false end
-        return true
-    end
-
-    local function getNearestStone()
-        local hrp = getHRP(lp.Character)
-        if not hrp then return nil, math.huge end
-        local best, bestDist = nil, math.huge
-        for _, stone in ipairs(getMiningStones()) do
-            if autoMineHotspotOnly and not stone:GetAttribute("IsHotspot") then
-                continue
-            end
-            if not isStoneAvailable(stone) then
-                continue
-            end
-            local pos = stone:GetPivot().Position
-            local d = (hrp.Position - pos).Magnitude
-            if d < bestDist then
-                bestDist = d
-                best = stone
-            end
-        end
-        return best, bestDist
-    end
-
-    local function tpToStone(stone)
-        local hrp = getHRP(lp.Character)
-        if not hrp or not stone then return end
-        local pos = stone:GetPivot().Position
-        -- TP 3-5 studs beside the stone (random offset), not inside it
-        local offset = 3 + math.random() * 2
-        local angle = math.random() * math.pi * 2
-        local beside = pos + Vector3.new(math.cos(angle) * offset, 3, math.sin(angle) * offset)
-        hrp.CFrame = CFrame.new(beside, pos)
-    end
-
-    local function clickStone(stone)
-        -- Just need to be near the stone and click anywhere
-        pcall(function()
-            VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-            task.wait(0.05)
-            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-        end)
-        return true
-    end
-
-    -- ── HOTSPOT ESP ──
-    local function removeMineESP(stone)
-        local obj = mineESPObjects[stone]
-        if not obj then return end
-        if obj.highlight then obj.highlight:Destroy() end
-        if obj.billboard then obj.billboard:Destroy() end
-        mineESPObjects[stone] = nil
-    end
-
-    local function addMineESP(stone)
-        if mineESPObjects[stone] then return end
-        if not stone:GetAttribute("IsHotspot") then return end
-
-        local highlight = Instance.new("Highlight")
-        highlight.Adornee = stone
-        highlight.FillColor = THEME.warn
-        highlight.FillTransparency = 0.7
-        highlight.OutlineColor = THEME.warn
-        highlight.OutlineTransparency = 0.3
-        highlight.Parent = stone
-
-        local bb = Instance.new("BillboardGui")
-        bb.Adornee = stone
-        bb.AlwaysOnTop = true
-        bb.Size = UDim2.new(0, 140, 0, 28)
-        bb.StudsOffset = Vector3.new(0, 6, 0)
-        bb.Parent = stone
-
-        local lbl = Instance.new("TextLabel")
-        lbl.Size = UDim2.new(1, 0, 1, 0)
-        lbl.BackgroundTransparency = 1
-        lbl.Text = "⛏️ Hotspot"
-        lbl.TextColor3 = THEME.warn
-        lbl.TextStrokeTransparency = 0
-        lbl.Font = Enum.Font.GothamBold
-        lbl.TextSize = 13
-        lbl.Parent = bb
-
-        mineESPObjects[stone] = { highlight = highlight, billboard = bb }
-    end
-
-    local function refreshMineESP()
-        -- Remove all existing
-        for stone in pairs(mineESPObjects) do
-            removeMineESP(stone)
-        end
-        if not mineESPOn then return end
-        -- Add for hotspot stones
-        for _, stone in ipairs(getMiningStones()) do
-            if stone:GetAttribute("IsHotspot") then
-                addMineESP(stone)
-            end
-        end
-    end
-
-    local function updateMineStats()
-        local total = 0
-        for _, count in pairs(autoMineCounts) do
-            total = total + count
-        end
-        local statsText = "Total Mined: " .. total
-        local parts = {}
-        for rarity, count in pairs(autoMineCounts) do
-            table.insert(parts, rarity .. ": " .. count)
-        end
-        if #parts > 0 then
-            statsText = statsText .. "\n" .. table.concat(parts, " | ")
-        end
-        pcall(function()
-            gui.Mining.OreStats.Text = statsText
-        end)
-    end
-
-    local function autoMineLoop()
-        log("AutoMine: Engine started", THEME.success)
-        gui.Mining.Status.TextColor3 = THEME.success
-
-        while autoMineEnabled and not destroyed do
-            local char = lp.Character
-            local hum = char and char:FindFirstChildOfClass("Humanoid")
-
-            if not char or not hum then
-                amSetStage("No character")
-                task.wait(1)
-                continue
-            end
-
-            -- Ensure pickaxe is equipped
-            if not getPickaxe() then
-                amSetStage("Equipping pickaxe...")
-                if not equipPickaxe() then
-                    amSetStage("No pickaxe found!")
-                    gui.Mining.Status.TextColor3 = THEME.danger
-                    log("AutoMine: No pickaxe in character or backpack", THEME.danger)
-                    task.wait(2)
-                    continue
-                end
-            end
-
-            -- Find nearest stone (auto-switches when current stone is full)
-            local stone, dist = getNearestStone()
-            if not stone then
-                amSetStage("No stones available")
-                log("AutoMine: All stones full or filtered out", THEME.warn)
-                task.wait(3)
-                continue
-            end
-
-            -- TP to stone if enabled
-            if autoMineTPEnabled then
-                amSetStage("TP to stone...")
-                tpToStone(stone)
-                task.wait(0.5)
-            elseif dist > 15 then
-                amSetStage("Too far from stone, enable Auto TP")
-                task.wait(2)
-                continue
-            end
-
-            -- ── CLICK THE STONE ──
-            amSetStage("Clicking stone...")
-            local clicked = clickStone(stone)
-            if not clicked then
-                log("AutoMine: Failed to click stone", THEME.warn)
-                task.wait(1)
-                continue
-            end
-
-            if not autoMineEnabled or destroyed then break end
-
-            -- ── WAIT FOR STARTMINIGAME (ore info) ──
-            amSetStage("Waiting for minigame...")
-            local minigameStarted = false
-            local mineData = nil
-            local minigameConn = nil
-
-            local pick = getPickaxe()
-            local startMinigame = pick and pick:FindFirstChild("StartMinigame")
-            if startMinigame and startMinigame:IsA("RemoteEvent") then
-                minigameConn = startMinigame.OnClientEvent:Connect(function(rarity, info)
-                    minigameStarted = true
-                    if info and type(info) == "table" then
-                        mineData = info
-                        mineData.Rarity = rarity
-                    end
-                end)
-            end
-
-            local mgWaitStart = tick()
-            while not minigameStarted and (tick() - mgWaitStart) < AM_MINIGAME_TIMEOUT and autoMineEnabled do
-                task.wait(0.1)
-            end
-
-            if minigameConn then minigameConn:Disconnect() end
-
-            if not autoMineEnabled or destroyed then break end
-
-            if not minigameStarted then
-                log("AutoMine: Minigame timeout", THEME.warn)
-                task.wait(1)
-                continue
-            end
-
-            -- ── SKIP MINIGAME (random 8-15s delay then fire MineResult) ──
-            amSetStage("Minigame active, waiting to mine...")
-            local skipDelay = 8 + math.random() * 7
-            task.wait(skipDelay)
-
-            if not autoMineEnabled or destroyed then break end
-
-            -- ── FIRE MineResult (catch) ──
-            amSetStage("Mining!")
-            local mineResultRemote = pick and (pick:FindFirstChild("MineResult"))
-            if mineResultRemote and mineResultRemote:IsA("RemoteEvent") then
-                pcall(function()
-                    mineResultRemote:FireServer(true)
-                end)
-            else
-                log("AutoMine: MineResult remote not found", THEME.danger)
-                task.wait(1)
-                continue
-            end
-
-            -- ── FIRE MinigameOpenedEvent (close minigame) ──
-            local minigameOpened = pick and pick:FindFirstChild("MinigameOpenedEvent")
-            if minigameOpened then
-                pcall(function()
-                    minigameOpened:FireServer(tick())
-                end)
-            end
-
-            -- ── DESTROY MINIGAME GUI ──
-            pcall(function()
-                local playerGui = lp:FindFirstChild("PlayerGui")
-                if playerGui then
-                    for _, g in pairs(playerGui:GetChildren()) do
-                        if g:IsA("ScreenGui") and (g:FindFirstChild("MiningHolder", true) or g:FindFirstChild("FishingHolder", true)) then
-                            g:Destroy()
-                            break
-                        end
-                    end
-                end
-            end)
-
-            -- ── LOG RESULT ──
-            local oreName = mineData and mineData.OreName or "Unknown"
-            local oreRarity = mineData and mineData.Rarity or "?"
-            local orePrice = mineData and mineData.Price or nil
-
-            gui.Mining.LastOre.Text = "Last: " .. oreName .. " [" .. oreRarity .. "]"
-            log("AutoMine: Mined " .. oreName .. " (" .. oreRarity .. ")", THEME.success)
-
-            -- Track counts
-            autoMineCounts[oreRarity] = (autoMineCounts[oreRarity] or 0) + 1
-            if orePrice and tonumber(orePrice) then
-                perfTotalEarnings = perfTotalEarnings + tonumber(orePrice)
-            end
-
-            -- Webhook for rare ores
-            if webhookEnabled and shouldLogRarity(oreRarity) then
-                local priceStr = orePrice and ("Rp." .. tostring(math.floor(tonumber(orePrice) or 0))) or "?"
-                sendWebhook("⛏️ Rare Ore Mined!", "**" .. oreName .. "** [" .. oreRarity .. "]\nPrice: " .. priceStr, 16753920)
-            end
-
-            updateMineStats()
-
-            -- ── POST DELAY ──
-            amSetStage("Resetting...")
-            task.wait(AM_POST_MINE_DELAY)
-        end
-
-        amSetStage("Idle")
-        gui.Mining.Status.TextColor3 = THEME.dim
-        log("AutoMine: Stopped", THEME.dim)
-    end
-
-    -- Mining toggle button
-    bind(gui.Mining.ToggleBtn.MouseButton1Click, function()
-        autoMineEnabled = not autoMineEnabled
-        if autoMineEnabled then
-            gui.Mining.ToggleBtn.Text = "Auto Mine: ON"
-            gui.Mining.ToggleBtn.BackgroundColor3 = THEME.success
-            task.spawn(autoMineLoop)
-        else
-            gui.Mining.ToggleBtn.Text = "Auto Mine: OFF"
-            gui.Mining.ToggleBtn.BackgroundColor3 = THEME.accent
-        end
-    end)
-
-    -- Hotspot only toggle
-    bind(gui.Mining.HotspotBtn.MouseButton1Click, function()
-        autoMineHotspotOnly = not autoMineHotspotOnly
-        if autoMineHotspotOnly then
-            gui.Mining.HotspotBtn.Text = "Hotspot Only: ON"
-            gui.Mining.HotspotBtn.BackgroundColor3 = THEME.success
-            log("AutoMine: Hotspot Only ON", THEME.success)
-        else
-            gui.Mining.HotspotBtn.Text = "Hotspot Only: OFF"
-            gui.Mining.HotspotBtn.BackgroundColor3 = THEME.tp
-            log("AutoMine: Hotspot Only OFF", THEME.dim)
-        end
-    end)
-
-    -- Auto TP toggle
-    bind(gui.Mining.TPBtn.MouseButton1Click, function()
-        autoMineTPEnabled = not autoMineTPEnabled
-        if autoMineTPEnabled then
-            gui.Mining.TPBtn.Text = "Auto TP to Stones: ON"
-            gui.Mining.TPBtn.BackgroundColor3 = THEME.success
-            log("AutoMine: Auto TP ON", THEME.success)
-        else
-            gui.Mining.TPBtn.Text = "Auto TP to Stones: OFF"
-            gui.Mining.TPBtn.BackgroundColor3 = THEME.tp
-            log("AutoMine: Auto TP OFF", THEME.dim)
-        end
-    end)
-
-    -- Hotspot ESP toggle
-    bind(gui.Mining.ESPBtn.MouseButton1Click, function()
-        mineESPOn = not mineESPOn
-        if mineESPOn then
-            gui.Mining.ESPBtn.Text = "Hotspot ESP: ON"
-            gui.Mining.ESPBtn.BackgroundColor3 = THEME.success
-            log("AutoMine: Hotspot ESP ON", THEME.success)
-        else
-            gui.Mining.ESPBtn.Text = "Hotspot ESP: OFF"
-            gui.Mining.ESPBtn.BackgroundColor3 = THEME.warn
-            log("AutoMine: Hotspot ESP OFF", THEME.dim)
-        end
-        refreshMineESP()
-    end)
-
-    -- ═══════════════════════════════════════════
-    -- AUTO GACHA SYSTEM
-    -- ═══════════════════════════════════════════
-    local autoGachaEnabled = false
-    local autoGachaRolls = 0
-    local gachaStopRarities = {}
-    local selectedGachaBox = gui.Gacha.SelectedBox.Value
-
-    -- Box selection buttons
-    for boxName, btn in pairs(gui.Gacha.BoxButtons) do
-        bind(btn.MouseButton1Click, function()
-            selectedGachaBox = boxName
-            gui.Gacha.SelectedBox.Value = boxName
-            -- Update button visuals
-            for bName, bBtn in pairs(gui.Gacha.BoxButtons) do
-                if bName == boxName then
-                    bBtn.BackgroundColor3 = THEME.accent
-                    bBtn.BackgroundTransparency = 0.2
-                    bBtn.TextColor3 = Color3.new(1, 1, 1)
-                else
-                    bBtn.BackgroundColor3 = THEME.panel2
-                    bBtn.BackgroundTransparency = 0.6
-                    bBtn.TextColor3 = THEME.dim
-                end
-            end
-            log("Gacha: Selected box → " .. boxName, THEME.dim)
-        end)
-    end
-
-    -- Stop rarity toggle buttons
-    for rarity, btn in pairs(gui.Gacha.StopButtons) do
-        bind(btn.MouseButton1Click, function()
-            gachaStopRarities[rarity] = not gachaStopRarities[rarity]
-            if gachaStopRarities[rarity] then
-                btn.BackgroundColor3 = THEME.success
-                btn.BackgroundTransparency = 0.2
-                btn.TextColor3 = Color3.new(1, 1, 1)
-            else
-                btn.BackgroundColor3 = THEME.panel2
-                btn.BackgroundTransparency = 0.6
-                btn.TextColor3 = THEME.dim
-            end
-        end)
-    end
-
-    local function autoGachaLoop()
-        log("AutoGacha: Started [" .. selectedGachaBox .. "]", THEME.success)
-        gui.Gacha.Status.Text = "Status: Running | Rolls: 0"
-        gui.Gacha.Status.TextColor3 = THEME.success
-
-        while autoGachaEnabled and not destroyed do
-            local boxName = selectedGachaBox
-
-            if boxName == "" then
-                gui.Gacha.Status.Text = "Status: Select a box first!"
-                gui.Gacha.Status.TextColor3 = THEME.warn
-                task.wait(2)
-                continue
-            end
-
-            -- Listen for rarity result from the reward event
-            local receivedRarities = {}
-            local receivedNames = {}
-            local completionConn
-            pcall(function()
-                local gre = game:GetService("ReplicatedStorage"):FindFirstChild("GameRemoteEvents")
-                local rewardEvent = gre and gre:FindFirstChild("CreateBlindBoxRewardInfoEvent")
-                if rewardEvent and rewardEvent:IsA("RemoteEvent") then
-                    completionConn = rewardEvent.OnClientEvent:Connect(function(info, _, rarity, petId, ...)
-                        local r = rarity or (info and info.Rarity)
-                        local name = (info and info.Name) or petId or "?"
-                        if r and type(r) == "string" then
-                            table.insert(receivedRarities, r)
-                            table.insert(receivedNames, name)
-                        end
-                    end)
-                end
-            end)
-
-            -- Roll 10x
-            gui.Gacha.Status.Text = "Status: Rolling 10x [" .. boxName .. "]..."
-            local rollOk, rollResult = pcall(function()
-                return game:GetService("ReplicatedStorage").GameRemoteFunctions.BlindBoxRollFunction:InvokeServer("Pet", boxName, 10)
-            end)
-
-            -- Wait a moment for completion events to fire
-            task.wait(1)
-
-            if completionConn then completionConn:Disconnect() end
-
-            if not rollOk then
-                gui.Gacha.Status.Text = "Status: Roll failed!"
-                gui.Gacha.Status.TextColor3 = THEME.danger
-                log("AutoGacha: Error - " .. tostring(rollResult), THEME.danger)
-                task.wait(3)
-                continue
-            end
-
-            autoGachaRolls = autoGachaRolls + 10
-            gui.Gacha.Status.Text = "Status: Running | Rolls: " .. autoGachaRolls
-
-            -- Destroy blind box animation/UI
-            pcall(function()
-                local playerGui = lp:FindFirstChild("PlayerGui")
-                if playerGui then
-                    for _, g in pairs(playerGui:GetChildren()) do
-                        if g:IsA("ScreenGui") then
-                            if g:FindFirstChild("BlindBox", true) or g:FindFirstChild("GachaHolder", true)
-                                or g:FindFirstChild("Gacha", true) or string.find(g.Name, "BlindBox")
-                                or string.find(g.Name, "Gacha") or string.find(g.Name, "Roll") then
-                                g:Destroy()
-                            end
-                        end
-                    end
-                end
-            end)
-
-            -- Check received rarities from reward event
-            local gotStopRarity = false
-            local lastRarity = "?"
-            local lastPetName = "?"
-
-            if #receivedRarities > 0 then
-                for i, r in ipairs(receivedRarities) do
-                    lastRarity = r
-                    lastPetName = receivedNames[i] or "?"
-                    if gachaStopRarities[r] then
-                        gotStopRarity = true
-                    end
-                end
-            else
-                -- Fallback: check rollResult if reward event didn't fire
-                if type(rollResult) == "table" then
-                    for _, item in ipairs(rollResult) do
-                        local r = type(item) == "table" and (item.Rarity or item.rarity) or nil
-                        if r then
-                            lastRarity = tostring(r)
-                            if gachaStopRarities[lastRarity] then
-                                gotStopRarity = true
-                            end
-                        end
-                    end
-                end
-            end
-
-            gui.Gacha.LastResult.Text = "Last: " .. lastPetName .. " [" .. lastRarity .. "]"
-            if #receivedRarities > 0 then
-                log("AutoGacha: Roll #" .. autoGachaRolls .. " → " .. table.concat(receivedRarities, ", "), THEME.dim)
-            else
-                log("AutoGacha: Roll #" .. autoGachaRolls .. " (no rarity data)", THEME.dim)
-            end
-
-            -- Check stop condition
-            if gotStopRarity then
-                gui.Gacha.Status.Text = "Status: STOPPED! Got " .. lastPetName .. " [" .. lastRarity .. "]!"
-                gui.Gacha.Status.TextColor3 = THEME.success
-                log("AutoGacha: STOPPED - obtained " .. lastPetName .. " (" .. lastRarity .. ") after " .. autoGachaRolls .. " rolls!", THEME.success)
-                autoGachaEnabled = false
-                gui.Gacha.ToggleBtn.Text = "Auto Gacha: OFF"
-                gui.Gacha.ToggleBtn.BackgroundColor3 = THEME.accent
-
-                -- Send webhook
-                sendWebhookRaw({
-                    embeds = {{
-                        title = "🎰 Gacha Target Obtained!",
-                        description = "**" .. lp.Name .. "** hit the jackpot!",
-                        color = 16766720,
-                        thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
-                        fields = {
-                            {name = "Pet :", value = "```" .. lastPetName .. "```", inline = false},
-                            {name = "Rarity :", value = "```" .. lastRarity .. "```", inline = true},
-                            {name = "Total Rolls :", value = "```" .. tostring(autoGachaRolls) .. "```", inline = true},
-                            {name = "Box :", value = "```Pet / " .. boxName .. "```", inline = false},
-                        },
-                        footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
-                        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-                    }}
-                })
-                break
-            end
-
-            -- Delay between rolls
-            task.wait(1.5)
-        end
-
-        if autoGachaEnabled then
-            gui.Gacha.Status.Text = "Status: Idle | Rolls: " .. autoGachaRolls
-            gui.Gacha.Status.TextColor3 = THEME.dim
-        end
-    end
-
-    bind(gui.Gacha.ToggleBtn.MouseButton1Click, function()
-        autoGachaEnabled = not autoGachaEnabled
-        if autoGachaEnabled then
-            gui.Gacha.ToggleBtn.Text = "Auto Gacha: ON"
-            gui.Gacha.ToggleBtn.BackgroundColor3 = THEME.success
-            task.spawn(autoGachaLoop)
-        else
-            gui.Gacha.ToggleBtn.Text = "Auto Gacha: OFF"
-            gui.Gacha.ToggleBtn.BackgroundColor3 = THEME.accent
-            gui.Gacha.Status.Text = "Status: Stopped | Rolls: " .. autoGachaRolls
-            gui.Gacha.Status.TextColor3 = THEME.dim
-        end
-    end)
-
-    -- ═══════════════════════════════════════════
-    -- SHOP GACHA SYSTEM (Pet / Aura / Trail)
-    -- ═══════════════════════════════════════════
-    local shopGachaEnabled = false
-    local shopGachaRolls = 0
-    local shopGachaType = "Pet"
-    local shopGachaStopRarities = {}
-
-    -- Type selection buttons
-    for typeName, btn in pairs(gui.ShopGacha.TypeButtons) do
-        bind(btn.MouseButton1Click, function()
-            shopGachaType = typeName
-            for tName, tBtn in pairs(gui.ShopGacha.TypeButtons) do
-                if tName == typeName then
-                    tBtn.BackgroundColor3 = THEME.accent
-                    tBtn.BackgroundTransparency = 0.2
-                    tBtn.TextColor3 = Color3.new(1, 1, 1)
-                else
-                    tBtn.BackgroundColor3 = THEME.panel2
-                    tBtn.BackgroundTransparency = 0.6
-                    tBtn.TextColor3 = THEME.dim
-                end
-            end
-            log("ShopGacha: Type → " .. typeName, THEME.dim)
-        end)
-    end
-
-    -- Stop rarity buttons
-    for rarity, btn in pairs(gui.ShopGacha.StopButtons) do
-        bind(btn.MouseButton1Click, function()
-            shopGachaStopRarities[rarity] = not shopGachaStopRarities[rarity]
-            if shopGachaStopRarities[rarity] then
-                btn.BackgroundColor3 = THEME.success
-                btn.BackgroundTransparency = 0.2
-                btn.TextColor3 = Color3.new(1, 1, 1)
-            else
-                btn.BackgroundColor3 = THEME.panel2
-                btn.BackgroundTransparency = 0.6
-                btn.TextColor3 = THEME.dim
-            end
-        end)
-    end
-
-    local function shopGachaLoop()
-        log("ShopGacha: Started [" .. shopGachaType .. "]", THEME.success)
-        gui.ShopGacha.Status.Text = "Status: Running | Rolls: 0"
-        gui.ShopGacha.Status.TextColor3 = THEME.success
-
-        -- Mute game sounds during gacha
-        local originalVolume = game:GetService("SoundService").AmbientReverb
-        pcall(function()
-            for _, sound in ipairs(game:GetService("SoundService"):GetDescendants()) do
-                if sound:IsA("Sound") then
-                    sound.Volume = 0
-                end
-            end
-        end)
-
-        local function destroyGachaUI()
-            pcall(function()
-                local playerGui = lp:FindFirstChild("PlayerGui")
-                if playerGui then
-                    for _, g in pairs(playerGui:GetChildren()) do
-                        if g:IsA("ScreenGui") and g.Name ~= "LyraHub_Main" and g.Name ~= "Chat" then
-                            local n = g.Name
-                            if string.find(n, "Roll") or string.find(n, "Reward")
-                                or string.find(n, "Gacha") or string.find(n, "Blind")
-                                or string.find(n, "Animation") or string.find(n, "Popup")
-                                or string.find(n, "Shop") or string.find(n, "Spin")
-                                or string.find(n, "Notif") then
-                                g:Destroy()
-                            end
-                        end
-                    end
-                end
-            end)
-            -- Also kill any sounds that just spawned
-            pcall(function()
-                for _, sound in ipairs(workspace:GetDescendants()) do
-                    if sound:IsA("Sound") and sound.Playing then
-                        sound:Stop()
-                        sound.Volume = 0
-                    end
-                end
-            end)
-        end
-
-        while shopGachaEnabled and not destroyed do
-            -- Destroy UI before rolling (clear any leftover)
-            destroyGachaUI()
-            task.wait(0.2)
-
-            -- Listen for reward event (CreateRewardInfoEvent)
-            local receivedRarities = {}
-            local receivedNames = {}
-            local rewardConn
-            pcall(function()
-                local gre = game:GetService("ReplicatedStorage"):FindFirstChild("GameRemoteEvents")
-                local rewardEvent = gre and gre:FindFirstChild("CreateRewardInfoEvent")
-                if rewardEvent and rewardEvent:IsA("RemoteEvent") then
-                    rewardConn = rewardEvent.OnClientEvent:Connect(function(info, typeStr, rarity, itemId, ...)
-                        local r = rarity or (info and info.Rarity)
-                        local name = (info and info.Name) or itemId or "?"
-                        if r and type(r) == "string" then
-                            table.insert(receivedRarities, r)
-                            table.insert(receivedNames, name)
-                        end
-                    end)
-                end
-            end)
-
-            -- Roll 10x
-            gui.ShopGacha.Status.Text = "Status: Rolling 10x [" .. shopGachaType .. "]..."
-            local rollOk, rollResult = pcall(function()
-                return game:GetService("ReplicatedStorage").GameRemoteFunctions.RollShopFunction:InvokeServer(shopGachaType, 10)
-            end)
-
-            -- Immediately destroy the animation UI
-            destroyGachaUI()
-            task.wait(0.5)
-            destroyGachaUI()
-
-            if rewardConn then rewardConn:Disconnect() end
-
-            if not rollOk then
-                gui.ShopGacha.Status.Text = "Status: Retrying..."
-                gui.ShopGacha.Status.TextColor3 = THEME.warn
-                log("ShopGacha: " .. tostring(rollResult), THEME.warn)
-                destroyGachaUI()
-                task.wait(1)
-                continue
-            end
-
-            shopGachaRolls = shopGachaRolls + 10
-            gui.ShopGacha.Status.Text = "Status: Running | Rolls: " .. shopGachaRolls
-            gui.ShopGacha.Status.TextColor3 = THEME.success
-
-            -- Check results
-            local gotStopRarity = false
-            local lastRarity = "?"
-            local lastItemName = "?"
-
-            if #receivedRarities > 0 then
-                for i, r in ipairs(receivedRarities) do
-                    lastRarity = r
-                    lastItemName = receivedNames[i] or "?"
-                    if shopGachaStopRarities[r] then
-                        gotStopRarity = true
-                    end
-                end
-            end
-
-            gui.ShopGacha.LastResult.Text = "Last: " .. lastItemName .. " [" .. lastRarity .. "]"
-            if #receivedRarities > 0 then
-                log("ShopGacha: Roll #" .. shopGachaRolls .. " → " .. table.concat(receivedRarities, ", "), THEME.dim)
-            else
-                log("ShopGacha: Roll #" .. shopGachaRolls .. " (done)", THEME.dim)
-            end
-
-            -- Stop condition
-            if gotStopRarity then
-                gui.ShopGacha.Status.Text = "Status: STOPPED! Got " .. lastItemName .. " [" .. lastRarity .. "]!"
-                gui.ShopGacha.Status.TextColor3 = THEME.success
-                log("ShopGacha: STOPPED - " .. lastItemName .. " (" .. lastRarity .. ") after " .. shopGachaRolls .. " rolls!", THEME.success)
-                shopGachaEnabled = false
-                gui.ShopGacha.ToggleBtn.Text = "Shop Gacha: OFF"
-                gui.ShopGacha.ToggleBtn.BackgroundColor3 = THEME.accent
-
-                sendWebhookRaw({
-                    embeds = {{
-                        title = "🛒 Shop Gacha Target!",
-                        description = "**" .. lp.Name .. "** got the target from shop rolls!",
-                        color = 16766720,
-                        thumbnail = {url = "https://tr.rbxcdn.com/180DAY-0250e05e2ec3e54faf2791022401a956/150/150/Image/Webp/noFilter"},
-                        fields = {
-                            {name = "Item :", value = "```" .. lastItemName .. "```", inline = false},
-                            {name = "Rarity :", value = "```" .. lastRarity .. "```", inline = true},
-                            {name = "Total Rolls :", value = "```" .. tostring(shopGachaRolls) .. "```", inline = true},
-                            {name = "Type :", value = "```" .. shopGachaType .. "```", inline = false},
-                        },
-                        footer = {text = "LyraHub • " .. lp.Name .. " • " .. os.date("%m/%d/%Y %I:%M %p")},
-                        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-                    }}
-                })
-                break
-            end
-
-            -- Short delay between rolls
-            task.wait(0.5)
-        end
-
-        if shopGachaEnabled then
-            gui.ShopGacha.Status.Text = "Status: Idle | Rolls: " .. shopGachaRolls
-            gui.ShopGacha.Status.TextColor3 = THEME.dim
-        end
-        log("ShopGacha: Stopped", THEME.dim)
-    end
-
-    bind(gui.ShopGacha.ToggleBtn.MouseButton1Click, function()
-        shopGachaEnabled = not shopGachaEnabled
-        if shopGachaEnabled then
-            gui.ShopGacha.ToggleBtn.Text = "Shop Gacha: ON"
-            gui.ShopGacha.ToggleBtn.BackgroundColor3 = THEME.success
-            task.spawn(shopGachaLoop)
-        else
-            gui.ShopGacha.ToggleBtn.Text = "Shop Gacha: OFF"
-            gui.ShopGacha.ToggleBtn.BackgroundColor3 = THEME.accent
-            gui.ShopGacha.Status.Text = "Status: Stopped | Rolls: " .. shopGachaRolls
-            gui.ShopGacha.Status.TextColor3 = THEME.dim
-        end
-    end)
-
-    -- ═══════════════════════════════════════════
-    -- ROD SHOP (Buy Rod)
-    -- ═══════════════════════════════════════════
-    for rodName, btn in pairs(gui.RodShop.BuyButtons) do
-        bind(btn.MouseButton1Click, function()
-            btn.Text = "..."
-            btn.BackgroundColor3 = THEME.warn
-            local ok, success, errMsg = pcall(function()
-                return game:GetService("ReplicatedStorage").GameRemoteFunctions.RodShopPurchaseFunction:InvokeServer(rodName)
-            end)
-            if ok and success == true then
-                btn.Text = "OK!"
-                btn.BackgroundColor3 = THEME.success
-                gui.RodShop.Status.Text = "Bought: " .. rodName:gsub("Tool_", ""):gsub("Rod$", "")
-                gui.RodShop.Status.TextColor3 = THEME.success
-                log("RodShop: Purchased " .. rodName, THEME.success)
-            else
-                local reason = ""
-                if not ok then
-                    reason = tostring(success)
-                elseif success == false then
-                    reason = tostring(errMsg or "Not enough Ropiah")
-                else
-                    reason = "Unknown error"
-                end
-                btn.Text = "Fail"
-                btn.BackgroundColor3 = THEME.danger
-                gui.RodShop.Status.Text = reason
-                gui.RodShop.Status.TextColor3 = THEME.danger
-                log("RodShop: " .. rodName:gsub("Tool_", "") .. " → " .. reason, THEME.danger)
-            end
-            task.delay(3, function()
-                if btn and btn.Parent then
-                    btn.Text = "Buy"
-                    btn.BackgroundColor3 = THEME.accent
-                end
-            end)
-        end)
-    end
-
-    -- Rod search filter
-    bind(gui.RodShop.SearchBox:GetPropertyChangedSignal("Text"), function()
-        local query = string.lower(gui.RodShop.SearchBox.Text)
-        for rodName, row in pairs(gui.RodShop.RodRows) do
-            if query == "" then
-                row.Visible = true
-            else
-                local display = string.lower(rodName:gsub("Tool_", ""):gsub("Rod$", ""))
-                row.Visible = string.find(display, query, 1, true) ~= nil
-            end
-        end
-    end)
-
-    bind(gui.Players.SearchBox:GetPropertyChangedSignal("Text"), function()
-        playerSearchText = gui.Players.SearchBox.Text
-        refreshPlayerRows()
-    end)
-
-    for _, p in ipairs(Players:GetPlayers()) do makePlayerRow(p) end
-    bind(Players.PlayerAdded, makePlayerRow)
-    bind(Players.PlayerRemoving, removePlayerRow)
-
-    bind(gui.FishZone.ZoneESPBtn.MouseButton1Click, function()
-        zoneESPOn = not zoneESPOn
-        gui.FishZone.ZoneESPBtn.Text = zoneESPOn and "FishZone ESP: ON" or "FishZone ESP: OFF"
-        gui.FishZone.ZoneESPBtn.BackgroundColor3 = zoneESPOn and THEME.success or THEME.accent
-        refreshZoneESP()
-        log("FishZone ESP: " .. (zoneESPOn and "ON" or "OFF"), zoneESPOn and THEME.success or THEME.dim)
-    end)
-
-    bind(gui.FishZone.AutoTPBtn.MouseButton1Click, function()
-        if autoTPEnabled then
-            stopAutoTP()
-            log("Auto TP: OFF", THEME.danger)
-        else
-            startAutoTP()
-            moveToNearestActiveZone()
-            log("Auto TP: ON - searching for active zone", THEME.success)
-        end
-    end)
-
-    bind(gui.FishZone.RefreshCharBtn.MouseButton1Click, function()
-        gui.FishZone.RefreshCharBtn.Text = "Refreshing..."
-        refreshCharacterAdonis()
-        log("Refresh character sent (Adonis)", THEME.warn)
-        task.delay(1.2, function()
-            if gui.FishZone.RefreshCharBtn and gui.FishZone.RefreshCharBtn.Parent then
-                gui.FishZone.RefreshCharBtn.Text = "Refresh Character"
-            end
-        end)
-    end)
-
-    for _, part in ipairs(getZoneParts()) do
-        table.insert(zoneAttributeConnections, part:GetAttributeChangedSignal("IsActive"):Connect(function()
-            refreshZoneESP()
-            if autoTPEnabled then
-                local hrp = getHRP(lp.Character)
-                local currentStillActive = isActiveZone(currentZone)
-                local insideActive, insidePart = isInsideAnyActiveZone(hrp)
-                if not currentStillActive then
-                    unfreezeCharacter()
-                    currentZone = nil
-                    moveToNearestActiveZone()
-                elseif insideActive and insidePart ~= currentZone then
-                    currentZone = insidePart
-                    tpToZone(insidePart)
-                elseif not insideActive then
-                    moveToNearestActiveZone()
-                end
-            end
-        end))
-    end
-
-    bind(gui.Clicker.ToggleBtn.MouseButton1Click, toggleClicker)
-
-    -- Custom keybind for clicker
-    local isListeningKeybind = false
-
-    local function updateKeybindUI()
-        local keyName = tostring(TOGGLE_KEY):gsub("Enum.KeyCode.", "")
-        gui.Clicker.KeybindBtn.Text = "Key: " .. keyName
-        gui.Clicker.ToggleBtn.Text = clicking
-            and ("Stop [" .. keyName .. "]")
-            or ("Start [" .. keyName .. "]")
-    end
-
-    bind(gui.Clicker.KeybindBtn.MouseButton1Click, function()
-        if isListeningKeybind then return end
-        isListeningKeybind = true
-        gui.Clicker.KeybindBtn.Text = "Press any key..."
-        gui.Clicker.KeybindBtn.BackgroundColor3 = THEME.warn
-        gui.Clicker.KeybindBtn.TextColor3 = Color3.new(1, 1, 1)
-
-        local conn
-        conn = UserInputService.InputBegan:Connect(function(input, gpe)
-            if gpe then return end
-            if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-            conn:Disconnect()
-
-            TOGGLE_KEY = input.KeyCode
-            updateKeybindUI()
-            gui.Clicker.KeybindBtn.BackgroundColor3 = THEME.panel2
-            gui.Clicker.KeybindBtn.TextColor3 = THEME.dim
-            log("Clicker keybind: " .. tostring(TOGGLE_KEY):gsub("Enum.KeyCode.", ""), THEME.dim)
-
-            task.delay(0.1, function()
-                isListeningKeybind = false
-            end)
-        end)
-    end)
-
-    updateKeybindUI()
-
-    bind(gui.Clicker.SliderKnob.InputBegan, function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then draggingSlider = true end
-    end)
-
-    bind(UserInputService.InputEnded, function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then draggingSlider = false end
-    end)
-
-    bind(UserInputService.InputChanged, function(i)
-        if draggingSlider and i.UserInputType == Enum.UserInputType.MouseMovement then
-            local ratio = math.clamp(
-            (i.Position.X - gui.Clicker.SliderTrack.AbsolutePosition.X) / gui.Clicker.SliderTrack.AbsoluteSize.X, 0, 1)
-            clickCPS = math.max(1, math.floor(ratio * 100))
-            clickDelay = 1 / clickCPS
-            gui.Clicker.SliderFill.Size = UDim2.new(ratio, 0, 1, 0)
-            gui.Clicker.SliderKnob.Position = UDim2.new(ratio, -8, 0.5, -8)
-            gui.Clicker.CPSLbl.Text = "CPS: " .. clickCPS
-        end
-    end)
-
-    bind(gui.Settings.UnloadBtn.MouseButton1Click, destroyAll)
-    bind(gui.CloseBtn.MouseButton1Click, destroyAll)
-
-    bind(gui.MinBtn.MouseButton1Click, function()
-        minimized = true
-        gui.Main.Visible = false
-        gui.MinimizedOrb.Visible = true
-    end)
-
-    bind(gui.MinimizedOrb.MouseButton1Click, function()
-        minimized = false
-        gui.Main.Visible = true
-        gui.MinimizedOrb.Visible = false
-    end)
-
-    bind(gui.DragHit.InputBegan, function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            beginDrag(input)
-        end
-    end)
-
-    bind(UserInputService.InputChanged, function(input)
-        if draggingUI and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - dragStart
-            gui.Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y)
-        end
-    end)
-
-    bind(UserInputService.InputBegan, function(input, gp)
-        if gp or destroyed then return end
-        if input.KeyCode == TOGGLE_KEY then toggleClicker() end
-        if input.KeyCode == PICK_KEY then
-            savedX = mouse.X
-            savedY = mouse.Y
-            updateClickerUI()
-        end
-        if input.KeyCode == HIDE_KEY then
-            hideUI = not hideUI
-            if hideUI then
-                gui.Main.Visible = false
-                gui.MinimizedOrb.Visible = false
-            else
-                if minimized then
-                    gui.MinimizedOrb.Visible = true
-                else
-                    gui.Main.Visible = true
-                end
-            end
-        end
-    end)
-
-    -- Dark/Light theme toggle
-    bind(gui.Settings.DarkThemeBtn.MouseButton1Click, function()
-        THEME.accent = Color3.fromRGB(155, 89, 255)
-        THEME.accentGlow = Color3.fromRGB(180, 130, 255)
-        THEME.bg = Color3.fromRGB(12, 10, 20)
-        THEME.bg2 = Color3.fromRGB(18, 15, 30)
-        THEME.panel = Color3.fromRGB(22, 20, 38)
-        THEME.panel2 = Color3.fromRGB(30, 27, 50)
-        THEME.sidebar = Color3.fromRGB(16, 13, 28)
-        THEME.topbar = Color3.fromRGB(20, 17, 34)
-        THEME.text = Color3.fromRGB(240, 235, 255)
-        THEME.dim = Color3.fromRGB(130, 120, 170)
-        gui.Settings.DarkThemeBtn.BackgroundColor3 = THEME.accent
-        gui.Settings.DarkThemeBtn.TextColor3 = Color3.new(1, 1, 1)
-        gui.Settings.LightThemeBtn.BackgroundColor3 = THEME.panel2
-        gui.Settings.LightThemeBtn.TextColor3 = THEME.dim
-        applyTheme()
-        log("Theme: Dark (Lyra)", THEME.dim)
-    end)
-
-    bind(gui.Settings.LightThemeBtn.MouseButton1Click, function()
-        THEME.accent = Color3.fromRGB(120, 70, 220)
-        THEME.accentGlow = Color3.fromRGB(100, 60, 190)
-        THEME.bg = Color3.fromRGB(240, 238, 250)
-        THEME.bg2 = Color3.fromRGB(228, 224, 242)
-        THEME.panel = Color3.fromRGB(248, 246, 255)
-        THEME.panel2 = Color3.fromRGB(220, 215, 238)
-        THEME.sidebar = Color3.fromRGB(235, 230, 248)
-        THEME.topbar = Color3.fromRGB(230, 226, 245)
-        THEME.text = Color3.fromRGB(30, 20, 60)
-        THEME.dim = Color3.fromRGB(100, 90, 140)
-        gui.Settings.LightThemeBtn.BackgroundColor3 = THEME.accent
-        gui.Settings.LightThemeBtn.TextColor3 = Color3.new(1, 1, 1)
-        gui.Settings.DarkThemeBtn.BackgroundColor3 = THEME.panel2
-        gui.Settings.DarkThemeBtn.TextColor3 = THEME.dim
-        applyTheme()
-        log("Theme: Light (Lyra)", THEME.dim)
-    end)
-
-    for name, btn in pairs(gui.TabButtons) do
-        bind(btn.MouseButton1Click, function()
-            switchTab(name)
-        end)
-    end
-
-    -- Periodic performance monitor update
-    local lastPerfUpdate = 0
-    bind(RunService.Heartbeat, function()
-        if destroyed then return end
-
-        -- Update perf monitor every 10s
-        local now = tick()
-        if now - lastPerfUpdate > 10 then
-            lastPerfUpdate = now
-            if autoFishEnabled then
-                updatePerfMonitor()
-            end
-        end
-
-        if clicking then
-            if now - lastClick >= clickDelay then
-                lastClick = now
-                local x, y = resolvePosition()
-                if x and y then silentClick(x, y) end
-            end
-        end
-
-        if autoTPEnabled then
-            local hrp = getHRP(lp.Character)
-            local insideActive, insidePart = isInsideAnyActiveZone(hrp)
-            local currentStillActive = isActiveZone(currentZone)
-
-            if not currentStillActive then
-                moveToNearestActiveZone()
-            elseif not insideActive then
-                moveToNearestActiveZone()
-            elseif currentZone ~= insidePart then
-                tpToZone(insidePart)
-            elseif frozenAnchor and frozenAnchor.Parent then
-                frozenAnchor.Position = currentZone.Position + Vector3.new(0, currentZone.Size.Y / 2 + FLOAT_HEIGHT, 0)
-            end
-
-            if currentZone and isActiveZone(currentZone) then
-                gui.FishZone.ZoneStatus.Text = "Locked: " .. currentZone.Name .. " [ACTIVE]"
-                gui.FishZone.ZoneStatus.TextColor3 = THEME.success
-            else
-                local nearest = nearestActiveZonePart()
-                gui.FishZone.ZoneStatus.Text = nearest and ("Searching → " .. nearest.Name) or "No active zone"
-                gui.FishZone.ZoneStatus.TextColor3 = nearest and THEME.warn or THEME.danger
-            end
-        else
-            local nearest = nearestActiveZonePart()
-            if nearest then
-                gui.FishZone.ZoneStatus.Text = "Nearest active zone: " .. nearest.Name
-                gui.FishZone.ZoneStatus.TextColor3 = THEME.text
-            else
-                gui.FishZone.ZoneStatus.Text = "No active zone"
-                gui.FishZone.ZoneStatus.TextColor3 = THEME.danger
-            end
-        end
-    end)
-
-    switchTab("About")
-    updateClickerUI()
-    updateRewardButtons()
-    refreshPlayerRows()
-    refreshZoneESP()
-    applyTheme()
-
-    -- Startup logs
-    log("LyraHub initialized", THEME.accentGlow)
-    log("Player: " .. lp.Name, THEME.text)
-    log("Clicker mode: " .. (useVIM and "Silent (VIM)" or "Fallback"), useVIM and THEME.success or THEME.warn)
-    log("Active zones found: " .. #getActiveZoneParts(), THEME.dim)
-    log("Press K to hide/show UI", THEME.dim)
+    return ctx
 end

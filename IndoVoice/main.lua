@@ -30,17 +30,60 @@ local function deepClone(t)
     return copy
 end
 
+local function loadModule(name)
+    return compile(fetch(BASE_URL .. "modules/" .. name .. ".lua", name), name)
+end
+
 local configChunk = compile(fetch(BASE_URL .. "config.lua", "config.lua"), "config.lua")
+local config = deepClone(configChunk())
+assert(type(config) == "table", "config.lua must return a table")
+
+-- Password gate (blocks until authenticated)
+local gateChunk = compile(fetch(BASE_URL .. "gate.lua", "gate.lua"), "gate.lua")
+local gateFactory = gateChunk()
+assert(type(gateFactory) == "function", "gate.lua must return a function")
+gateFactory(config)
+
+-- Load main UI after authentication
 local guiChunk = compile(fetch(BASE_URL .. "gui.lua", "gui.lua"), "gui.lua")
 local coreChunk = compile(fetch(BASE_URL .. "core.lua", "core.lua"), "core.lua")
-
-local config = deepClone(configChunk())
 local guiFactory = guiChunk()
 local coreFactory = coreChunk()
 
-assert(type(config) == "table", "config.lua must return a table")
-assert(type(guiFactory) == "function", "gui.lua must return a function")
-assert(type(coreFactory) == "function", "core.lua must return a function")
+if type(guiFactory) ~= "function" then
+    warn("[IndoVoice] gui.lua returned: " .. type(guiFactory) .. " (expected function)")
+    return
+end
+if type(coreFactory) ~= "function" then
+    warn("[IndoVoice] core.lua returned: " .. type(coreFactory) .. " (expected function)")
+    return
+end
 
-local gui = guiFactory(config)
-coreFactory(gui, config)
+local guiOk, gui = pcall(guiFactory, config)
+if not guiOk then
+    warn("[IndoVoice] gui.lua failed: " .. tostring(gui))
+    return
+end
+
+local coreOk, ctx = pcall(coreFactory, gui, config)
+if not coreOk then
+    warn("[IndoVoice] core.lua failed: " .. tostring(ctx))
+    return
+end
+
+-- Load modules
+local modules = {"fishing", "mining", "gacha", "shopgacha", "rodshop", "ui"}
+for _, name in ipairs(modules) do
+    local ok, err = pcall(function()
+        local modChunk = loadModule(name)
+        local modFactory = modChunk()
+        if type(modFactory) == "function" then
+            modFactory(ctx)
+        else
+            warn("[IndoVoice] Module '" .. name .. "' did not return a function, got: " .. type(modFactory))
+        end
+    end)
+    if not ok then
+        warn("[IndoVoice] Failed to load module '" .. name .. "': " .. tostring(err))
+    end
+end
