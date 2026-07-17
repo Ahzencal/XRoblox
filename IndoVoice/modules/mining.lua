@@ -29,6 +29,35 @@ return function(ctx)
         gui.Mining.Status.Text = "Status: " .. stage
     end
 
+    -- ── "Stone fully occupied" message hook ──
+    -- The game shows a client-side message ("Every mining stone around you
+    -- is fully occupied! Find another one.") via a RemoteFunction's
+    -- OnClientInvoke. We wrap it (without breaking the original popup) so
+    -- the mine loop can react immediately instead of waiting out the full
+    -- minigame timeout.
+    local stoneFullyOccupied = false
+    task.spawn(function()
+        local playerGui = lp:WaitForChild("PlayerGui")
+        local messageGui = playerGui:WaitForChild("Message", 10)
+        if not messageGui then return end
+        local holder = messageGui:WaitForChild("MessageHolder", 5)
+        if not holder then return end
+        local controller = holder:WaitForChild("MessageController", 5)
+        if not controller then return end
+        local createMsgEvent = controller:WaitForChild("CreateMessageFunctionEvent", 5)
+        if not createMsgEvent or not createMsgEvent:IsA("RemoteFunction") then return end
+
+        local originalInvoke = createMsgEvent.OnClientInvoke
+        createMsgEvent.OnClientInvoke = function(message, info, ...)
+            if type(message) == "string" and string.find(message, "fully occupied") then
+                stoneFullyOccupied = true
+            end
+            if originalInvoke then
+                return originalInvoke(message, info, ...)
+            end
+        end
+    end)
+
     local function getPickaxe()
         local char = lp.Character
         if not char then return nil end
@@ -96,44 +125,31 @@ return function(ctx)
         return true
     end
 
-    -- Counts other players within `radius` studs of a stone's position.
-    -- Used to avoid contested stones where slots < nearby players, which
-    -- causes repeated failed-click retries (a likely trigger for the
-    -- server's "Mining is temporarily disabled" rate limit).
-    local NEARBY_PLAYER_RADIUS = 20
-    local function countNearbyPlayers(stonePos)
-        local count = 0
-        for _, player in ipairs(ctx.Players:GetPlayers()) do
-            if player ~= lp then
-                local hrp = getHRP(player.Character)
-                if hrp and (hrp.Position - stonePos).Magnitude <= NEARBY_PLAYER_RADIUS then
-                    count = count + 1
-                end
-            end
-        end
-        return count
-    end
+    -- Pin to a single stone once selected, and only move to a different one
+    -- once its AvailableSlot hits 0 (fully depleted). With many accounts
+    -- running this script at once, constantly hopping between "contested"
+    -- stones causes rapid movement/retries that appears to trigger the
+    -- server's temporary mining ban — sticking to one stone is more stable.
+    local pinnedStone = nil
 
-    -- Recently-failed stones are temporarily skipped so the loop doesn't
-    -- hammer the same contested stone repeatedly.
-    local avoidedStones = {}
-    local AVOID_DURATION = 45
-
-    local function markStoneAvoided(stone)
-        avoidedStones[stone] = tick() + AVOID_DURATION
-    end
-
-    local function isStoneAvoided(stone)
-        local until_ = avoidedStones[stone]
-        if not until_ then return false end
-        if tick() >= until_ then
-            avoidedStones[stone] = nil
-            return false
-        end
-        return true
+    local function isPinnedStoneStillValid()
+        if not pinnedStone or not pinnedStone.Parent then return false end
+        local available = pinnedStone:GetAttribute("AvailableSlot")
+        if available and available <= 0 then return false end
+        return isStoneAvailable(pinnedStone)
     end
 
     local function getNearestStone()
+        -- Stay on the pinned stone until it's fully depleted (AvailableSlot = 0)
+        if isPinnedStoneStillValid() then
+            local hrp = getHRP(lp.Character)
+            local pos = pinnedStone:GetPivot().Position
+            local dist = hrp and (hrp.Position - pos).Magnitude or math.huge
+            return pinnedStone, dist
+        end
+
+        -- Pinned stone depleted or invalid — pick a new one
+        pinnedStone = nil
         local hrp = getHRP(lp.Character)
         if not hrp then return nil, math.huge end
         local best, bestDist = nil, math.huge
@@ -144,29 +160,14 @@ return function(ctx)
             if not isStoneAvailable(stone) then
                 continue
             end
-            if isStoneAvoided(stone) then
-                continue
-            end
-
-            -- Skip contested stones: total demand (other nearby players + us)
-            -- exceeds available slots. If demand == slots exactly, everyone
-            -- still fits, so it's fine to try mining.
             local pos = stone:GetPivot().Position
-            local available = stone:GetAttribute("AvailableSlot")
-            if available then
-                local nearbyPlayers = countNearbyPlayers(pos)
-                local totalDemand = nearbyPlayers + 1 -- +1 for ourselves
-                if totalDemand > available then
-                    continue
-                end
-            end
-
             local d = (hrp.Position - pos).Magnitude
             if d < bestDist then
                 bestDist = d
                 best = stone
             end
         end
+        pinnedStone = best
         return best, bestDist
     end
 
@@ -364,6 +365,7 @@ return function(ctx)
 
             -- CLICK THE STONE
             amSetStage("Clicking stone...")
+            stoneFullyOccupied = false
             local clicked = clickStone(stone)
             if not clicked then
                 log("AutoMine: Failed to click stone", THEME.warn)
@@ -378,6 +380,19 @@ return function(ctx)
             if not ctx.autoMineEnabled or ctx.destroyed then
                 isMiningBusy = false
                 break
+            end
+
+            -- Brief window for the "fully occupied" message to arrive before
+            -- committing to the full 5s minigame wait.
+            task.wait(0.3)
+            if stoneFullyOccupied then
+                amSetStage("Stone occupied, switching...")
+                log("AutoMine: Stone fully occupied, releasing pin and switching", THEME.warn)
+                pinnedStone = nil
+                isMiningBusy = false
+                handleFailure()
+                task.wait(1)
+                continue
             end
 
             -- WAIT FOR STARTMINIGAME (ore info) — timeout 5s, reset if pickaxe unequipped
@@ -411,6 +426,10 @@ return function(ctx)
                 if not getPickaxe() then
                     break
                 end
+                -- Bail out early if the stone became fully occupied mid-wait
+                if stoneFullyOccupied then
+                    break
+                end
                 task.wait(0.1)
             end
 
@@ -429,10 +448,19 @@ return function(ctx)
                 continue
             end
 
+            if stoneFullyOccupied then
+                amSetStage("Stone occupied, switching...")
+                log("AutoMine: Stone fully occupied, releasing pin and switching", THEME.warn)
+                pinnedStone = nil
+                isMiningBusy = false
+                handleFailure()
+                task.wait(1)
+                continue
+            end
+
             if not minigameStarted then
-                amSetStage("No minigame response, avoiding stone...")
-                log("AutoMine: No minigame in 5s, marking stone contested and switching", THEME.warn)
-                markStoneAvoided(stone)
+                amSetStage("No minigame response, retrying...")
+                log("AutoMine: No minigame in 5s, retrying same stone", THEME.warn)
                 handleFailure()
                 task.wait(1)
                 continue
