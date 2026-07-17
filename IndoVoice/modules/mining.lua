@@ -22,7 +22,7 @@ return function(ctx)
 
     local MINING_STONES_PATH = workspace:FindFirstChild("Main") and workspace.Main:FindFirstChild("ActiveMiningStones")
     local AM_MINIGAME_TIMEOUT = 30
-    local AM_POST_MINE_DELAY = 0.5
+    local AM_POST_MINE_DELAY = 1.5
 
     local function amSetStage(stage)
         autoMineStage = stage
@@ -340,9 +340,11 @@ return function(ctx)
                 continue
             end
 
-            -- SKIP MINIGAME (random 5-10s delay then fire MineResult)
+            -- SKIP MINIGAME (random 8-15s delay then fire MineResult)
+            -- Widened from 5-10s to reduce mining rate and avoid server-side
+            -- "Mining is temporarily disabled" rate-limit kicks.
             amSetStage("Minigame active, waiting to mine...")
-            local skipDelay = 5 + math.random() * 5
+            local skipDelay = 8 + math.random() * 7
             task.wait(skipDelay)
 
             if not ctx.autoMineEnabled or ctx.destroyed then break end
