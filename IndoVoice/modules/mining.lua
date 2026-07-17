@@ -125,6 +125,12 @@ return function(ctx)
         return true
     end
 
+    -- Set true for the entire duration of an active mine attempt (from the
+    -- moment the stone is clicked until the result is confirmed/failed).
+    -- Declared here (before pin-validation logic) since both the pin check
+    -- and the standalone TP loop need to read it.
+    local isMiningBusy = false
+
     -- Pin to a single stone once selected, and only move to a different one
     -- once its AvailableSlot hits 0 (fully depleted). With many accounts
     -- running this script at once, constantly hopping between "contested"
@@ -132,11 +138,39 @@ return function(ctx)
     -- server's temporary mining ban — sticking to one stone is more stable.
     local pinnedStone = nil
 
+    -- If the player ends up further than this from the pinned stone, the pin
+    -- is released. This covers two cases:
+    --   1. Player TP'd to another player (e.g. Players tab "TP" button) —
+    --      without this, Auto TP would just drag them right back to the old
+    --      pinned stone, undoing the "visit another player" mood boost.
+    --   2. Auto TP is OFF and the player walked far away manually — instead
+    --      of staying stuck waiting on a now-distant stone, release the pin
+    --      so a nearer stone gets selected instead.
+    local MAX_PIN_DISTANCE = 40
+
     local function isPinnedStoneStillValid()
         if not pinnedStone or not pinnedStone.Parent then return false end
+        -- If Hotspot Only is enabled but the pinned stone isn't a hotspot
+        -- (or vice versa: the setting changed after pinning), release it so
+        -- the next selection re-applies the current filter immediately.
+        if ctx.autoMineHotspotOnly and not pinnedStone:GetAttribute("IsHotspot") then
+            return false
+        end
         local available = pinnedStone:GetAttribute("AvailableSlot")
         if available and available <= 0 then return false end
-        return isStoneAvailable(pinnedStone)
+        if not isStoneAvailable(pinnedStone) then return false end
+
+        -- Never release mid-mine — let the current attempt finish first.
+        if isMiningBusy then return true end
+
+        local hrp = getHRP(lp.Character)
+        if hrp then
+            local dist = (hrp.Position - pinnedStone:GetPivot().Position).Magnitude
+            if dist > MAX_PIN_DISTANCE then
+                return false
+            end
+        end
+        return true
     end
 
     local function getNearestStone()
@@ -181,12 +215,9 @@ return function(ctx)
         hrp.CFrame = CFrame.new(beside, pos)
     end
 
-    -- Set true for the entire duration of an active mine attempt (from the
-    -- moment the stone is clicked until the result is confirmed/failed).
-    -- The standalone TP loop below must NOT move the player while this is
-    -- true — teleporting mid-mine is what was causing rapid, repeated
-    -- failed attempts and triggering the server's temporary mining ban.
-    local isMiningBusy = false
+    -- The standalone TP loop below must NOT move the player while
+    -- isMiningBusy is true — teleporting mid-mine is what was causing rapid,
+    -- repeated failed attempts and triggering the server's temporary mining ban.
 
     -- Standalone Auto TP loop: runs independently of Auto Mine so the player
     -- can be auto-positioned near stones while manually choosing which one to
@@ -382,20 +413,11 @@ return function(ctx)
                 break
             end
 
-            -- Brief window for the "fully occupied" message to arrive before
-            -- committing to the full 5s minigame wait.
-            task.wait(0.3)
-            if stoneFullyOccupied then
-                amSetStage("Stone occupied, switching...")
-                log("AutoMine: Stone fully occupied, releasing pin and switching", THEME.warn)
-                pinnedStone = nil
-                isMiningBusy = false
-                handleFailure()
-                task.wait(1)
-                continue
-            end
-
-            -- WAIT FOR STARTMINIGAME (ore info) — timeout 5s, reset if pickaxe unequipped
+            -- WAIT FOR STARTMINIGAME (ore info) — timeout 5s, reset if pickaxe unequipped.
+            -- IMPORTANT: connect the listener BEFORE any waiting, since the
+            -- game can fire StartMinigame immediately after the click. If we
+            -- wait first, we can miss the event entirely and falsely report
+            -- "no minigame" even though it was actually shown.
             amSetStage("Waiting for minigame...")
             local minigameStarted = false
             local mineData = nil
@@ -418,6 +440,21 @@ return function(ctx)
                         mineData.Rarity = rarity
                     end
                 end)
+            end
+
+            -- Brief window for the "fully occupied" message to arrive (the
+            -- StartMinigame listener above is already active, so we won't
+            -- miss it even if the minigame starts during this check).
+            task.wait(0.3)
+            if stoneFullyOccupied and not minigameStarted then
+                if minigameConn then minigameConn:Disconnect() end
+                amSetStage("Stone occupied, switching...")
+                log("AutoMine: Stone fully occupied, releasing pin and switching", THEME.warn)
+                pinnedStone = nil
+                isMiningBusy = false
+                handleFailure()
+                task.wait(1)
+                continue
             end
 
             local mgWaitStart = tick()
@@ -448,7 +485,7 @@ return function(ctx)
                 continue
             end
 
-            if stoneFullyOccupied then
+            if stoneFullyOccupied and not minigameStarted then
                 amSetStage("Stone occupied, switching...")
                 log("AutoMine: Stone fully occupied, releasing pin and switching", THEME.warn)
                 pinnedStone = nil
