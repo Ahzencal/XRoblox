@@ -22,7 +22,8 @@ return function(ctx)
 
     local MINING_STONES_PATH = workspace:FindFirstChild("Main") and workspace.Main:FindFirstChild("ActiveMiningStones")
     local AM_MINIGAME_TIMEOUT = 30
-    local AM_POST_MINE_DELAY = 1.5
+    local AM_POST_MINE_DELAY_MIN = 2
+    local AM_POST_MINE_DELAY_MAX = 3
 
     local function amSetStage(stage)
         autoMineStage = stage
@@ -337,13 +338,19 @@ return function(ctx)
         -- rapid retries, which appears to trigger the temporary mining ban.
         local consecutiveFailures = 0
         local FAILURE_COOLDOWN_THRESHOLD = 3
-        local FAILURE_COOLDOWN_DURATION = 30
+        local FAILURE_COOLDOWN_DURATION = 15
+
+        -- Small helper for randomized 2-5s "step" delays used after most
+        -- failure/retry paths below, instead of fixed short waits.
+        local function randomStepDelay()
+            return 2 + math.random() * 3
+        end
 
         local function handleFailure()
             consecutiveFailures = consecutiveFailures + 1
             if consecutiveFailures >= FAILURE_COOLDOWN_THRESHOLD then
-                amSetStage("Too many failures, cooling down (30s)...")
-                log("AutoMine: " .. consecutiveFailures .. " failed attempts in a row, cooling down 30s", THEME.danger)
+                amSetStage("Too many failures, cooling down (15s)...")
+                log("AutoMine: " .. consecutiveFailures .. " failed attempts in a row, cooling down 15s", THEME.danger)
                 task.wait(FAILURE_COOLDOWN_DURATION)
                 consecutiveFailures = 0
             end
@@ -360,7 +367,7 @@ return function(ctx)
 
             if not char or not hum then
                 amSetStage("No character")
-                task.wait(1)
+                task.wait(randomStepDelay())
                 continue
             end
 
@@ -370,7 +377,7 @@ return function(ctx)
                     amSetStage("No pickaxe found!")
                     gui.Mining.Status.TextColor3 = THEME.danger
                     log("AutoMine: No pickaxe in character or backpack", THEME.danger)
-                    task.wait(2)
+                    task.wait(randomStepDelay())
                     continue
                 end
             end
@@ -379,7 +386,7 @@ return function(ctx)
             if not stone then
                 amSetStage("No stones available")
                 log("AutoMine: All stones full or filtered out", THEME.warn)
-                task.wait(3)
+                task.wait(randomStepDelay())
                 continue
             end
 
@@ -390,7 +397,7 @@ return function(ctx)
                 task.wait(0.3)
             elseif dist > 15 then
                 amSetStage("Too far from stone, enable Auto TP")
-                task.wait(2)
+                task.wait(randomStepDelay())
                 continue
             end
 
@@ -400,7 +407,7 @@ return function(ctx)
             local clicked = clickStone(stone)
             if not clicked then
                 log("AutoMine: Failed to click stone", THEME.warn)
-                task.wait(1)
+                task.wait(randomStepDelay())
                 continue
             end
 
@@ -427,7 +434,7 @@ return function(ctx)
             if not pick then
                 amSetStage("Pickaxe unequipped, resetting...")
                 log("AutoMine: Pickaxe lost, re-equipping", THEME.warn)
-                task.wait(0.5)
+                task.wait(randomStepDelay())
                 continue
             end
 
@@ -453,7 +460,7 @@ return function(ctx)
                 pinnedStone = nil
                 isMiningBusy = false
                 handleFailure()
-                task.wait(1)
+                task.wait(randomStepDelay())
                 continue
             end
 
@@ -481,7 +488,7 @@ return function(ctx)
             if not getPickaxe() then
                 amSetStage("Pickaxe unequipped, resetting...")
                 log("AutoMine: Pickaxe lost during wait, re-equipping", THEME.warn)
-                task.wait(0.5)
+                task.wait(randomStepDelay())
                 continue
             end
 
@@ -491,7 +498,7 @@ return function(ctx)
                 pinnedStone = nil
                 isMiningBusy = false
                 handleFailure()
-                task.wait(1)
+                task.wait(randomStepDelay())
                 continue
             end
 
@@ -499,7 +506,7 @@ return function(ctx)
                 amSetStage("No minigame response, retrying...")
                 log("AutoMine: No minigame in 5s, retrying same stone", THEME.warn)
                 handleFailure()
-                task.wait(1)
+                task.wait(randomStepDelay())
                 continue
             end
 
@@ -532,7 +539,7 @@ return function(ctx)
                 end)
             else
                 log("AutoMine: MineResult remote not found", THEME.danger)
-                task.wait(1)
+                task.wait(randomStepDelay())
                 continue
             end
 
@@ -590,9 +597,12 @@ return function(ctx)
                 refreshMineESP()
             end
 
-            -- POST DELAY
+            -- POST DELAY: randomized 2-3s pause after a successful mine to
+            -- avoid hammering the server with back-to-back attempts, which
+            -- appears to trigger the temporary mining ban.
             amSetStage("Resetting...")
-            task.wait(AM_POST_MINE_DELAY)
+            local postMineDelay = AM_POST_MINE_DELAY_MIN + math.random() * (AM_POST_MINE_DELAY_MAX - AM_POST_MINE_DELAY_MIN)
+            task.wait(postMineDelay)
 
             -- Break system: every 60 min, pause 5 min
             if (tick() - mineSessionStart) >= MINE_BREAK_INTERVAL then
