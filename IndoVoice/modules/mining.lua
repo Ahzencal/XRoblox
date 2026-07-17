@@ -134,6 +134,12 @@ return function(ctx)
 
     local function isPinnedStoneStillValid()
         if not pinnedStone or not pinnedStone.Parent then return false end
+        -- If Hotspot Only is enabled but the pinned stone isn't a hotspot
+        -- (or vice versa: the setting changed after pinning), release it so
+        -- the next selection re-applies the current filter immediately.
+        if ctx.autoMineHotspotOnly and not pinnedStone:GetAttribute("IsHotspot") then
+            return false
+        end
         local available = pinnedStone:GetAttribute("AvailableSlot")
         if available and available <= 0 then return false end
         return isStoneAvailable(pinnedStone)
