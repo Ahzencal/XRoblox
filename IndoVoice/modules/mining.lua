@@ -96,6 +96,43 @@ return function(ctx)
         return true
     end
 
+    -- Counts other players within `radius` studs of a stone's position.
+    -- Used to avoid contested stones where slots < nearby players, which
+    -- causes repeated failed-click retries (a likely trigger for the
+    -- server's "Mining is temporarily disabled" rate limit).
+    local NEARBY_PLAYER_RADIUS = 20
+    local function countNearbyPlayers(stonePos)
+        local count = 0
+        for _, player in ipairs(ctx.Players:GetPlayers()) do
+            if player ~= lp then
+                local hrp = getHRP(player.Character)
+                if hrp and (hrp.Position - stonePos).Magnitude <= NEARBY_PLAYER_RADIUS then
+                    count = count + 1
+                end
+            end
+        end
+        return count
+    end
+
+    -- Recently-failed stones are temporarily skipped so the loop doesn't
+    -- hammer the same contested stone repeatedly.
+    local avoidedStones = {}
+    local AVOID_DURATION = 45
+
+    local function markStoneAvoided(stone)
+        avoidedStones[stone] = tick() + AVOID_DURATION
+    end
+
+    local function isStoneAvoided(stone)
+        local until_ = avoidedStones[stone]
+        if not until_ then return false end
+        if tick() >= until_ then
+            avoidedStones[stone] = nil
+            return false
+        end
+        return true
+    end
+
     local function getNearestStone()
         local hrp = getHRP(lp.Character)
         if not hrp then return nil, math.huge end
@@ -107,7 +144,20 @@ return function(ctx)
             if not isStoneAvailable(stone) then
                 continue
             end
+            if isStoneAvoided(stone) then
+                continue
+            end
+
+            -- Skip contested stones: fewer available slots than players nearby
             local pos = stone:GetPivot().Position
+            local available = stone:GetAttribute("AvailableSlot")
+            if available then
+                local nearbyPlayers = countNearbyPlayers(pos)
+                if nearbyPlayers > available then
+                    continue
+                end
+            end
+
             local d = (hrp.Position - pos).Magnitude
             if d < bestDist then
                 bestDist = d
@@ -236,6 +286,23 @@ return function(ctx)
         gui.Mining.Status.TextColor3 = THEME.success
         mineSessionStart = tick()
 
+        -- After repeated failed mine attempts in a row, pause for a longer
+        -- cooldown before resuming. This avoids hammering the server with
+        -- rapid retries, which appears to trigger the temporary mining ban.
+        local consecutiveFailures = 0
+        local FAILURE_COOLDOWN_THRESHOLD = 3
+        local FAILURE_COOLDOWN_DURATION = 30
+
+        local function handleFailure()
+            consecutiveFailures = consecutiveFailures + 1
+            if consecutiveFailures >= FAILURE_COOLDOWN_THRESHOLD then
+                amSetStage("Too many failures, cooling down (30s)...")
+                log("AutoMine: " .. consecutiveFailures .. " failed attempts in a row, cooling down 30s", THEME.danger)
+                task.wait(FAILURE_COOLDOWN_DURATION)
+                consecutiveFailures = 0
+            end
+        end
+
         while ctx.autoMineEnabled and not ctx.destroyed do
             local char = lp.Character
             local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -334,9 +401,11 @@ return function(ctx)
             end
 
             if not minigameStarted then
-                amSetStage("No minigame response, resetting...")
-                log("AutoMine: No minigame in 5s, retrying", THEME.warn)
-                task.wait(0.5)
+                amSetStage("No minigame response, avoiding stone...")
+                log("AutoMine: No minigame in 5s, marking stone contested and switching", THEME.warn)
+                markStoneAvoided(stone)
+                handleFailure()
+                task.wait(1)
                 continue
             end
 
@@ -403,6 +472,7 @@ return function(ctx)
             local orePrice = (oreResultData and oreResultData.Price) or (mineData and mineData.Price) or nil
             local oreDensity = (oreResultData and oreResultData.Density) or nil
 
+            consecutiveFailures = 0
             gui.Mining.LastOre.Text = "Last: " .. oreName .. " [" .. oreRarity .. "]"
             log("AutoMine: Mined " .. oreName .. " (" .. oreRarity .. ")", THEME.success)
 
