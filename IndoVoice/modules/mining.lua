@@ -388,20 +388,11 @@ return function(ctx)
                 break
             end
 
-            -- Brief window for the "fully occupied" message to arrive before
-            -- committing to the full 5s minigame wait.
-            task.wait(0.3)
-            if stoneFullyOccupied then
-                amSetStage("Stone occupied, switching...")
-                log("AutoMine: Stone fully occupied, releasing pin and switching", THEME.warn)
-                pinnedStone = nil
-                isMiningBusy = false
-                handleFailure()
-                task.wait(1)
-                continue
-            end
-
-            -- WAIT FOR STARTMINIGAME (ore info) — timeout 5s, reset if pickaxe unequipped
+            -- WAIT FOR STARTMINIGAME (ore info) — timeout 5s, reset if pickaxe unequipped.
+            -- IMPORTANT: connect the listener BEFORE any waiting, since the
+            -- game can fire StartMinigame immediately after the click. If we
+            -- wait first, we can miss the event entirely and falsely report
+            -- "no minigame" even though it was actually shown.
             amSetStage("Waiting for minigame...")
             local minigameStarted = false
             local mineData = nil
@@ -424,6 +415,21 @@ return function(ctx)
                         mineData.Rarity = rarity
                     end
                 end)
+            end
+
+            -- Brief window for the "fully occupied" message to arrive (the
+            -- StartMinigame listener above is already active, so we won't
+            -- miss it even if the minigame starts during this check).
+            task.wait(0.3)
+            if stoneFullyOccupied and not minigameStarted then
+                if minigameConn then minigameConn:Disconnect() end
+                amSetStage("Stone occupied, switching...")
+                log("AutoMine: Stone fully occupied, releasing pin and switching", THEME.warn)
+                pinnedStone = nil
+                isMiningBusy = false
+                handleFailure()
+                task.wait(1)
+                continue
             end
 
             local mgWaitStart = tick()
@@ -454,7 +460,7 @@ return function(ctx)
                 continue
             end
 
-            if stoneFullyOccupied then
+            if stoneFullyOccupied and not minigameStarted then
                 amSetStage("Stone occupied, switching...")
                 log("AutoMine: Stone fully occupied, releasing pin and switching", THEME.warn)
                 pinnedStone = nil
