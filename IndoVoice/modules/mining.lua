@@ -148,12 +148,15 @@ return function(ctx)
                 continue
             end
 
-            -- Skip contested stones: fewer available slots than players nearby
+            -- Skip contested stones: total demand (other nearby players + us)
+            -- exceeds available slots. If demand == slots exactly, everyone
+            -- still fits, so it's fine to try mining.
             local pos = stone:GetPivot().Position
             local available = stone:GetAttribute("AvailableSlot")
             if available then
                 local nearbyPlayers = countNearbyPlayers(pos)
-                if nearbyPlayers > available then
+                local totalDemand = nearbyPlayers + 1 -- +1 for ourselves
+                if totalDemand > available then
                     continue
                 end
             end
@@ -177,6 +180,13 @@ return function(ctx)
         hrp.CFrame = CFrame.new(beside, pos)
     end
 
+    -- Set true for the entire duration of an active mine attempt (from the
+    -- moment the stone is clicked until the result is confirmed/failed).
+    -- The standalone TP loop below must NOT move the player while this is
+    -- true — teleporting mid-mine is what was causing rapid, repeated
+    -- failed attempts and triggering the server's temporary mining ban.
+    local isMiningBusy = false
+
     -- Standalone Auto TP loop: runs independently of Auto Mine so the player
     -- can be auto-positioned near stones while manually choosing which one to
     -- click. When this toggle is OFF, the player walks/selects stones freely.
@@ -186,11 +196,15 @@ return function(ctx)
         stoneTPLoopRunning = true
         task.spawn(function()
             while ctx.autoMineTPEnabled and not ctx.destroyed do
-                local stone, dist = getNearestStone()
-                if stone and dist > 8 then
-                    tpToStone(stone)
+                -- Never TP while a mine attempt is in progress — always let
+                -- the current attempt finish (success or fail) first.
+                if not isMiningBusy then
+                    local stone, dist = getNearestStone()
+                    if stone and dist > 8 then
+                        tpToStone(stone)
+                    end
                 end
-                task.wait(1)
+                task.wait(2)
             end
             stoneTPLoopRunning = false
         end)
@@ -304,6 +318,11 @@ return function(ctx)
         end
 
         while ctx.autoMineEnabled and not ctx.destroyed do
+            -- Default to "not busy" at the top of every iteration. It only
+            -- becomes true right after a stone is clicked, and clears again
+            -- naturally on the next loop pass (success or failure).
+            isMiningBusy = false
+
             local char = lp.Character
             local hum = char and char:FindFirstChildOfClass("Humanoid")
 
@@ -352,7 +371,14 @@ return function(ctx)
                 continue
             end
 
-            if not ctx.autoMineEnabled or ctx.destroyed then break end
+            -- From this point until the mine attempt fully resolves (success
+            -- or failure), the mine must be completed before any teleport.
+            isMiningBusy = true
+
+            if not ctx.autoMineEnabled or ctx.destroyed then
+                isMiningBusy = false
+                break
+            end
 
             -- WAIT FOR STARTMINIGAME (ore info) — timeout 5s, reset if pickaxe unequipped
             amSetStage("Waiting for minigame...")
@@ -390,7 +416,10 @@ return function(ctx)
 
             if minigameConn then minigameConn:Disconnect() end
 
-            if not ctx.autoMineEnabled or ctx.destroyed then break end
+            if not ctx.autoMineEnabled or ctx.destroyed then
+                isMiningBusy = false
+                break
+            end
 
             -- Reset if pickaxe was lost
             if not getPickaxe() then
@@ -416,7 +445,10 @@ return function(ctx)
             local skipDelay = 8 + math.random() * 7
             task.wait(skipDelay)
 
-            if not ctx.autoMineEnabled or ctx.destroyed then break end
+            if not ctx.autoMineEnabled or ctx.destroyed then
+                isMiningBusy = false
+                break
+            end
 
             -- LISTEN FOR MINERESULT DATA + FIRE MineResult (catch)
             amSetStage("Mining!")
@@ -507,6 +539,7 @@ return function(ctx)
             end
         end
 
+        isMiningBusy = false
         amSetStage("Idle")
         gui.Mining.Status.TextColor3 = THEME.dim
         log("AutoMine: Stopped", THEME.dim)
