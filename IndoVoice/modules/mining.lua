@@ -286,6 +286,23 @@ return function(ctx)
         gui.Mining.Status.TextColor3 = THEME.success
         mineSessionStart = tick()
 
+        -- After repeated failed mine attempts in a row, pause for a longer
+        -- cooldown before resuming. This avoids hammering the server with
+        -- rapid retries, which appears to trigger the temporary mining ban.
+        local consecutiveFailures = 0
+        local FAILURE_COOLDOWN_THRESHOLD = 3
+        local FAILURE_COOLDOWN_DURATION = 30
+
+        local function handleFailure()
+            consecutiveFailures = consecutiveFailures + 1
+            if consecutiveFailures >= FAILURE_COOLDOWN_THRESHOLD then
+                amSetStage("Too many failures, cooling down (30s)...")
+                log("AutoMine: " .. consecutiveFailures .. " failed attempts in a row, cooling down 30s", THEME.danger)
+                task.wait(FAILURE_COOLDOWN_DURATION)
+                consecutiveFailures = 0
+            end
+        end
+
         while ctx.autoMineEnabled and not ctx.destroyed do
             local char = lp.Character
             local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -387,6 +404,7 @@ return function(ctx)
                 amSetStage("No minigame response, avoiding stone...")
                 log("AutoMine: No minigame in 5s, marking stone contested and switching", THEME.warn)
                 markStoneAvoided(stone)
+                handleFailure()
                 task.wait(1)
                 continue
             end
@@ -454,6 +472,7 @@ return function(ctx)
             local orePrice = (oreResultData and oreResultData.Price) or (mineData and mineData.Price) or nil
             local oreDensity = (oreResultData and oreResultData.Density) or nil
 
+            consecutiveFailures = 0
             gui.Mining.LastOre.Text = "Last: " .. oreName .. " [" .. oreRarity .. "]"
             log("AutoMine: Mined " .. oreName .. " (" .. oreRarity .. ")", THEME.success)
 
