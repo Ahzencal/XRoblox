@@ -30,34 +30,16 @@ return function(ctx)
         gui.Mining.Status.Text = "Status: " .. stage
     end
 
-    -- ── "Stone fully occupied" message hook ──
-    -- The game shows a client-side message ("Every mining stone around you
-    -- is fully occupied! Find another one.") via a RemoteFunction's
-    -- OnClientInvoke. We wrap it (without breaking the original popup) so
-    -- the mine loop can react immediately instead of waiting out the full
-    -- minigame timeout.
+    -- NOTE: We previously hooked the "fully occupied" message via
+    -- CreateMessageFunctionEvent.OnClientInvoke, but that's a single
+    -- function slot (not a real event) — if the game's own UI script
+    -- assigns/reassigns it after us (e.g. on respawn), our hook silently
+    -- gets overwritten with no error, causing inconsistent detection.
+    -- Removed in favor of relying on the AvailableSlot attribute (checked
+    -- in isStoneAvailable/isPinnedStoneStillValid below) plus the
+    -- consecutive-failure counter as a fallback for stones that can't be
+    -- mined for other reasons.
     local stoneFullyOccupied = false
-    task.spawn(function()
-        local playerGui = lp:WaitForChild("PlayerGui")
-        local messageGui = playerGui:WaitForChild("Message", 10)
-        if not messageGui then return end
-        local holder = messageGui:WaitForChild("MessageHolder", 5)
-        if not holder then return end
-        local controller = holder:WaitForChild("MessageController", 5)
-        if not controller then return end
-        local createMsgEvent = controller:WaitForChild("CreateMessageFunctionEvent", 5)
-        if not createMsgEvent or not createMsgEvent:IsA("RemoteFunction") then return end
-
-        local originalInvoke = createMsgEvent.OnClientInvoke
-        createMsgEvent.OnClientInvoke = function(message, info, ...)
-            if type(message) == "string" and string.find(message, "fully occupied") then
-                stoneFullyOccupied = true
-            end
-            if originalInvoke then
-                return originalInvoke(message, info, ...)
-            end
-        end
-    end)
 
     local function getPickaxe()
         local char = lp.Character
@@ -333,12 +315,15 @@ return function(ctx)
         gui.Mining.Status.TextColor3 = THEME.success
         mineSessionStart = tick()
 
-        -- After repeated failed mine attempts in a row, pause for a longer
-        -- cooldown before resuming. This avoids hammering the server with
-        -- rapid retries, which appears to trigger the temporary mining ban.
+        -- After repeated failed mine attempts in a row:
+        --   3 failures  -> re-equip the pickaxe (stuck tool state is a
+        --                  common cause), but keep trying the same stone.
+        --   6 failures  -> also release the pinned stone and switch, since
+        --                  at that point it's likely actually unusable
+        --                  regardless of whether "fully occupied" fired.
         local consecutiveFailures = 0
-        local FAILURE_COOLDOWN_THRESHOLD = 3
-        local FAILURE_COOLDOWN_DURATION = 15
+        local FAILURE_REEQUIP_THRESHOLD = 3
+        local FAILURE_RELEASE_STONE_THRESHOLD = 6
 
         -- Small helper for randomized 2-5s "step" delays used after most
         -- failure/retry paths below, instead of fixed short waits.
@@ -346,13 +331,32 @@ return function(ctx)
             return 2 + math.random() * 3
         end
 
+        local function reequipPickaxe()
+            local char = lp.Character
+            local current = getPickaxe()
+            if current and char then
+                local backpack = lp:FindFirstChildOfClass("Backpack")
+                if backpack then
+                    current.Parent = backpack
+                end
+            end
+            task.wait(0.5)
+            equipPickaxe()
+        end
+
         local function handleFailure()
             consecutiveFailures = consecutiveFailures + 1
-            if consecutiveFailures >= FAILURE_COOLDOWN_THRESHOLD then
-                amSetStage("Too many failures, cooling down (15s)...")
-                log("AutoMine: " .. consecutiveFailures .. " failed attempts in a row, cooling down 15s", THEME.danger)
-                task.wait(FAILURE_COOLDOWN_DURATION)
+
+            if consecutiveFailures >= FAILURE_RELEASE_STONE_THRESHOLD then
+                amSetStage("Too many failures, releasing stone...")
+                log("AutoMine: " .. consecutiveFailures .. " failed attempts in a row, releasing pinned stone and switching", THEME.danger)
+                pinnedStone = nil
+                reequipPickaxe()
                 consecutiveFailures = 0
+            elseif consecutiveFailures >= FAILURE_REEQUIP_THRESHOLD then
+                amSetStage("Failures detected, re-equipping tool...")
+                log("AutoMine: " .. consecutiveFailures .. " failed attempts in a row, re-equipping pickaxe", THEME.warn)
+                reequipPickaxe()
             end
         end
 

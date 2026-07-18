@@ -269,7 +269,6 @@ return function(ctx)
 
     -- Periodic performance monitor update + clicker + autoTP heartbeat
     local lastPerfUpdate = 0
-    local lastAutoSave = tick()
     bind(RunService.Heartbeat, function()
         if ctx.destroyed then return end
 
@@ -279,12 +278,6 @@ return function(ctx)
             if ctx.autoFishEnabled or ctx.autoMineEnabled then
                 updatePerfMonitor()
             end
-        end
-
-        -- Auto-save every 5 minutes
-        if now - lastAutoSave > 300 then
-            lastAutoSave = now
-            pcall(function() ctx.saveSettings() end)
         end
 
         if ctx.clicking then
