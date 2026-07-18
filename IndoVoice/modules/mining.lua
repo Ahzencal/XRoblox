@@ -395,10 +395,17 @@ return function(ctx)
             end
 
             if ctx.autoMineTPEnabled then
-                -- The standalone TP loop (startStoneTPLoop) keeps the player
-                -- positioned near stones; just wait briefly for it to settle.
-                amSetStage("TP to stone...")
-                task.wait(0.3)
+                -- Teleport directly here instead of waiting on the
+                -- standalone TP loop (which only polls every 2s) — relying
+                -- on that timing left a window where a freshly-pinned stone
+                -- (e.g. right after the previous one depleted) hadn't been
+                -- teleported to yet, causing "Get closer to a mining stone!"
+                -- because the click fired while still standing at the old spot.
+                if dist > 8 then
+                    amSetStage("TP to stone...")
+                    tpToStone(stone)
+                    task.wait(0.3)
+                end
             elseif dist > 15 then
                 amSetStage("Too far from stone, enable Auto TP")
                 task.wait(randomStepDelay())
@@ -608,10 +615,15 @@ return function(ctx)
             local postMineDelay = AM_POST_MINE_DELAY_MIN + math.random() * (AM_POST_MINE_DELAY_MAX - AM_POST_MINE_DELAY_MIN)
             task.wait(postMineDelay)
 
-            -- Break system: every 60 min, pause 5 min
+            -- Break system: every 60 min, pause 5 min. Clicking/mining stops,
+            -- but Auto TP (if enabled) keeps repositioning the player near
+            -- stones during the break — isMiningBusy must be cleared here,
+            -- otherwise it stays true (set after the last click) for the
+            -- entire break and blocks the standalone TP loop from moving.
             if (tick() - mineSessionStart) >= MINE_BREAK_INTERVAL then
+                isMiningBusy = false
                 amSetStage("Taking break (5 min)...")
-                log("AutoMine: 60 min reached, pausing 5 min", THEME.warn)
+                log("AutoMine: 60 min reached, pausing 5 min (mining paused, Auto TP still active)", THEME.warn)
                 task.wait(MINE_BREAK_DURATION)
                 mineSessionStart = tick()
                 log("AutoMine: Break over, resuming", THEME.success)
