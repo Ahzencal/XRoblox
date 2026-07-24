@@ -6,6 +6,7 @@ return function(ctx)
     local bind = ctx.bind
 
     local Stats = ctx.gui.Stats
+    local MiniStats = ctx.gui.MiniStats
 
     -- Rolling window of click timestamps to measure real achieved CPS
     -- (as opposed to the CPS *target* set by the slider).
@@ -65,11 +66,18 @@ return function(ctx)
             end)
             ctx.ping = ok and math.floor(pingMs + 0.5) or ctx.ping
 
-            -- Push to UI
+            -- Push to expanded panel
             Stats.TotalClicksVal.Text = tostring(ctx.totalClicks)
             Stats.ActualCPSVal.Text = tostring(ctx.actualCPS)
             Stats.FPSVal.Text = tostring(ctx.fps)
             Stats.PingVal.Text = tostring(ctx.ping) .. " ms"
+
+            -- Push to compact minimized panel
+            MiniStats.StatusVal.Text = ctx.clicking and "ON" or "OFF"
+            MiniStats.StatusVal.TextColor3 = ctx.clicking and ctx.THEME.success or ctx.THEME.danger
+            MiniStats.CPSVal.Text = tostring(ctx.actualCPS)
+            MiniStats.FPSVal.Text = tostring(ctx.fps)
+            MiniStats.PingVal.Text = tostring(ctx.ping)
         end
     end)
 end

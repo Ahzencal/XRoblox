@@ -39,6 +39,7 @@ return function(gui, config)
     ctx.draggingSlider = false
     ctx.dragStart = nil
     ctx.startPos = nil
+    ctx.dragTarget = nil
     ctx.listeningKeybind = false
 
     ctx.toggleKey = config.Keys.ToggleClicker
@@ -121,6 +122,9 @@ return function(gui, config)
         gui.MethodLbl.Text = useVIM and "Mode: Silent" or "Mode: Fallback"
         gui.MethodLbl.TextColor3 = useVIM and THEME.success or THEME.warn
 
+        gui.MiniStats.StatusVal.Text = ctx.clicking and "ON" or "OFF"
+        gui.MiniStats.StatusVal.TextColor3 = ctx.clicking and THEME.success or THEME.danger
+
         if ctx.mode == "fixed" then
             gui.PosLbl.Visible = true
             if ctx.fixedX and ctx.fixedY then
@@ -149,16 +153,6 @@ return function(gui, config)
         updateClickerUI()
     end
     ctx.toggleClicker = toggleClicker
-
-    -- ═══════════════════════════════════════════
-    -- DRAG
-    -- ═══════════════════════════════════════════
-    local function beginDrag(input)
-        ctx.draggingUI = true
-        ctx.dragStart = input.Position
-        ctx.startPos = gui.Main.Position
-    end
-    ctx.beginDrag = beginDrag
 
     -- ═══════════════════════════════════════════
     -- DESTROY

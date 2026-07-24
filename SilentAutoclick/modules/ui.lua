@@ -4,31 +4,39 @@ return function(ctx)
     local gui = ctx.gui
     local UserInputService = ctx.UserInputService
     local bind = ctx.bind
-    local beginDrag = ctx.beginDrag
     local mouse = ctx.mouse
     local updateClickerUI = ctx.updateClickerUI
     local toggleClicker = ctx.toggleClicker
     local destroyAll = ctx.destroyAll
 
     -- ═══════════════════════════════════════════
-    -- DRAG (top bar + hit area)
+    -- DRAG (main window: top bar hit area; minimized panel: its header)
     -- ═══════════════════════════════════════════
-    bind(gui.DragHit.InputBegan, function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            beginDrag(input)
+    local function beginDragFor(frame)
+        return function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                ctx.draggingUI = true
+                ctx.dragTarget = frame
+                ctx.dragStart = input.Position
+                ctx.startPos = frame.Position
+            end
         end
-    end)
+    end
+
+    bind(gui.DragHit.InputBegan, beginDragFor(gui.Main))
+    bind(gui.MiniHeader.InputBegan, beginDragFor(gui.MinimizedPanel))
 
     bind(UserInputService.InputChanged, function(input)
-        if ctx.draggingUI and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        if ctx.draggingUI and ctx.dragTarget and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - ctx.dragStart
-            gui.Main.Position = UDim2.new(ctx.startPos.X.Scale, ctx.startPos.X.Offset + delta.X, ctx.startPos.Y.Scale, ctx.startPos.Y.Offset + delta.Y)
+            ctx.dragTarget.Position = UDim2.new(ctx.startPos.X.Scale, ctx.startPos.X.Offset + delta.X, ctx.startPos.Y.Scale, ctx.startPos.Y.Offset + delta.Y)
         end
     end)
 
     bind(UserInputService.InputEnded, function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             ctx.draggingUI = false
+            ctx.dragTarget = nil
         end
     end)
 
@@ -38,13 +46,13 @@ return function(ctx)
     bind(gui.MinBtn.MouseButton1Click, function()
         ctx.minimized = true
         gui.Main.Visible = false
-        gui.MinimizedOrb.Visible = true
+        gui.MinimizedPanel.Visible = true
     end)
 
-    bind(gui.MinimizedOrb.MouseButton1Click, function()
+    bind(gui.ExpandBtn.MouseButton1Click, function()
         ctx.minimized = false
         gui.Main.Visible = true
-        gui.MinimizedOrb.Visible = false
+        gui.MinimizedPanel.Visible = false
     end)
 
     bind(gui.CloseBtn.MouseButton1Click, destroyAll)
@@ -64,10 +72,10 @@ return function(ctx)
             ctx.hideUI = not ctx.hideUI
             if ctx.hideUI then
                 gui.Main.Visible = false
-                gui.MinimizedOrb.Visible = false
+                gui.MinimizedPanel.Visible = false
             else
                 if ctx.minimized then
-                    gui.MinimizedOrb.Visible = true
+                    gui.MinimizedPanel.Visible = true
                 else
                     gui.Main.Visible = true
                 end

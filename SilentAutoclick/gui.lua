@@ -76,26 +76,106 @@ return function(config)
     CloseBtn.Parent = TopBar
     Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 
-    -- Bottom drag hit area (extra grab zone)
+    -- Bottom drag hit area (extra grab zone) — stops short of MinBtn/CloseBtn
+    -- so it never covers them (that overlap was blocking their clicks).
     local DragHit = Instance.new("TextButton")
-    DragHit.Size = UDim2.new(1, 0, 0, 32)
+    DragHit.Size = UDim2.new(1, -68, 0, 32)
+    DragHit.Position = UDim2.new(0, 0, 0, 0)
     DragHit.BackgroundTransparency = 1
     DragHit.Text = ""
     DragHit.Parent = TopBar
 
-    -- Minimized orb
-    local MinimizedOrb = Instance.new("TextButton")
-    MinimizedOrb.Size = UDim2.new(0, 44, 0, 44)
-    MinimizedOrb.Position = UDim2.new(0, 20, 0, 20)
-    MinimizedOrb.BackgroundColor3 = THEME.accent
-    MinimizedOrb.Text = "AC"
-    MinimizedOrb.TextColor3 = Color3.new(1, 1, 1)
-    MinimizedOrb.Font = Enum.Font.GothamBold
-    MinimizedOrb.TextSize = 13
-    MinimizedOrb.BorderSizePixel = 0
-    MinimizedOrb.Visible = false
-    MinimizedOrb.Parent = ScreenGui
-    Instance.new("UICorner", MinimizedOrb).CornerRadius = UDim.new(1, 0)
+    -- ═══════════════════════════════════════════
+    -- MINIMIZED PANEL (compact: Status / CPS / FPS / Ping)
+    -- ═══════════════════════════════════════════
+    local MinimizedPanel = Instance.new("Frame")
+    MinimizedPanel.Name = "MinimizedPanel"
+    MinimizedPanel.Size = UDim2.new(0, 240, 0, 62)
+    MinimizedPanel.Position = UDim2.new(0, 20, 0, 20)
+    MinimizedPanel.BackgroundColor3 = THEME.bg
+    MinimizedPanel.BorderSizePixel = 0
+    MinimizedPanel.Active = true
+    MinimizedPanel.Visible = false
+    MinimizedPanel.Parent = ScreenGui
+    Instance.new("UICorner", MinimizedPanel).CornerRadius = UDim.new(0, 10)
+    local MiniStroke = Instance.new("UIStroke", MinimizedPanel)
+    MiniStroke.Color = THEME.accent
+    MiniStroke.Transparency = 0.4
+    MiniStroke.Thickness = 1
+
+    local MiniHeader = Instance.new("TextLabel")
+    MiniHeader.Text = "AutoClicker"
+    MiniHeader.Size = UDim2.new(1, -28, 0, 16)
+    MiniHeader.Position = UDim2.new(0, 8, 0, 4)
+    MiniHeader.BackgroundTransparency = 1
+    MiniHeader.TextColor3 = THEME.accentGlow
+    MiniHeader.Font = Enum.Font.GothamBold
+    MiniHeader.TextSize = 10
+    MiniHeader.TextXAlignment = Enum.TextXAlignment.Left
+    MiniHeader.Parent = MinimizedPanel
+
+    local ExpandBtn = Instance.new("TextButton")
+    ExpandBtn.Text = "▢"
+    ExpandBtn.Size = UDim2.new(0, 18, 0, 18)
+    ExpandBtn.Position = UDim2.new(1, -24, 0, 3)
+    ExpandBtn.BackgroundColor3 = THEME.panel2
+    ExpandBtn.TextColor3 = THEME.dim
+    ExpandBtn.Font = Enum.Font.GothamBold
+    ExpandBtn.TextSize = 11
+    ExpandBtn.BorderSizePixel = 0
+    ExpandBtn.Parent = MinimizedPanel
+    Instance.new("UICorner", ExpandBtn).CornerRadius = UDim.new(0, 5)
+
+    local MiniCardsRow = Instance.new("Frame")
+    MiniCardsRow.Size = UDim2.new(1, -16, 0, 34)
+    MiniCardsRow.Position = UDim2.new(0, 8, 0, 24)
+    MiniCardsRow.BackgroundTransparency = 1
+    MiniCardsRow.Parent = MinimizedPanel
+
+    local MiniListLayout = Instance.new("UIListLayout")
+    MiniListLayout.FillDirection = Enum.FillDirection.Horizontal
+    MiniListLayout.Padding = UDim.new(0, 4)
+    MiniListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    MiniListLayout.Parent = MiniCardsRow
+
+    local function makeMiniCard(title, order)
+        local card = Instance.new("Frame")
+        card.Size = UDim2.new(0, 53, 1, 0)
+        card.BackgroundColor3 = THEME.panel2
+        card.BorderSizePixel = 0
+        card.LayoutOrder = order
+        card.Parent = MiniCardsRow
+        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 6)
+
+        local t = Instance.new("TextLabel")
+        t.Text = title
+        t.Size = UDim2.new(1, -4, 0, 10)
+        t.Position = UDim2.new(0, 2, 0, 2)
+        t.BackgroundTransparency = 1
+        t.TextColor3 = THEME.dim
+        t.Font = Enum.Font.Gotham
+        t.TextSize = 8
+        t.TextXAlignment = Enum.TextXAlignment.Center
+        t.Parent = card
+
+        local v = Instance.new("TextLabel")
+        v.Text = "-"
+        v.Size = UDim2.new(1, -4, 0, 16)
+        v.Position = UDim2.new(0, 2, 0, 13)
+        v.BackgroundTransparency = 1
+        v.TextColor3 = THEME.text
+        v.Font = Enum.Font.GothamBold
+        v.TextSize = 11
+        v.TextXAlignment = Enum.TextXAlignment.Center
+        v.Parent = card
+
+        return v
+    end
+
+    local MiniStatusVal = makeMiniCard("STATUS", 1)
+    local MiniCPSVal = makeMiniCard("CPS", 2)
+    local MiniFPSVal = makeMiniCard("FPS", 3)
+    local MiniPingVal = makeMiniCard("PING", 4)
 
     -- ═══════════════════════════════════════════
     -- CONTENT
@@ -300,7 +380,9 @@ return function(config)
         MinBtn = MinBtn,
         CloseBtn = CloseBtn,
         DragHit = DragHit,
-        MinimizedOrb = MinimizedOrb,
+        MinimizedPanel = MinimizedPanel,
+        MiniHeader = MiniHeader,
+        ExpandBtn = ExpandBtn,
         Content = Content,
         StatusLbl = StatusLbl,
         MethodLbl = MethodLbl,
@@ -318,6 +400,12 @@ return function(config)
             ActualCPSVal = ActualCPSVal,
             FPSVal = FPSVal,
             PingVal = PingVal,
+        },
+        MiniStats = {
+            StatusVal = MiniStatusVal,
+            CPSVal = MiniCPSVal,
+            FPSVal = MiniFPSVal,
+            PingVal = MiniPingVal,
         },
     }
 end
