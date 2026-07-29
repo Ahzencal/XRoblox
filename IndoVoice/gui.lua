@@ -1394,7 +1394,15 @@ return function(config)
     local UnloadBtn = makeActionButton(SettingsScroll, "Unload Script", 40, LYRA.danger)
     local AutoClaimDailyRewardBtn = makeActionButton(SettingsScroll, "Auto Claim Daily Reward: OFF", 80, LYRA.accent)
     local AutoClaimSessionRewardBtn = makeActionButton(SettingsScroll, "Auto Claim Session Reward: OFF", 120, LYRA.tp)
+    -- Anti Idle (Roblox platform 20-min disconnect) and Anti AFK (the game's
+    -- own "Still There?" prompt) share a row to avoid shifting the layout.
     local AntiIdleBtn = makeActionButton(SettingsScroll, "Anti Idle: OFF", 160, LYRA.warn)
+    AntiIdleBtn.Size = UDim2.new(0.48, -10, 0, 30)
+    AntiIdleBtn.Position = UDim2.new(0, 10, 0, 160)
+
+    local AntiAfkBtn = makeActionButton(SettingsScroll, "Anti AFK: OFF", 160, LYRA.warn)
+    AntiAfkBtn.Size = UDim2.new(0.48, -10, 0, 30)
+    AntiAfkBtn.Position = UDim2.new(0.5, 5, 0, 160)
 
     -- ── Webhook Section ──
     local WebhookSep = Instance.new("Frame")
@@ -1706,6 +1714,7 @@ return function(config)
             AutoClaimDailyRewardBtn = AutoClaimDailyRewardBtn,
             AutoClaimSessionRewardBtn = AutoClaimSessionRewardBtn,
             AntiIdleBtn = AntiIdleBtn,
+            AntiAfkBtn = AntiAfkBtn,
             WebhookInput = WebhookInput,
             WebhookToggleBtn = WebhookToggleBtn,
             WebhookTestBtn = WebhookTestBtn,
