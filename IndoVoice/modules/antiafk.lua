@@ -150,9 +150,6 @@ return function(ctx)
     -- act on it if its text matches the AFK wording, so we never dismiss an
     -- unrelated confirmation (e.g. the ore sell confirmation).
     local AFK_PROMPT_TEXT = "still there"
-    local CONFIRM_TEXT_PATTERNS = {
-        "i'm here", "im here", "still here", "dismiss", "close",
-    }
 
     local function matchesAny(text, patterns)
         local lower = string.lower(tostring(text or ""))
@@ -189,17 +186,33 @@ return function(ctx)
         end
     end
 
+    -- Buttons are looked up in priority order so we deterministically pick
+    -- "I'M HERE" over "DISMISS" (GetDescendants order isn't guaranteed).
+    -- Both satisfy the server, but the affirmative one is the correct intent.
+    local BUTTON_PRIORITY = {
+        { "i'm here", "im here", "still here" }, -- affirmative
+        { "dismiss" },                            -- cancel (also valid)
+        { "close" },                              -- X button
+    }
+
     local function findConfirmButton(container)
-        local fallback = nil
+        local buttons = {}
         for _, desc in ipairs(container:GetDescendants()) do
             if (desc:IsA("TextButton") or desc:IsA("ImageButton")) and desc.Visible then
-                if desc:IsA("TextButton") and matchesAny(desc.Text, CONFIRM_TEXT_PATTERNS) then
-                    return desc
-                end
-                if not fallback then fallback = desc end
+                table.insert(buttons, desc)
             end
         end
-        return fallback
+
+        for _, patternGroup in ipairs(BUTTON_PRIORITY) do
+            for _, button in ipairs(buttons) do
+                if button:IsA("TextButton") and matchesAny(button.Text, patternGroup) then
+                    return button
+                end
+            end
+        end
+
+        -- Nothing matched by label — fall back to the first visible button.
+        return buttons[1]
     end
 
     -- Assigned to the forward-declared local above so both the remote
