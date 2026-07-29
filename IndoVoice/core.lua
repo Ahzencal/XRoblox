@@ -105,6 +105,7 @@ return function(gui, config)
     ctx.playerConnections = {}
     ctx.zoneAttributeConnections = {}
     ctx.antiIdleConnections = {}
+    ctx.antiAfkConnections = {}
 
     -- Config values exposed for modules
     ctx.AUTO_SELL_INTERVAL = AUTO_SELL_INTERVAL
@@ -907,6 +908,7 @@ return function(gui, config)
         disconnectList(ctx.connections)
         disconnectList(ctx.zoneAttributeConnections)
         disconnectList(ctx.antiIdleConnections)
+        disconnectList(ctx.antiAfkConnections)
         for player in pairs(ctx.espObjects) do removeESPForPlayer(player) end
         for part in pairs(ctx.zoneObjects) do removeZoneESP(part) end
         for player in pairs(ctx.beamStates) do stopBeam(player) end
@@ -1510,6 +1512,7 @@ return function(gui, config)
 
             -- Settings tab toggles
             antiIdleEnabled = ctx.antiIdleEnabled,
+            antiAfkEnabled = ctx.antiAfkEnabled,
             autoClaimDailyRewardEnabled = ctx.autoClaimDailyRewardEnabled,
             autoClaimSessionRewardEnabled = ctx.autoClaimSessionRewardEnabled,
 
@@ -1621,6 +1624,11 @@ return function(gui, config)
             -- the same enable logic used by their buttons (defined earlier in this scope).
             if result.antiIdleEnabled and not ctx.antiIdleEnabled then
                 enableAntiIdle()
+            end
+            -- Anti AFK is applied by modules/antiafk.lua, which reads
+            -- ctx.antiAfkEnabled when it loads (after this runs).
+            if result.antiAfkEnabled ~= nil then
+                ctx.antiAfkEnabled = result.antiAfkEnabled
             end
             if result.autoClaimDailyRewardEnabled and not ctx.autoClaimDailyRewardEnabled then
                 ctx.autoClaimDailyRewardEnabled = true
