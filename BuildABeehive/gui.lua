@@ -157,6 +157,18 @@ return function(config)
     tabActionsBtn.Parent = sidebar
     Instance.new("UICorner", tabActionsBtn).CornerRadius = UDim.new(0, 8)
 
+    local tabBuyBtn = Instance.new("TextButton")
+    tabBuyBtn.Size = UDim2.new(1, -16, 0, 34)
+    tabBuyBtn.Position = UDim2.new(0, 8, 0, 160)
+    tabBuyBtn.BackgroundColor3 = theme.panel2 or Color3.fromRGB(40, 40, 52)
+    tabBuyBtn.Text = "SOON"
+    tabBuyBtn.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
+    tabBuyBtn.Font = Enum.Font.GothamBold
+    tabBuyBtn.TextSize = 12
+    tabBuyBtn.BorderSizePixel = 0
+    tabBuyBtn.Parent = sidebar
+    Instance.new("UICorner", tabBuyBtn).CornerRadius = UDim.new(0, 8)
+
     local content = Instance.new("Frame")
     content.Size = UDim2.new(1, -142, 1, -48)
     content.Position = UDim2.new(0, 136, 0, 42)
@@ -183,18 +195,32 @@ return function(config)
     actionsTab.Visible = false
     actionsTab.Parent = content
 
+    local buyTab = Instance.new("Frame")
+    buyTab.Name = "BuyTab"
+    buyTab.Size = UDim2.new(1, 0, 1, 0)
+    buyTab.BackgroundTransparency = 1
+    buyTab.Visible = false
+    buyTab.Parent = content
+
     local function applyTab(activeTab)
         local showOverview = activeTab == "Overview"
+        local showActions = activeTab == "Actions"
+        local showBuy = activeTab == "Buy"
         overviewTab.Visible = showOverview
-        actionsTab.Visible = not showOverview
+        actionsTab.Visible = showActions
+        buyTab.Visible = showBuy
 
         tabOverviewBtn.BackgroundColor3 = showOverview and (theme.accent or Color3.fromRGB(80, 180, 255)) or (theme.panel2 or Color3.fromRGB(40, 40, 52))
         tabOverviewBtn.BackgroundTransparency = showOverview and 0.1 or 0
         tabOverviewBtn.TextColor3 = showOverview and (theme.text or Color3.new(1, 1, 1)) or (theme.dim or Color3.fromRGB(130, 130, 145))
 
-        tabActionsBtn.BackgroundColor3 = (not showOverview) and (theme.accent or Color3.fromRGB(80, 180, 255)) or (theme.panel2 or Color3.fromRGB(40, 40, 52))
-        tabActionsBtn.BackgroundTransparency = (not showOverview) and 0.1 or 0
-        tabActionsBtn.TextColor3 = (not showOverview) and (theme.text or Color3.new(1, 1, 1)) or (theme.dim or Color3.fromRGB(130, 130, 145))
+        tabActionsBtn.BackgroundColor3 = showActions and (theme.accent or Color3.fromRGB(80, 180, 255)) or (theme.panel2 or Color3.fromRGB(40, 40, 52))
+        tabActionsBtn.BackgroundTransparency = showActions and 0.1 or 0
+        tabActionsBtn.TextColor3 = showActions and (theme.text or Color3.new(1, 1, 1)) or (theme.dim or Color3.fromRGB(130, 130, 145))
+
+        tabBuyBtn.BackgroundColor3 = showBuy and (theme.accent or Color3.fromRGB(80, 180, 255)) or (theme.panel2 or Color3.fromRGB(40, 40, 52))
+        tabBuyBtn.BackgroundTransparency = showBuy and 0.1 or 0
+        tabBuyBtn.TextColor3 = showBuy and (theme.text or Color3.new(1, 1, 1)) or (theme.dim or Color3.fromRGB(130, 130, 145))
     end
 
     local status = Instance.new("TextLabel")
@@ -322,71 +348,104 @@ return function(config)
     actionSub.TextXAlignment = Enum.TextXAlignment.Left
     actionSub.Parent = actionsTab
 
-    local function makeIntervalSetting(labelText, placeholder, y)
+    local actionCard = Instance.new("Frame")
+    actionCard.Size = UDim2.new(1, -24, 0, 248)
+    actionCard.Position = UDim2.new(0, 12, 0, 64)
+    actionCard.BackgroundColor3 = theme.panel or Color3.fromRGB(24, 24, 32)
+    actionCard.BorderSizePixel = 0
+    actionCard.Parent = actionsTab
+    Instance.new("UICorner", actionCard).CornerRadius = UDim.new(0, 10)
+
+    local actionCardStroke = Instance.new("UIStroke", actionCard)
+    actionCardStroke.Color = theme.panel2 or Color3.fromRGB(40, 40, 52)
+    actionCardStroke.Thickness = 1
+
+    local actionCardPad = Instance.new("UIPadding")
+    actionCardPad.PaddingTop = UDim.new(0, 10)
+    actionCardPad.PaddingBottom = UDim.new(0, 10)
+    actionCardPad.PaddingLeft = UDim.new(0, 10)
+    actionCardPad.PaddingRight = UDim.new(0, 10)
+    actionCardPad.Parent = actionCard
+
+    local actionRows = Instance.new("Frame")
+    actionRows.Size = UDim2.new(1, 0, 1, 0)
+    actionRows.BackgroundTransparency = 1
+    actionRows.Parent = actionCard
+
+    local actionList = Instance.new("UIListLayout")
+    actionList.Padding = UDim.new(0, 8)
+    actionList.SortOrder = Enum.SortOrder.LayoutOrder
+    actionList.Parent = actionRows
+
+    local function makeIntervalSetting(labelText, placeholder, order)
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(1, 0, 0, 28)
+        row.BackgroundTransparency = 1
+        row.LayoutOrder = order
+        row.Parent = actionRows
+
         local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(0, 140, 0, 18)
-        label.Position = UDim2.new(0, 12, 0, y)
+        label.Size = UDim2.new(1, -92, 1, 0)
         label.BackgroundTransparency = 1
         label.Text = labelText
         label.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
         label.Font = Enum.Font.Gotham
         label.TextSize = 10
         label.TextXAlignment = Enum.TextXAlignment.Left
-        label.Parent = actionsTab
+        label.Parent = row
 
         local input = Instance.new("TextBox")
-        input.Size = UDim2.new(0, 72, 0, 22)
-        input.Position = UDim2.new(0, 150, 0, y - 2)
+        input.Size = UDim2.new(0, 80, 1, 0)
+        input.Position = UDim2.new(1, -80, 0, 0)
         input.BackgroundColor3 = theme.bg2 or Color3.fromRGB(22, 22, 30)
         input.TextColor3 = theme.text or Color3.new(1, 1, 1)
         input.PlaceholderText = placeholder
         input.PlaceholderColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
         input.ClearTextOnFocus = false
         input.Font = Enum.Font.Code
-        input.TextSize = 10
+        input.TextSize = 11
+        input.TextXAlignment = Enum.TextXAlignment.Center
         input.BorderSizePixel = 0
-        input.Parent = actionsTab
+        input.Parent = row
         Instance.new("UICorner", input).CornerRadius = UDim.new(0, 6)
 
         return label, input
     end
 
-    local collectIntervalLbl, collectIntervalInput = makeIntervalSetting("Collect interval (s)", "2", 56)
-    local sellIntervalLbl, sellIntervalInput = makeIntervalSetting("Sell interval (s)", "5", 84)
+    local collectIntervalLbl, collectIntervalInput = makeIntervalSetting("Collect interval (s)", "2", 1)
+    local sellIntervalLbl, sellIntervalInput = makeIntervalSetting("Sell interval (s)", "5", 2)
+    local auroraIntervalLbl, auroraIntervalInput = makeIntervalSetting("Aurora interval (s)", "5", 3)
 
-    local collectButton = Instance.new("TextButton")
-    collectButton.Size = UDim2.new(0, 240, 0, 34)
-    collectButton.Position = UDim2.new(0, 12, 0, 122)
-    collectButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
-    collectButton.Text = "Collect: OFF"
-    collectButton.TextScaled = true
-    collectButton.BorderSizePixel = 0
-    collectButton.Parent = actionsTab
-    Instance.new("UICorner", collectButton).CornerRadius = UDim.new(0, 8)
+    local function makeActionButton(text, order, color)
+        local button = Instance.new("TextButton")
+        button.Size = UDim2.new(1, 0, 0, 30)
+        button.BackgroundColor3 = color
+        button.BackgroundTransparency = 0.08
+        button.Text = text
+        button.TextColor3 = theme.text or Color3.new(1, 1, 1)
+        button.Font = Enum.Font.GothamBold
+        button.TextSize = 11
+        button.TextXAlignment = Enum.TextXAlignment.Left
+        button.BorderSizePixel = 0
+        button.LayoutOrder = order
+        button.Parent = actionRows
+        Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
 
-    local sellButton = Instance.new("TextButton")
-    sellButton.Size = UDim2.new(0, 240, 0, 34)
-    sellButton.Position = UDim2.new(0, 12, 0, 164)
-    sellButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
-    sellButton.Text = "Sell: OFF"
-    sellButton.TextScaled = true
-    sellButton.BorderSizePixel = 0
-    sellButton.Parent = actionsTab
-    Instance.new("UICorner", sellButton).CornerRadius = UDim.new(0, 8)
+        local padding = Instance.new("UIPadding")
+        padding.PaddingLeft = UDim.new(0, 12)
+        padding.PaddingRight = UDim.new(0, 12)
+        padding.Parent = button
 
-    local depositAuroraButton = Instance.new("TextButton")
-    depositAuroraButton.Size = UDim2.new(0, 240, 0, 34)
-    depositAuroraButton.Position = UDim2.new(0, 12, 0, 206)
-    depositAuroraButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
-    depositAuroraButton.Text = "Aurora: OFF"
-    depositAuroraButton.TextScaled = true
-    depositAuroraButton.BorderSizePixel = 0
-    depositAuroraButton.Parent = actionsTab
-    Instance.new("UICorner", depositAuroraButton).CornerRadius = UDim.new(0, 8)
+        return button
+    end
+
+    local collectButton = makeActionButton("Collect: OFF", 4, theme.danger or Color3.fromRGB(180, 60, 60))
+    local sellButton = makeActionButton("Sell: OFF", 5, theme.danger or Color3.fromRGB(180, 60, 60))
+    local depositAuroraButton = makeActionButton("Aurora: OFF", 6, theme.danger or Color3.fromRGB(180, 60, 60))
 
     local soonLbl = Instance.new("TextLabel")
     soonLbl.Size = UDim2.new(1, -24, 0, 14)
-    soonLbl.Position = UDim2.new(0, 12, 0, 252)
+    soonLbl.Position = UDim2.new(0, 12, 0, 282)
     soonLbl.BackgroundTransparency = 1
     soonLbl.Text = "Auto-buy coming soon"
     soonLbl.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
@@ -394,6 +453,51 @@ return function(config)
     soonLbl.TextSize = 10
     soonLbl.TextXAlignment = Enum.TextXAlignment.Left
     soonLbl.Parent = actionsTab
+
+    local buyTitle = Instance.new("TextLabel")
+    buyTitle.Size = UDim2.new(1, -24, 0, 26)
+    buyTitle.Position = UDim2.new(0, 12, 0, 24)
+    buyTitle.BackgroundTransparency = 1
+    buyTitle.Text = "Buy"
+    buyTitle.TextColor3 = theme.text or Color3.new(1, 1, 1)
+    buyTitle.Font = Enum.Font.GothamBold
+    buyTitle.TextSize = 18
+    buyTitle.TextXAlignment = Enum.TextXAlignment.Left
+    buyTitle.Parent = buyTab
+
+    local buyCard = Instance.new("Frame")
+    buyCard.Size = UDim2.new(1, -24, 0, 120)
+    buyCard.Position = UDim2.new(0, 12, 0, 60)
+    buyCard.BackgroundColor3 = theme.panel or Color3.fromRGB(24, 24, 32)
+    buyCard.BorderSizePixel = 0
+    buyCard.Parent = buyTab
+    Instance.new("UICorner", buyCard).CornerRadius = UDim.new(0, 10)
+
+    local buyCardStroke = Instance.new("UIStroke", buyCard)
+    buyCardStroke.Color = theme.panel2 or Color3.fromRGB(40, 40, 52)
+    buyCardStroke.Thickness = 1
+
+    local buySoon = Instance.new("TextLabel")
+    buySoon.Size = UDim2.new(1, -24, 0, 22)
+    buySoon.Position = UDim2.new(0, 12, 0, 28)
+    buySoon.BackgroundTransparency = 1
+    buySoon.Text = "SOON"
+    buySoon.TextColor3 = theme.accent or Color3.fromRGB(80, 180, 255)
+    buySoon.Font = Enum.Font.GothamBold
+    buySoon.TextSize = 24
+    buySoon.TextXAlignment = Enum.TextXAlignment.Center
+    buySoon.Parent = buyCard
+
+    local buyDesc = Instance.new("TextLabel")
+    buyDesc.Size = UDim2.new(1, -24, 0, 16)
+    buyDesc.Position = UDim2.new(0, 12, 0, 64)
+    buyDesc.BackgroundTransparency = 1
+    buyDesc.Text = "Buy controls will land here next."
+    buyDesc.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
+    buyDesc.Font = Enum.Font.Gotham
+    buyDesc.TextSize = 10
+    buyDesc.TextXAlignment = Enum.TextXAlignment.Center
+    buyDesc.Parent = buyCard
 
     local mini = Instance.new("Frame")
     mini.Name = "MinimizedPanel"
@@ -503,6 +607,10 @@ return function(config)
         setTab("Actions")
     end)
 
+    tabBuyBtn.MouseButton1Click:Connect(function()
+        setTab("Buy")
+    end)
+
     setTab("Overview")
 
     return {
@@ -520,6 +628,7 @@ return function(config)
         TabButtons = {
             Overview = tabOverviewBtn,
             Actions = tabActionsBtn,
+            Buy = tabBuyBtn,
         },
         Title = title,
         Subtitle = subtitle,
@@ -538,6 +647,7 @@ return function(config)
         DepositAuroraButton = depositAuroraButton,
         CollectIntervalInput = collectIntervalInput,
         SellIntervalInput = sellIntervalInput,
+        AuroraIntervalInput = auroraIntervalInput,
         SoonLbl = soonLbl,
         MinimizedPanel = mini,
         MiniHeader = miniHeader,

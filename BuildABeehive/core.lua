@@ -24,6 +24,7 @@ return function(gui, config)
         AutoDepositAurora = false,
         collectInterval = 2,
         sellInterval = 5,
+        auroraInterval = 5,
         fps = 0,
         ping = 0,
         playerCount = #Players:GetPlayers(),
@@ -79,6 +80,7 @@ return function(gui, config)
     local function syncIntervals()
         ctx.collectInterval = readInterval(gui.CollectIntervalInput, 2)
         ctx.sellInterval = readInterval(gui.SellIntervalInput, 5)
+        ctx.auroraInterval = readInterval(gui.AuroraIntervalInput, 5)
     end
     ctx.syncIntervals = syncIntervals
 
@@ -145,6 +147,9 @@ return function(gui, config)
         end
         if gui.SellIntervalInput and not gui.SellIntervalInput:IsFocused() then
                 gui.SellIntervalInput.Text = tostring(ctx.sellInterval)
+        end
+        if gui.AuroraIntervalInput and not gui.AuroraIntervalInput:IsFocused() then
+            gui.AuroraIntervalInput.Text = tostring(ctx.auroraInterval)
         end
     end
     ctx.updateStats = updateStats
@@ -281,6 +286,14 @@ return function(gui, config)
                 gui.SetTab("Actions")
             end
         end)
+
+        if gui.TabButtons.Buy then
+            bind(gui.TabButtons.Buy.MouseButton1Click, function()
+                if gui.SetTab then
+                    gui.SetTab("Buy")
+                end
+            end)
+        end
     end
 
     if gui.CollectIntervalInput then
