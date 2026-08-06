@@ -1,0 +1,239 @@
+-- modules/auto_buy_seed.lua
+-- Auto Buy Seed feature: buys every checked flower on an interval (default every 2 minutes).
+
+return function(ctx)
+	ctx.setButtonState(ctx.gui.BuySeedButton, ctx.AutoBuySeed, "Buy Seed")
+	ctx.updateStatus()
+
+	local lastRun = os.clock()
+
+	-- Shared flower list / selection state (falls back to local values if core.lua wasn't updated)
+	ctx.FLOWER_LIST = ctx.FLOWER_LIST
+		or {
+			"Lavender",
+			"Daisy",
+			"Clover",
+			"Sunflower",
+			"Dahlia",
+			"Bamboo",
+			"Tulip",
+			"AloeFlower",
+			"VenusFlyTrap",
+			"MorningGlory",
+			"Gourd",
+			"FireBlossom",
+			"Bluebell",
+			"Lily",
+			"Rose",
+			"Cactus",
+			"KniphofiaUvaria",
+			"AquilegiaCoerulea",
+			"MartagonLily",
+		}
+
+	ctx.selectedFlowers = ctx.selectedFlowers or { Bamboo = true }
+
+	ctx.gui.BuySeedButton.MouseButton1Click:Connect(function()
+		ctx.AutoBuySeed = not ctx.AutoBuySeed
+		ctx.setButtonState(ctx.gui.BuySeedButton, ctx.AutoBuySeed, "Buy Seed")
+		ctx.updateStatus()
+	end)
+
+	-- ===== Build checkbox list UI =====
+	local parent = ctx.gui.BuySeedButton.Parent
+
+	local listFrame = parent:FindFirstChild("FlowerCheckListFrame")
+	if not listFrame then
+		listFrame = Instance.new("Frame")
+		listFrame.Name = "FlowerCheckListFrame"
+		listFrame.Size = UDim2.new(1, 0, 0, 220)
+		listFrame.Position =
+			UDim2.new(0, 0, 0, ctx.gui.BuySeedButton.Position.Y.Offset + ctx.gui.BuySeedButton.AbsoluteSize.Y + 40)
+		listFrame.BackgroundColor3 = (ctx.config.Theme and ctx.config.Theme.panel) or Color3.fromRGB(35, 35, 40)
+		listFrame.BorderSizePixel = 0
+		listFrame.Parent = parent
+
+		local header = Instance.new("TextLabel")
+		header.Name = "Header"
+		header.Size = UDim2.new(1, -8, 0, 22)
+		header.Position = UDim2.new(0, 4, 0, 2)
+		header.BackgroundTransparency = 1
+		header.Font = Enum.Font.GothamBold
+		header.TextSize = 14
+		header.TextXAlignment = Enum.TextXAlignment.Left
+		header.TextColor3 = Color3.fromRGB(255, 255, 255)
+		header.Text = "Flowers to Auto Buy"
+		header.Parent = listFrame
+
+		local selectAllBtn = Instance.new("TextButton")
+		selectAllBtn.Name = "SelectAllBtn"
+		selectAllBtn.Size = UDim2.new(0, 70, 0, 20)
+		selectAllBtn.Position = UDim2.new(1, -150, 0, 2)
+		selectAllBtn.BackgroundColor3 = Color3.fromRGB(60, 140, 220)
+		selectAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		selectAllBtn.Font = Enum.Font.Gotham
+		selectAllBtn.TextSize = 12
+		selectAllBtn.Text = "All"
+		selectAllBtn.Parent = listFrame
+
+		local clearAllBtn = Instance.new("TextButton")
+		clearAllBtn.Name = "ClearAllBtn"
+		clearAllBtn.Size = UDim2.new(0, 70, 0, 20)
+		clearAllBtn.Position = UDim2.new(1, -76, 0, 2)
+		clearAllBtn.BackgroundColor3 = Color3.fromRGB(180, 70, 70)
+		clearAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		clearAllBtn.Font = Enum.Font.Gotham
+		clearAllBtn.TextSize = 12
+		clearAllBtn.Text = "None"
+		clearAllBtn.Parent = listFrame
+
+		local scroll = Instance.new("ScrollingFrame")
+		scroll.Name = "FlowerScroll"
+		scroll.Size = UDim2.new(1, -8, 1, -28)
+		scroll.Position = UDim2.new(0, 4, 0, 26)
+		scroll.BackgroundTransparency = 1
+		scroll.BorderSizePixel = 0
+		scroll.ScrollBarThickness = 6
+		scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+		scroll.Parent = listFrame
+
+		local listLayout = Instance.new("UIListLayout")
+		listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		listLayout.Padding = UDim.new(0, 2)
+		listLayout.Parent = scroll
+
+		listFrame.CheckBoxes = {}
+
+		local function setCheckboxVisual(box, checked)
+			if checked then
+				box.BackgroundColor3 = Color3.fromRGB(70, 200, 100)
+				box.Text = "X"
+			else
+				box.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
+				box.Text = ""
+			end
+		end
+
+		for index, flowerName in ipairs(ctx.FLOWER_LIST) do
+			local row = Instance.new("Frame")
+			row.Name = "Row_" .. flowerName
+			row.Size = UDim2.new(1, -6, 0, 22)
+			row.BackgroundTransparency = 1
+			row.LayoutOrder = index
+			row.Parent = scroll
+
+			local box = Instance.new("TextButton")
+			box.Name = "CheckBox"
+			box.Size = UDim2.new(0, 18, 0, 18)
+			box.Position = UDim2.new(0, 0, 0, 2)
+			box.Font = Enum.Font.GothamBold
+			box.TextSize = 12
+			box.TextColor3 = Color3.fromRGB(255, 255, 255)
+			box.AutoButtonColor = false
+			box.Parent = row
+
+			local label = Instance.new("TextLabel")
+			label.Name = "Label"
+			label.Size = UDim2.new(1, -26, 1, 0)
+			label.Position = UDim2.new(0, 24, 0, 0)
+			label.BackgroundTransparency = 1
+			label.Font = Enum.Font.Gotham
+			label.TextSize = 13
+			label.TextXAlignment = Enum.TextXAlignment.Left
+			label.TextColor3 = Color3.fromRGB(230, 230, 230)
+			label.Text = flowerName
+			label.Parent = row
+
+			setCheckboxVisual(box, ctx.selectedFlowers[flowerName] == true)
+
+			box.MouseButton1Click:Connect(function()
+				local newState = not (ctx.selectedFlowers[flowerName] == true)
+				ctx.selectedFlowers[flowerName] = newState
+				setCheckboxVisual(box, newState)
+			end)
+
+			listFrame.CheckBoxes[flowerName] = box
+		end
+
+		selectAllBtn.MouseButton1Click:Connect(function()
+			for _, flowerName in ipairs(ctx.FLOWER_LIST) do
+				ctx.selectedFlowers[flowerName] = true
+				setCheckboxVisual(listFrame.CheckBoxes[flowerName], true)
+			end
+		end)
+
+		clearAllBtn.MouseButton1Click:Connect(function()
+			for _, flowerName in ipairs(ctx.FLOWER_LIST) do
+				ctx.selectedFlowers[flowerName] = false
+				setCheckboxVisual(listFrame.CheckBoxes[flowerName], false)
+			end
+		end)
+	end
+
+	-- ===== Buy logic =====
+	local function canBuyFromKnownStock(seedId)
+		local shop = ctx.LocalPlayer and ctx.LocalPlayer:FindFirstChild("FlowerShopScript")
+		if not shop then
+			return true
+		end
+
+		local stockValue = shop:FindFirstChild(seedId)
+		if not stockValue then
+			return true
+		end
+
+		local valueType = typeof(stockValue.Value)
+		if valueType ~= "number" then
+			return true
+		end
+
+		return stockValue.Value > 0
+	end
+
+	local function getSelectedFlowerList()
+		local selected = {}
+		for _, flowerName in ipairs(ctx.FLOWER_LIST) do
+			if ctx.selectedFlowers[flowerName] then
+				table.insert(selected, flowerName)
+			end
+		end
+		return selected
+	end
+
+	task.spawn(function()
+		while task.wait(0.25) do
+			if ctx.Destroyed or not ctx.AutoBuySeed then
+				lastRun = os.clock()
+				continue
+			end
+
+			ctx.syncIntervals()
+
+			local now = os.clock()
+			if now - lastRun < (ctx.buySeedInterval or 120) then
+				continue
+			end
+			lastRun = now
+
+			local selected = getSelectedFlowerList()
+
+			for _, seedId in ipairs(selected) do
+				if ctx.Destroyed or not ctx.AutoBuySeed then
+					break
+				end
+
+				if canBuyFromKnownStock(seedId) then
+					pcall(function()
+						ctx.FlowerRemote:FireServer("BuyFlower", seedId)
+						ctx.addCount("buy_seed", 1)
+					end)
+				end
+
+				task.wait(0.15)
+			end
+
+			ctx.updateStats()
+		end
+	end)
+end

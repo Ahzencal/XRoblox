@@ -98,7 +98,7 @@ if not coreOk then
     return
 end
 
-local modules = {"auto_collect", "auto_sell", "auto_deposit_aurora"}
+local modules = {"auto_collect", "auto_sell", "auto_deposit_aurora", "auto_buy_seed"}
 for _, name in ipairs(modules) do
     local ok, err = pcall(function()
         local modChunk = loadModule(name)
