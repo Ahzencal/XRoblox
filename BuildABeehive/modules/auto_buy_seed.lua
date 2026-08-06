@@ -1,3 +1,12 @@
+-- ============================================================
+-- >>> UPDATED VERSION v3 (FIXED) <<<  (last modified 2026-08-06 22:09 WIB)
+-- Fix: checkbox refs now stored in a local Lua table instead of on the
+-- Frame instance (Roblox Instances can't hold arbitrary custom
+-- properties -> caused "CheckBoxes is not a valid member of Frame").
+-- Also: removed the FlowerShopScript stock check entirely -- the loop
+-- now just fires the remote directly for every checked flower.
+-- ============================================================
+
 -- modules/auto_buy_seed.lua
 -- Auto Buy Seed feature: buys every checked flower on an interval (default every 2 minutes).
 
@@ -6,8 +15,6 @@ return function(ctx)
 	ctx.updateStatus()
 
 	local lastRun = os.clock()
-
-	-- Shared flower list / selection state (falls back to local values if core.lua wasn't updated)
 	ctx.FLOWER_LIST = ctx.FLOWER_LIST
 		or {
 			"Lavender",
@@ -41,6 +48,9 @@ return function(ctx)
 
 	-- ===== Build checkbox list UI =====
 	local parent = ctx.gui.BuySeedButton.Parent
+
+	-- Local Lua table (NOT stored on the Instance) mapping flowerName -> checkbox button
+	local checkBoxesByFlower = {}
 
 	local listFrame = parent:FindFirstChild("FlowerCheckListFrame")
 	if not listFrame then
@@ -103,8 +113,6 @@ return function(ctx)
 		listLayout.Padding = UDim.new(0, 2)
 		listLayout.Parent = scroll
 
-		listFrame.CheckBoxes = {}
-
 		local function setCheckboxVisual(box, checked)
 			if checked then
 				box.BackgroundColor3 = Color3.fromRGB(70, 200, 100)
@@ -153,44 +161,25 @@ return function(ctx)
 				setCheckboxVisual(box, newState)
 			end)
 
-			listFrame.CheckBoxes[flowerName] = box
+			checkBoxesByFlower[flowerName] = box
 		end
 
 		selectAllBtn.MouseButton1Click:Connect(function()
 			for _, flowerName in ipairs(ctx.FLOWER_LIST) do
 				ctx.selectedFlowers[flowerName] = true
-				setCheckboxVisual(listFrame.CheckBoxes[flowerName], true)
+				setCheckboxVisual(checkBoxesByFlower[flowerName], true)
 			end
 		end)
 
 		clearAllBtn.MouseButton1Click:Connect(function()
 			for _, flowerName in ipairs(ctx.FLOWER_LIST) do
 				ctx.selectedFlowers[flowerName] = false
-				setCheckboxVisual(listFrame.CheckBoxes[flowerName], false)
+				setCheckboxVisual(checkBoxesByFlower[flowerName], false)
 			end
 		end)
 	end
 
-	-- ===== Buy logic =====
-	local function canBuyFromKnownStock(seedId)
-		local shop = ctx.LocalPlayer and ctx.LocalPlayer:FindFirstChild("FlowerShopScript")
-		if not shop then
-			return true
-		end
-
-		local stockValue = shop:FindFirstChild(seedId)
-		if not stockValue then
-			return true
-		end
-
-		local valueType = typeof(stockValue.Value)
-		if valueType ~= "number" then
-			return true
-		end
-
-		return stockValue.Value > 0
-	end
-
+	-- ===== Buy logic (no stock check -- just fire the remote) =====
 	local function getSelectedFlowerList()
 		local selected = {}
 		for _, flowerName in ipairs(ctx.FLOWER_LIST) do
@@ -223,12 +212,10 @@ return function(ctx)
 					break
 				end
 
-				if canBuyFromKnownStock(seedId) then
-					pcall(function()
-						ctx.FlowerRemote:FireServer("BuyFlower", seedId)
-						ctx.addCount("buy_seed", 1)
-					end)
-				end
+				pcall(function()
+					ctx.FlowerRemote:FireServer("BuyFlower", seedId)
+					ctx.addCount("buy_seed", 1)
+				end)
 
 				task.wait(0.15)
 			end
