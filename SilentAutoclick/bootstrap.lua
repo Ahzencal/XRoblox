@@ -1,7 +1,7 @@
 -- SilentAutoclick/bootstrap.lua
 -- Tiny loader: fetches main.lua (and everything else) from GitHub
 
-local USER = "Ahzencal"
+local USER = "LyraTheGuy"
 local REPO = "XRoblox"
 local FOLDER = "SilentAutoclick"
 local BRANCH = "staging" -- change branch here if needed
