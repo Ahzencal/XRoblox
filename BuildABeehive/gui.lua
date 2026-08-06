@@ -1,5 +1,5 @@
 -- BuildABeehive/gui.lua
--- Builds the honey automation UI and returns references used by the core/module layers
+-- Clean modern GUI for honey automation, with minimize, close, and compact stats.
 
 return function(config)
     local Players = game:GetService("Players")
@@ -9,44 +9,48 @@ return function(config)
     if _G.__BuildABeehive_Destroy then
         pcall(_G.__BuildABeehive_Destroy)
     end
-    screenGui.Name = "BuildABeehive_GUI"
+    _G.__BuildABeehive_Destroy = nil
 
     local screenGui = Instance.new("ScreenGui")
-    screenGui.DisplayOrder = 999
-    screenGui.Name = "AutoHoneyGUI"
+    screenGui.Name = "BuildABeehive_GUI"
     screenGui.ResetOnSpawn = false
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.DisplayOrder = 999
     pcall(function()
         screenGui.Parent = game:GetService("CoreGui")
     end)
     if not screenGui.Parent then
         screenGui.Parent = lp:WaitForChild("PlayerGui")
-    frame.Size = UDim2.new(0, 360, 0, 308)
-    frame.Position = UDim2.new(0.5, -180, 0.5, -154)
-    frame.BackgroundColor3 = theme.bg or Color3.fromRGB(18, 18, 24)
-    frame.Size = UDim2.new(0, 180, 0, 145)
-    frame.ClipsDescendants = true
-    frame.BorderSizePixel = 0
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
-    frame.Draggable = true
-    frame.Parent = screenGui
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
-    stroke.Transparency = 0.25
-    stroke.Thickness = 1
+    end
+
+    local main = Instance.new("Frame")
+    main.Name = "Main"
+    main.Size = UDim2.new(0, 360, 0, 308)
+    main.Position = UDim2.new(0.5, -180, 0.5, -154)
+    main.BackgroundColor3 = theme.bg or Color3.fromRGB(18, 18, 24)
+    main.BorderSizePixel = 0
+    main.ClipsDescendants = true
+    main.Parent = screenGui
+    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
+
+    local mainStroke = Instance.new("UIStroke", main)
+    mainStroke.Color = theme.accent or Color3.fromRGB(80, 180, 255)
+    mainStroke.Transparency = 0.25
+    mainStroke.Thickness = 1
 
     local topBar = Instance.new("Frame")
     topBar.Size = UDim2.new(1, 0, 0, 34)
     topBar.BackgroundColor3 = theme.topbar or Color3.fromRGB(20, 20, 28)
     topBar.BorderSizePixel = 0
-    topBar.Parent = frame
-    stroke.Color = theme.accent or Color3.fromRGB(80, 180, 255)
-    stroke.Transparency = 0.35
+    topBar.Parent = main
+
+    local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, -110, 1, 0)
     title.Position = UDim2.new(0, 14, 0, 0)
-
+    title.BackgroundTransparency = 1
     title.Text = "Build A Beehive"
     title.TextColor3 = theme.text or Color3.new(1, 1, 1)
-    title.BackgroundTransparency = 1
+    title.Font = Enum.Font.GothamBold
     title.TextSize = 13
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = topBar
@@ -92,35 +96,24 @@ return function(config)
     dragHit.BackgroundTransparency = 1
     dragHit.Text = ""
     dragHit.Parent = topBar
-    title.Font = Enum.Font.GothamBold
-    title.TextScaled = true
+
+    local status = Instance.new("TextLabel")
     status.Size = UDim2.new(1, -20, 0, 18)
     status.Position = UDim2.new(0, 12, 0, 44)
-    local status = Instance.new("TextLabel")
-    status.Size = UDim2.new(1, -10, 0, 16)
-    status.Position = UDim2.new(0, 5, 0, 24)
     status.BackgroundTransparency = 1
-    status.TextSize = 13
+    status.Text = "Status: OFF"
     status.TextColor3 = theme.danger or Color3.fromRGB(255, 80, 80)
     status.Font = Enum.Font.GothamBold
-
-    local hint = Instance.new("TextLabel")
-    hint.Size = UDim2.new(1, -20, 0, 14)
-    hint.Position = UDim2.new(0, 12, 0, 62)
-    hint.BackgroundTransparency = 1
-    hint.Text = "Auto-buy slot reserved for the next update"
-    hint.TextColor3 = theme.warn or Color3.fromRGB(255, 200, 80)
-    hint.Font = Enum.Font.Gotham
-    hint.TextSize = 10
-    hint.TextXAlignment = Enum.TextXAlignment.Left
-    hint.Parent = frame
+    status.TextSize = 13
+    status.TextXAlignment = Enum.TextXAlignment.Left
+    status.Parent = main
 
     local statsFrame = Instance.new("Frame")
     statsFrame.Size = UDim2.new(1, -24, 0, 88)
-    statsFrame.Position = UDim2.new(0, 12, 0, 82)
+    statsFrame.Position = UDim2.new(0, 12, 0, 68)
     statsFrame.BackgroundColor3 = theme.panel or Color3.fromRGB(24, 24, 32)
     statsFrame.BorderSizePixel = 0
-    statsFrame.Parent = frame
+    statsFrame.Parent = main
     Instance.new("UICorner", statsFrame).CornerRadius = UDim.new(0, 10)
 
     local statsGrid = Instance.new("UIGridLayout")
@@ -136,7 +129,7 @@ return function(config)
     statsPadding.PaddingRight = UDim.new(0, 8)
     statsPadding.Parent = statsFrame
 
-    local function makeStatCard(titleText, order)
+    local function makeStatCard(labelText, order)
         local card = Instance.new("Frame")
         card.BackgroundColor3 = theme.panel2 or Color3.fromRGB(34, 34, 44)
         card.BorderSizePixel = 0
@@ -148,7 +141,7 @@ return function(config)
         label.Size = UDim2.new(1, -8, 0, 12)
         label.Position = UDim2.new(0, 4, 0, 4)
         label.BackgroundTransparency = 1
-        label.Text = titleText
+        label.Text = labelText
         label.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
         label.Font = Enum.Font.Gotham
         label.TextSize = 9
@@ -173,61 +166,62 @@ return function(config)
     local sellValue = makeStatCard("AUTO SELL", 2)
     local auroraValue = makeStatCard("AURORA", 3)
     local hiveValue = makeStatCard("HIVES", 4)
-    status.TextSize = 11
-    status.TextXAlignment = Enum.TextXAlignment.Left
+
+    local collectButton = Instance.new("TextButton")
     collectButton.Size = UDim2.new(0.31, 0, 0, 30)
-    collectButton.Position = UDim2.new(0.04, 0, 0, 182)
-    collectButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
-    collectButton.Text = "Collect: OFF"
-    collectButton.TextScaled = true
+    collectButton.Position = UDim2.new(0.04, 0, 0, 170)
     collectButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
     collectButton.Text = "Collect: OFF"
     collectButton.TextScaled = true
     collectButton.BorderSizePixel = 0
-    collectButton.Parent = frame
-    extractButton.Size = UDim2.new(0.31, 0, 0, 30)
-    extractButton.Position = UDim2.new(0.345, 0, 0, 182)
-    extractButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
-    extractButton.Text = "Sell: OFF"
-    extractButton.TextScaled = true
-    extractButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
-    extractButton.Text = "Extract: OFF"
-    extractButton.TextScaled = true
-    extractButton.BorderSizePixel = 0
-    extractButton.Parent = frame
+    collectButton.Parent = main
+    Instance.new("UICorner", collectButton).CornerRadius = UDim.new(0, 6)
+
+    local sellButton = Instance.new("TextButton")
     sellButton.Size = UDim2.new(0.31, 0, 0, 30)
-    sellButton.Position = UDim2.new(0.65, 0, 0, 182)
-    sellButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
-    sellButton.Text = "Aurora: OFF"
-    sellButton.TextScaled = true
+    sellButton.Position = UDim2.new(0.345, 0, 0, 170)
     sellButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
     sellButton.Text = "Sell: OFF"
     sellButton.TextScaled = true
     sellButton.BorderSizePixel = 0
-    sellButton.Parent = frame
-    depositAuroraButton.Size = UDim2.new(0.92, 0, 0, 26)
-    depositAuroraButton.Position = UDim2.new(0.04, 0, 0, 220)
-    depositAuroraButton.BackgroundColor3 = theme.panel2 or Color3.fromRGB(40, 40, 52)
-    depositAuroraButton.Text = "Use the toggles above"
-    depositAuroraButton.TextScaled = true
+    sellButton.Parent = main
+    Instance.new("UICorner", sellButton).CornerRadius = UDim.new(0, 6)
+
+    local depositAuroraButton = Instance.new("TextButton")
+    depositAuroraButton.Size = UDim2.new(0.31, 0, 0, 30)
+    depositAuroraButton.Position = UDim2.new(0.65, 0, 0, 170)
     depositAuroraButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
     depositAuroraButton.Text = "Aurora: OFF"
     depositAuroraButton.TextScaled = true
+    depositAuroraButton.BorderSizePixel = 0
+    depositAuroraButton.Parent = main
+    Instance.new("UICorner", depositAuroraButton).CornerRadius = UDim.new(0, 6)
 
-    local minimizedPanel = Instance.new("Frame")
-    minimizedPanel.Name = "MinimizedPanel"
-    minimizedPanel.Size = UDim2.new(0, 280, 0, 84)
-    minimizedPanel.Position = UDim2.new(0.5, -140, 0.5, -42)
-    minimizedPanel.BackgroundColor3 = theme.bg or Color3.fromRGB(18, 18, 24)
-    minimizedPanel.BorderSizePixel = 0
-    minimizedPanel.Visible = false
-    minimizedPanel.Parent = screenGui
-    Instance.new("UICorner", minimizedPanel).CornerRadius = UDim.new(0, 12)
+    local soonLbl = Instance.new("TextLabel")
+    soonLbl.Size = UDim2.new(1, -24, 0, 14)
+    soonLbl.Position = UDim2.new(0, 12, 0, 206)
+    soonLbl.BackgroundTransparency = 1
+    soonLbl.Text = "Auto-buy coming soon"
+    soonLbl.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
+    soonLbl.Font = Enum.Font.Gotham
+    soonLbl.TextSize = 10
+    soonLbl.TextXAlignment = Enum.TextXAlignment.Left
+    soonLbl.Parent = main
 
-    local minimizedStroke = Instance.new("UIStroke", minimizedPanel)
-    minimizedStroke.Color = stroke.Color
-    minimizedStroke.Transparency = stroke.Transparency
-    minimizedStroke.Thickness = 1
+    local mini = Instance.new("Frame")
+    mini.Name = "MinimizedPanel"
+    mini.Size = UDim2.new(0, 280, 0, 84)
+    mini.Position = UDim2.new(0.5, -140, 0.5, -42)
+    mini.BackgroundColor3 = theme.bg or Color3.fromRGB(18, 18, 24)
+    mini.BorderSizePixel = 0
+    mini.Visible = false
+    mini.Parent = screenGui
+    Instance.new("UICorner", mini).CornerRadius = UDim.new(0, 12)
+
+    local miniStroke = Instance.new("UIStroke", mini)
+    miniStroke.Color = mainStroke.Color
+    miniStroke.Transparency = mainStroke.Transparency
+    miniStroke.Thickness = 1
 
     local miniHeader = Instance.new("TextLabel")
     miniHeader.Size = UDim2.new(1, -28, 0, 16)
@@ -238,54 +232,53 @@ return function(config)
     miniHeader.Font = Enum.Font.GothamBold
     miniHeader.TextSize = 10
     miniHeader.TextXAlignment = Enum.TextXAlignment.Left
-    miniHeader.Parent = minimizedPanel
+    miniHeader.Parent = mini
 
-    local collectButton = Instance.new("TextButton")
-    collectButton.Size = UDim2.new(0.31, 0, 0, 30)
-    collectButton.Position = UDim2.new(0.04, 0, 0, 182)
-    collectButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
-    collectButton.Text = "Collect: OFF"
-    collectButton.TextScaled = true
-    collectButton.BorderSizePixel = 0
-    collectButton.Parent = frame
-    Instance.new("UICorner", collectButton).CornerRadius = UDim.new(0, 6)
+    local miniExpand = Instance.new("TextButton")
+    miniExpand.Text = "▢"
+    miniExpand.Size = UDim2.new(0, 18, 0, 18)
+    miniExpand.Position = UDim2.new(1, -24, 0, 4)
+    miniExpand.BackgroundColor3 = theme.panel2 or Color3.fromRGB(40, 40, 52)
+    miniExpand.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
+    miniExpand.Font = Enum.Font.GothamBold
+    miniExpand.TextSize = 11
+    miniExpand.BorderSizePixel = 0
+    miniExpand.Parent = mini
+    Instance.new("UICorner", miniExpand).CornerRadius = UDim.new(0, 5)
 
-    local sellButton = Instance.new("TextButton")
-    sellButton.Size = UDim2.new(0.31, 0, 0, 30)
-    sellButton.Position = UDim2.new(0.345, 0, 0, 182)
-    sellButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
-    sellButton.Text = "Sell: OFF"
-    sellButton.TextScaled = true
-    sellButton.BorderSizePixel = 0
-    sellButton.Parent = frame
-    Instance.new("UICorner", sellButton).CornerRadius = UDim.new(0, 6)
+    local miniDragHit = Instance.new("TextButton")
+    miniDragHit.Size = UDim2.new(1, -24, 0, 26)
+    miniDragHit.Position = UDim2.new(0, 0, 0, 0)
+    miniDragHit.BackgroundTransparency = 1
+    miniDragHit.Text = ""
+    miniDragHit.Parent = mini
 
-    local depositAuroraButton = Instance.new("TextButton")
-    depositAuroraButton.Size = UDim2.new(0.31, 0, 0, 30)
-    depositAuroraButton.Position = UDim2.new(0.65, 0, 0, 182)
-    depositAuroraButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
-    depositAuroraButton.Text = "Aurora: OFF"
-    depositAuroraButton.TextScaled = true
-    depositAuroraButton.BorderSizePixel = 0
-    depositAuroraButton.Parent = frame
-    Instance.new("UICorner", depositAuroraButton).CornerRadius = UDim.new(0, 6)
+    local miniCards = Instance.new("Frame")
+    miniCards.Size = UDim2.new(1, -16, 0, 44)
+    miniCards.Position = UDim2.new(0, 8, 0, 30)
+    miniCards.BackgroundTransparency = 1
+    miniCards.Parent = mini
 
-    local soonLbl = Instance.new("TextLabel")
-    soonLbl.Size = UDim2.new(1, -24, 0, 14)
-    soonLbl.Position = UDim2.new(0, 12, 0, 224)
-    soonLbl.BackgroundTransparency = 1
-    soonLbl.Text = "Auto-buy coming soon"
-    soonLbl.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
-    soonLbl.Font = Enum.Font.Gotham
-    soonLbl.TextSize = 10
-    soonLbl.TextXAlignment = Enum.TextXAlignment.Left
-    soonLbl.Parent = frame
+    local miniLayout = Instance.new("UIListLayout")
+    miniLayout.FillDirection = Enum.FillDirection.Horizontal
+    miniLayout.Padding = UDim.new(0, 4)
+    miniLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    miniLayout.Parent = miniCards
+
+    local function makeMiniCard(labelText, order)
+        local card = Instance.new("Frame")
+        card.Size = UDim2.new(0, 62, 1, 0)
+        card.BackgroundColor3 = theme.panel2 or Color3.fromRGB(34, 34, 44)
+        card.BorderSizePixel = 0
+        card.LayoutOrder = order
+        card.Parent = miniCards
+        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 6)
 
         local label = Instance.new("TextLabel")
         label.Size = UDim2.new(1, -4, 0, 10)
         label.Position = UDim2.new(0, 2, 0, 3)
         label.BackgroundTransparency = 1
-        label.Text = titleText
+        label.Text = labelText
         label.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
         label.Font = Enum.Font.Gotham
         label.TextSize = 8
@@ -310,29 +303,31 @@ return function(config)
     local miniSell = makeMiniCard("SELL", 2)
     local miniAurora = makeMiniCard("AUR", 3)
     local miniHives = makeMiniCard("HIVES", 4)
-    depositAuroraButton.BorderSizePixel = 0
-    depositAuroraButton.Parent = frame
-    Instance.new("UICorner", depositAuroraButton).CornerRadius = UDim.new(0, 6)
 
     return {
+        Theme = theme,
+        ScreenGui = screenGui,
+        Main = main,
+        Frame = main,
+        MainStroke = mainStroke,
         TopBar = topBar,
+        Title = title,
+        Subtitle = subtitle,
         MinBtn = minBtn,
         CloseBtn = closeBtn,
         DragHit = dragHit,
-        ScreenGui = screenGui,
-        HintLbl = hint,
-        CollectButton = collectButton,
-        ExtractButton = extractButton,
-        SellButton = sellButton,
-        DepositAuroraButton = depositAuroraButton,
+        StatusLbl = status,
         Stats = {
             CollectVal = collectValue,
             SellVal = sellValue,
             AuroraVal = auroraValue,
             HivesVal = hiveValue,
         },
+        CollectButton = collectButton,
+        SellButton = sellButton,
+        DepositAuroraButton = depositAuroraButton,
         SoonLbl = soonLbl,
-        MinimizedPanel = minimizedPanel,
+        MinimizedPanel = mini,
         MiniHeader = miniHeader,
         MiniExpand = miniExpand,
         MiniDragHit = miniDragHit,
@@ -342,8 +337,5 @@ return function(config)
             AuroraVal = miniAurora,
             HivesVal = miniHives,
         },
-        ExtractButton = extractButton,
-        SellButton = sellButton,
-        DepositAuroraButton = depositAuroraButton,
     }
 end
