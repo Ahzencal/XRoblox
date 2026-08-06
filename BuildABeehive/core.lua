@@ -32,6 +32,8 @@ return function(gui, config)
         connections = {},
     }
 
+    ctx.RunService = RunService
+
     ctx.ExtractRemote = ReplicatedStorage.Framework.Features.HoneySystem.HiveUtil.RemoteEvent
     ctx.SellRemote = ReplicatedStorage.Framework.Features.HoneySystem.HoneyUtil.RemoteEvent
     ctx.GameRemote = ReplicatedStorage.Framework.Features.GameEvent.GameEventUtil.RemoteEvent
