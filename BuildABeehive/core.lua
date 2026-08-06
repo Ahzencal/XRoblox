@@ -140,12 +140,12 @@ return function(gui, config)
             gui.SoonLbl.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
         end
 
-            if gui.CollectIntervalInput then
+        if gui.CollectIntervalInput and not gui.CollectIntervalInput:IsFocused() then
                 gui.CollectIntervalInput.Text = tostring(ctx.collectInterval)
-            end
-            if gui.SellIntervalInput then
+        end
+        if gui.SellIntervalInput and not gui.SellIntervalInput:IsFocused() then
                 gui.SellIntervalInput.Text = tostring(ctx.sellInterval)
-            end
+        end
     end
     ctx.updateStats = updateStats
 
@@ -230,7 +230,7 @@ return function(gui, config)
     end
     ctx.endDrag = endDrag
 
-    bind(gui.DragHit.InputBegan, function(input)
+    bind(gui.TopBar.InputBegan, function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             beginDrag(gui.Frame, input)
         end

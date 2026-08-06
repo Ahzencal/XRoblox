@@ -5,6 +5,8 @@ return function(ctx)
     ctx.setButtonState(ctx.gui.CollectButton, ctx.AutoCollect, "Collect")
     ctx.updateStatus()
 
+    local lastRun = os.clock()
+
     ctx.gui.CollectButton.MouseButton1Click:Connect(function()
         ctx.AutoCollect = not ctx.AutoCollect
         ctx.setButtonState(ctx.gui.CollectButton, ctx.AutoCollect, "Collect")
@@ -12,12 +14,19 @@ return function(ctx)
     end)
 
     task.spawn(function()
-        while task.wait(ctx.collectInterval or 2) do
+        while task.wait(0.25) do
             if ctx.Destroyed or not ctx.AutoCollect then
+                lastRun = os.clock()
                 continue
             end
 
             ctx.syncIntervals()
+
+            local now = os.clock()
+            if now - lastRun < (ctx.collectInterval or 2) then
+                continue
+            end
+            lastRun = now
 
             local hives = ctx.getMyHives()
             if hives then

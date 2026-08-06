@@ -5,6 +5,8 @@ return function(ctx)
     ctx.setButtonState(ctx.gui.SellButton, ctx.AutoSell, "Sell")
     ctx.updateStatus()
 
+    local lastRun = os.clock()
+
     ctx.gui.SellButton.MouseButton1Click:Connect(function()
         ctx.AutoSell = not ctx.AutoSell
         ctx.setButtonState(ctx.gui.SellButton, ctx.AutoSell, "Sell")
@@ -12,12 +14,19 @@ return function(ctx)
     end)
 
     task.spawn(function()
-        while task.wait(ctx.sellInterval or 5) do
+        while task.wait(0.25) do
             if ctx.Destroyed or not ctx.AutoSell then
+                lastRun = os.clock()
                 continue
             end
 
             ctx.syncIntervals()
+
+            local now = os.clock()
+            if now - lastRun < (ctx.sellInterval or 5) then
+                continue
+            end
+            lastRun = now
 
             pcall(function()
                 ctx.SellRemote:FireServer("SellHoney", "Honey")

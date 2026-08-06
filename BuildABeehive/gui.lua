@@ -42,6 +42,7 @@ return function(config)
     topBar.Size = UDim2.new(1, 0, 0, 36)
     topBar.BackgroundColor3 = theme.topbar or Color3.fromRGB(20, 20, 28)
     topBar.BorderSizePixel = 0
+    topBar.Active = true
     topBar.Parent = main
 
     local title = Instance.new("TextLabel")
@@ -401,6 +402,7 @@ return function(config)
     mini.BackgroundColor3 = theme.bg or Color3.fromRGB(18, 18, 24)
     mini.BorderSizePixel = 0
     mini.Visible = false
+    mini.Active = true
     mini.Parent = screenGui
     Instance.new("UICorner", mini).CornerRadius = UDim.new(0, 12)
 
