@@ -22,9 +22,11 @@ return function(ctx)
                 for _, hive in ipairs(hives:GetChildren()) do
                     pcall(function()
                         ctx.ExtractRemote:FireServer("ExtractHoney", {hive})
+                        ctx.addCount("collect", 1)
                     end)
                     task.wait(0.15)
                 end
+                ctx.updateStats()
             end
         end
     end)

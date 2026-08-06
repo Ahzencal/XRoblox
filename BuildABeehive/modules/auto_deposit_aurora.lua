@@ -13,7 +13,9 @@ return function(ctx)
         if ctx.AutoDepositAurora then
             pcall(function()
                 ctx.GameRemote:FireServer("DepositAuroraHoney")
+                ctx.addCount("aurora", 1)
             end)
+            ctx.updateStats()
         end
     end)
 
@@ -25,7 +27,9 @@ return function(ctx)
 
             pcall(function()
                 ctx.GameRemote:FireServer("DepositAuroraHoney")
+                ctx.addCount("aurora", 1)
             end)
+            ctx.updateStats()
         end
     end)
 end

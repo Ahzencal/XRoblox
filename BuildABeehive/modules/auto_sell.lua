@@ -19,7 +19,9 @@ return function(ctx)
 
             pcall(function()
                 ctx.SellRemote:FireServer("SellHoney", "Honey")
+                ctx.addCount("sell", 1)
             end)
+            ctx.updateStats()
         end
     end)
 end
