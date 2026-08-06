@@ -12,10 +12,12 @@ return function(ctx)
     end)
 
     task.spawn(function()
-        while task.wait(5) do
+        while task.wait(ctx.sellInterval or 5) do
             if ctx.Destroyed or not ctx.AutoSell then
                 continue
             end
+
+            ctx.syncIntervals()
 
             pcall(function()
                 ctx.SellRemote:FireServer("SellHoney", "Honey")

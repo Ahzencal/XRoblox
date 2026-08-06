@@ -22,6 +22,8 @@ return function(gui, config)
         AutoExtract = false,
         AutoSell = false,
         AutoDepositAurora = false,
+        collectInterval = 2,
+        sellInterval = 5,
         fps = 0,
         ping = 0,
         playerCount = #Players:GetPlayers(),
@@ -56,6 +58,29 @@ return function(gui, config)
             or (config.Theme and config.Theme.danger or Color3.fromRGB(180, 60, 60))
     end
     ctx.setButtonState = setButtonState
+
+    local function readInterval(input, fallback)
+        if not input then
+            return fallback
+        end
+
+        local value = tonumber(input.Text)
+        if not value then
+            input.Text = tostring(fallback)
+            return fallback
+        end
+
+        value = math.clamp(value, 1, 3600)
+        input.Text = tostring(value)
+        return value
+    end
+    ctx.readInterval = readInterval
+
+    local function syncIntervals()
+        ctx.collectInterval = readInterval(gui.CollectIntervalInput, 2)
+        ctx.sellInterval = readInterval(gui.SellIntervalInput, 5)
+    end
+    ctx.syncIntervals = syncIntervals
 
     ctx.addCount = function()
     end
@@ -114,6 +139,13 @@ return function(gui, config)
             gui.SoonLbl.Text = "Auto-buy coming soon"
             gui.SoonLbl.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
         end
+
+            if gui.CollectIntervalInput then
+                gui.CollectIntervalInput.Text = tostring(ctx.collectInterval)
+            end
+            if gui.SellIntervalInput then
+                gui.SellIntervalInput.Text = tostring(ctx.sellInterval)
+            end
     end
     ctx.updateStats = updateStats
 
@@ -237,9 +269,31 @@ return function(gui, config)
         setMinimized(false)
     end)
 
-    bind(gui.CloseBtn.MouseButton1Click, function()
-        destroyAll()
-    end)
+    if gui.TabButtons then
+        bind(gui.TabButtons.Overview.MouseButton1Click, function()
+            if gui.SetTab then
+                gui.SetTab("Overview")
+            end
+        end)
+
+        bind(gui.TabButtons.Actions.MouseButton1Click, function()
+            if gui.SetTab then
+                gui.SetTab("Actions")
+            end
+        end)
+    end
+
+    if gui.CollectIntervalInput then
+        bind(gui.CollectIntervalInput.FocusLost, function()
+            ctx.syncIntervals()
+        end)
+    end
+
+    if gui.SellIntervalInput then
+        bind(gui.SellIntervalInput.FocusLost, function()
+            ctx.syncIntervals()
+        end)
+    end
 
     local function destroyAll()
         ctx.Destroyed = true
@@ -255,6 +309,10 @@ return function(gui, config)
     end
     ctx.destroyAll = destroyAll
     _G.__BuildABeehive_Destroy = destroyAll
+
+    bind(gui.CloseBtn.MouseButton1Click, function()
+        ctx.destroyAll()
+    end)
 
     setMinimized(false)
     updateStats()

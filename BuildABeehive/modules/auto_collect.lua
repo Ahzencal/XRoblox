@@ -12,10 +12,12 @@ return function(ctx)
     end)
 
     task.spawn(function()
-        while task.wait(2) do
+        while task.wait(ctx.collectInterval or 2) do
             if ctx.Destroyed or not ctx.AutoCollect then
                 continue
             end
+
+            ctx.syncIntervals()
 
             local hives = ctx.getMyHives()
             if hives then
