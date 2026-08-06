@@ -1,5 +1,5 @@
 -- BuildABeehive/gui.lua
--- Clean modern GUI for honey automation, with minimize, close, and compact stats.
+-- Clean, spacious honey automation UI with a simple top bar, stats, and action row.
 
 return function(config)
     local Players = game:GetService("Players")
@@ -25,8 +25,8 @@ return function(config)
 
     local main = Instance.new("Frame")
     main.Name = "Main"
-    main.Size = UDim2.new(0, 360, 0, 308)
-    main.Position = UDim2.new(0.5, -180, 0.5, -154)
+    main.Size = UDim2.new(0, 390, 0, 296)
+    main.Position = UDim2.new(0.5, -195, 0.5, -148)
     main.BackgroundColor3 = theme.bg or Color3.fromRGB(18, 18, 24)
     main.BorderSizePixel = 0
     main.ClipsDescendants = true
@@ -92,13 +92,12 @@ return function(config)
 
     local dragHit = Instance.new("TextButton")
     dragHit.Size = UDim2.new(1, -96, 1, 0)
-    dragHit.Position = UDim2.new(0, 0, 0, 0)
     dragHit.BackgroundTransparency = 1
     dragHit.Text = ""
     dragHit.Parent = topBar
 
     local status = Instance.new("TextLabel")
-    status.Size = UDim2.new(1, -20, 0, 18)
+    status.Size = UDim2.new(1, -24, 0, 16)
     status.Position = UDim2.new(0, 12, 0, 44)
     status.BackgroundTransparency = 1
     status.Text = "Status: OFF"
@@ -109,8 +108,8 @@ return function(config)
     status.Parent = main
 
     local statsFrame = Instance.new("Frame")
-    statsFrame.Size = UDim2.new(1, -24, 0, 88)
-    statsFrame.Position = UDim2.new(0, 12, 0, 68)
+    statsFrame.Size = UDim2.new(1, -24, 0, 96)
+    statsFrame.Position = UDim2.new(0, 12, 0, 64)
     statsFrame.BackgroundColor3 = theme.panel or Color3.fromRGB(24, 24, 32)
     statsFrame.BorderSizePixel = 0
     statsFrame.Parent = main
@@ -162,14 +161,14 @@ return function(config)
         return value
     end
 
-    local collectValue = makeStatCard("AUTO COLLECT", 1)
-    local sellValue = makeStatCard("AUTO SELL", 2)
-    local auroraValue = makeStatCard("AURORA", 3)
-    local hiveValue = makeStatCard("HIVES", 4)
+    local fpsValue = makeStatCard("FPS", 1)
+    local pingValue = makeStatCard("PING", 2)
+    local playerCountValue = makeStatCard("PLAYER COUNT", 3)
+    local totalHiveValue = makeStatCard("TOTAL HIVE", 4)
 
     local collectButton = Instance.new("TextButton")
     collectButton.Size = UDim2.new(0.31, 0, 0, 30)
-    collectButton.Position = UDim2.new(0.04, 0, 0, 170)
+    collectButton.Position = UDim2.new(0.04, 0, 0, 172)
     collectButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
     collectButton.Text = "Collect: OFF"
     collectButton.TextScaled = true
@@ -179,7 +178,7 @@ return function(config)
 
     local sellButton = Instance.new("TextButton")
     sellButton.Size = UDim2.new(0.31, 0, 0, 30)
-    sellButton.Position = UDim2.new(0.345, 0, 0, 170)
+    sellButton.Position = UDim2.new(0.345, 0, 0, 172)
     sellButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
     sellButton.Text = "Sell: OFF"
     sellButton.TextScaled = true
@@ -189,7 +188,7 @@ return function(config)
 
     local depositAuroraButton = Instance.new("TextButton")
     depositAuroraButton.Size = UDim2.new(0.31, 0, 0, 30)
-    depositAuroraButton.Position = UDim2.new(0.65, 0, 0, 170)
+    depositAuroraButton.Position = UDim2.new(0.65, 0, 0, 172)
     depositAuroraButton.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
     depositAuroraButton.Text = "Aurora: OFF"
     depositAuroraButton.TextScaled = true
@@ -199,7 +198,7 @@ return function(config)
 
     local soonLbl = Instance.new("TextLabel")
     soonLbl.Size = UDim2.new(1, -24, 0, 14)
-    soonLbl.Position = UDim2.new(0, 12, 0, 206)
+    soonLbl.Position = UDim2.new(0, 12, 0, 210)
     soonLbl.BackgroundTransparency = 1
     soonLbl.Text = "Auto-buy coming soon"
     soonLbl.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
@@ -210,8 +209,8 @@ return function(config)
 
     local mini = Instance.new("Frame")
     mini.Name = "MinimizedPanel"
-    mini.Size = UDim2.new(0, 280, 0, 84)
-    mini.Position = UDim2.new(0.5, -140, 0.5, -42)
+    mini.Size = UDim2.new(0, 300, 0, 92)
+    mini.Position = UDim2.new(0.5, -150, 0.5, -46)
     mini.BackgroundColor3 = theme.bg or Color3.fromRGB(18, 18, 24)
     mini.BorderSizePixel = 0
     mini.Visible = false
@@ -248,14 +247,13 @@ return function(config)
 
     local miniDragHit = Instance.new("TextButton")
     miniDragHit.Size = UDim2.new(1, -24, 0, 26)
-    miniDragHit.Position = UDim2.new(0, 0, 0, 0)
     miniDragHit.BackgroundTransparency = 1
     miniDragHit.Text = ""
     miniDragHit.Parent = mini
 
     local miniCards = Instance.new("Frame")
-    miniCards.Size = UDim2.new(1, -16, 0, 44)
-    miniCards.Position = UDim2.new(0, 8, 0, 30)
+    miniCards.Size = UDim2.new(1, -16, 0, 48)
+    miniCards.Position = UDim2.new(0, 8, 0, 32)
     miniCards.BackgroundTransparency = 1
     miniCards.Parent = mini
 
@@ -267,7 +265,7 @@ return function(config)
 
     local function makeMiniCard(labelText, order)
         local card = Instance.new("Frame")
-        card.Size = UDim2.new(0, 62, 1, 0)
+        card.Size = UDim2.new(0, 68, 1, 0)
         card.BackgroundColor3 = theme.panel2 or Color3.fromRGB(34, 34, 44)
         card.BorderSizePixel = 0
         card.LayoutOrder = order
@@ -299,10 +297,10 @@ return function(config)
         return value
     end
 
-    local miniCollect = makeMiniCard("COL", 1)
-    local miniSell = makeMiniCard("SELL", 2)
-    local miniAurora = makeMiniCard("AUR", 3)
-    local miniHives = makeMiniCard("HIVES", 4)
+    local miniFps = makeMiniCard("FPS", 1)
+    local miniPing = makeMiniCard("PING", 2)
+    local miniPlayers = makeMiniCard("PLAYERS", 3)
+    local miniHive = makeMiniCard("HIVE", 4)
 
     return {
         Theme = theme,
@@ -318,10 +316,10 @@ return function(config)
         DragHit = dragHit,
         StatusLbl = status,
         Stats = {
-            CollectVal = collectValue,
-            SellVal = sellValue,
-            AuroraVal = auroraValue,
-            HivesVal = hiveValue,
+            FPSVal = fpsValue,
+            PingVal = pingValue,
+            PlayerCountVal = playerCountValue,
+            TotalHiveVal = totalHiveValue,
         },
         CollectButton = collectButton,
         SellButton = sellButton,
@@ -332,10 +330,10 @@ return function(config)
         MiniExpand = miniExpand,
         MiniDragHit = miniDragHit,
         MiniStats = {
-            CollectVal = miniCollect,
-            SellVal = miniSell,
-            AuroraVal = miniAurora,
-            HivesVal = miniHives,
+            FPSVal = miniFps,
+            PingVal = miniPing,
+            PlayerCountVal = miniPlayers,
+            TotalHiveVal = miniHive,
         },
     }
 end

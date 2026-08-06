@@ -3,6 +3,8 @@
 
 return function(gui, config)
     local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local StatsService = game:GetService("Stats")
     local UserInputService = game:GetService("UserInputService")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -20,9 +22,10 @@ return function(gui, config)
         AutoExtract = false,
         AutoSell = false,
         AutoDepositAurora = false,
-        collectCount = 0,
-        sellCount = 0,
-        auroraCount = 0,
+        fps = 0,
+        ping = 0,
+        playerCount = #Players:GetPlayers(),
+        totalHive = 0,
         connections = {},
     }
 
@@ -37,6 +40,11 @@ return function(gui, config)
     end
     ctx.bind = bind
 
+    local function getPlayerCount()
+        return #Players:GetPlayers()
+    end
+    ctx.getPlayerCount = getPlayerCount
+
     local function setButtonState(button, enabled, label)
         if not button then
             return
@@ -49,6 +57,9 @@ return function(gui, config)
     end
     ctx.setButtonState = setButtonState
 
+    ctx.addCount = function()
+    end
+
     local function setMinimized(minimized)
         ctx.minimized = minimized
         if gui.Main then
@@ -60,23 +71,14 @@ return function(gui, config)
     end
     ctx.setMinimized = setMinimized
 
-    local function addCount(kind, amount)
-        amount = amount or 1
-        if kind == "collect" then
-            ctx.collectCount = ctx.collectCount + amount
-        elseif kind == "sell" then
-            ctx.sellCount = ctx.sellCount + amount
-        elseif kind == "aurora" then
-            ctx.auroraCount = ctx.auroraCount + amount
-        end
-    end
-    ctx.addCount = addCount
-
     local function updateStats()
         local hives = ctx.getMyHives()
         local hiveCount = hives and #hives:GetChildren() or 0
         local active = ctx.AutoCollect or ctx.AutoSell or ctx.AutoDepositAurora
         local theme = config.Theme or {}
+
+        ctx.playerCount = getPlayerCount()
+        ctx.totalHive = hiveCount
 
         if gui.StatusLbl then
             gui.StatusLbl.Text = "Status: " .. (active and "ON" or "OFF")
@@ -86,17 +88,17 @@ return function(gui, config)
         end
 
         if gui.Stats then
-            gui.Stats.CollectVal.Text = tostring(ctx.collectCount)
-            gui.Stats.SellVal.Text = tostring(ctx.sellCount)
-            gui.Stats.AuroraVal.Text = tostring(ctx.auroraCount)
-            gui.Stats.HivesVal.Text = tostring(hiveCount)
+            gui.Stats.FPSVal.Text = tostring(ctx.fps)
+            gui.Stats.PingVal.Text = tostring(ctx.ping) .. " ms"
+            gui.Stats.PlayerCountVal.Text = tostring(ctx.playerCount)
+            gui.Stats.TotalHiveVal.Text = tostring(ctx.totalHive)
         end
 
         if gui.MiniStats then
-            gui.MiniStats.CollectVal.Text = tostring(ctx.collectCount)
-            gui.MiniStats.SellVal.Text = tostring(ctx.sellCount)
-            gui.MiniStats.AuroraVal.Text = tostring(ctx.auroraCount)
-            gui.MiniStats.HivesVal.Text = tostring(hiveCount)
+            gui.MiniStats.FPSVal.Text = tostring(ctx.fps)
+            gui.MiniStats.PingVal.Text = tostring(ctx.ping)
+            gui.MiniStats.PlayerCountVal.Text = tostring(ctx.playerCount)
+            gui.MiniStats.TotalHiveVal.Text = tostring(ctx.totalHive)
         end
 
         if gui.CollectButton then
@@ -116,6 +118,41 @@ return function(gui, config)
     ctx.updateStats = updateStats
 
     ctx.updateStatus = updateStats
+
+    local frameCount = 0
+    local fpsAccum = 0
+    local lastUpdate = tick()
+
+    bind(RunService.Heartbeat, function(dt)
+        if ctx.Destroyed then
+            return
+        end
+
+        frameCount = frameCount + 1
+        fpsAccum = fpsAccum + dt
+
+        local now = tick()
+        if now - lastUpdate < 0.5 then
+            return
+        end
+
+        lastUpdate = now
+
+        if fpsAccum > 0 then
+            ctx.fps = math.floor(frameCount / fpsAccum + 0.5)
+        end
+        frameCount = 0
+        fpsAccum = 0
+
+        local ok, pingMs = pcall(function()
+            return StatsService.Network.ServerStatsItem["Data Ping"]:GetValue()
+        end)
+        if ok then
+            ctx.ping = math.floor(pingMs + 0.5)
+        end
+
+        updateStats()
+    end)
 
     local function getMyPlot()
         local plots = workspace:FindFirstChild("Plots")
