@@ -137,10 +137,6 @@ return function(gui, config)
         if gui.DepositAuroraButton then
             setButtonState(gui.DepositAuroraButton, ctx.AutoDepositAurora, "Aurora")
         end
-        if gui.SoonLbl then
-            gui.SoonLbl.Text = "Auto-buy coming soon"
-            gui.SoonLbl.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
-        end
 
         if gui.CollectIntervalInput and not gui.CollectIntervalInput:IsFocused() then
                 gui.CollectIntervalInput.Text = tostring(ctx.collectInterval)

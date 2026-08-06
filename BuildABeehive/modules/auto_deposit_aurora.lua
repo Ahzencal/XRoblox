@@ -5,42 +5,41 @@ return function(ctx)
     ctx.setButtonState(ctx.gui.DepositAuroraButton, ctx.AutoDepositAurora, "Aurora")
     ctx.updateStatus()
 
-    ctx.syncIntervals()
+    local lastRun = os.clock()
 
     ctx.gui.DepositAuroraButton.MouseButton1Click:Connect(function()
         ctx.AutoDepositAurora = not ctx.AutoDepositAurora
         ctx.setButtonState(ctx.gui.DepositAuroraButton, ctx.AutoDepositAurora, "Aurora")
         ctx.updateStatus()
-
-        if ctx.AutoDepositAurora then
-            pcall(function()
-                ctx.GameRemote:FireServer("DepositAuroraHoney")
-        local lastRun = 0
-
-        while task.wait(0.1) do
-            end)
-            ctx.updateStats()
-        end
-
-            ctx.syncIntervals()
-            if os.clock() - lastRun < ctx.auroraInterval then
-                continue
-            end
-
-            lastRun = os.clock()
     end)
 
-    task.spawn(function()
-        while task.wait(5) do
-            if ctx.Destroyed or not ctx.AutoDepositAurora then
-                continue
-            end
+    local elapsed = 0
 
-            pcall(function()
-                ctx.GameRemote:FireServer("DepositAuroraHoney")
-                ctx.addCount("aurora", 1)
-            end)
-            ctx.updateStats()
+    ctx.bind(ctx.RunService.Heartbeat, function(dt)
+        if ctx.Destroyed then
+            return
         end
+
+        if not ctx.AutoDepositAurora then
+            elapsed = 0
+            lastRun = os.clock()
+            return
+        end
+
+        ctx.syncIntervals()
+
+        elapsed = elapsed + dt
+        if elapsed < (ctx.auroraInterval or 5) then
+            return
+        end
+
+        elapsed = 0
+        lastRun = os.clock()
+
+        pcall(function()
+            ctx.GameRemote:FireServer("DepositAuroraHoney")
+            ctx.addCount("aurora", 1)
+        end)
+        ctx.updateStats()
     end)
 end

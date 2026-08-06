@@ -315,17 +315,6 @@ return function(config)
     local playerCountValue = makeStatCard("PLAYER COUNT", 3)
     local totalHiveValue = makeStatCard("TOTAL HIVE", 4)
 
-    local note = Instance.new("TextLabel")
-    note.Size = UDim2.new(1, -24, 0, 14)
-    note.Position = UDim2.new(0, 12, 0, 208)
-    note.BackgroundTransparency = 1
-    note.Text = "Auto-buy coming soon"
-    note.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
-    note.Font = Enum.Font.Gotham
-    note.TextSize = 10
-    note.TextXAlignment = Enum.TextXAlignment.Left
-    note.Parent = overviewTab
-
     local actionHeader = Instance.new("TextLabel")
     actionHeader.Size = UDim2.new(1, -24, 0, 24)
     actionHeader.Position = UDim2.new(0, 12, 0, 16)
@@ -417,23 +406,45 @@ return function(config)
     local auroraIntervalLbl, auroraIntervalInput = makeIntervalSetting("Aurora interval (s)", "5", 3)
 
     local function makeActionButton(text, order, color)
+        local shell = Instance.new("Frame")
+        shell.Size = UDim2.new(1, 0, 0, 34)
+        shell.BackgroundColor3 = theme.panel2 or Color3.fromRGB(40, 40, 52)
+        shell.BorderSizePixel = 0
+        shell.LayoutOrder = order
+        shell.Parent = actionRows
+        Instance.new("UICorner", shell).CornerRadius = UDim.new(0, 9)
+
+        local shellStroke = Instance.new("UIStroke", shell)
+        shellStroke.Color = theme.panel2 or Color3.fromRGB(40, 40, 52)
+        shellStroke.Thickness = 1
+
+        local accent = Instance.new("Frame")
+        accent.Size = UDim2.new(0, 4, 1, -10)
+        accent.Position = UDim2.new(0, 8, 0.5, 0)
+        accent.AnchorPoint = Vector2.new(0, 0.5)
+        accent.BackgroundColor3 = color
+        accent.BorderSizePixel = 0
+        accent.Parent = shell
+        Instance.new("UICorner", accent).CornerRadius = UDim.new(1, 0)
+
         local button = Instance.new("TextButton")
-        button.Size = UDim2.new(1, 0, 0, 30)
+        button.Size = UDim2.new(1, 0, 1, 0)
+        button.BackgroundTransparency = 1
+        button.AutoButtonColor = false
         button.BackgroundColor3 = color
-        button.BackgroundTransparency = 0.08
         button.Text = text
         button.TextColor3 = theme.text or Color3.new(1, 1, 1)
         button.Font = Enum.Font.GothamBold
         button.TextSize = 11
         button.TextXAlignment = Enum.TextXAlignment.Left
         button.BorderSizePixel = 0
-        button.LayoutOrder = order
-        button.Parent = actionRows
-        Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
+        button.ClipsDescendants = true
+        button.Parent = shell
 
         local padding = Instance.new("UIPadding")
-        padding.PaddingLeft = UDim.new(0, 12)
+        padding.PaddingLeft = UDim.new(0, 24)
         padding.PaddingRight = UDim.new(0, 12)
+        padding.PaddingTop = UDim.new(0, 1)
         padding.Parent = button
 
         return button
@@ -442,17 +453,6 @@ return function(config)
     local collectButton = makeActionButton("Collect: OFF", 4, theme.danger or Color3.fromRGB(180, 60, 60))
     local sellButton = makeActionButton("Sell: OFF", 5, theme.danger or Color3.fromRGB(180, 60, 60))
     local depositAuroraButton = makeActionButton("Aurora: OFF", 6, theme.danger or Color3.fromRGB(180, 60, 60))
-
-    local soonLbl = Instance.new("TextLabel")
-    soonLbl.Size = UDim2.new(1, -24, 0, 14)
-    soonLbl.Position = UDim2.new(0, 12, 0, 282)
-    soonLbl.BackgroundTransparency = 1
-    soonLbl.Text = "Auto-buy coming soon"
-    soonLbl.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
-    soonLbl.Font = Enum.Font.Gotham
-    soonLbl.TextSize = 10
-    soonLbl.TextXAlignment = Enum.TextXAlignment.Left
-    soonLbl.Parent = actionsTab
 
     local buyTitle = Instance.new("TextLabel")
     buyTitle.Size = UDim2.new(1, -24, 0, 26)
@@ -648,7 +648,6 @@ return function(config)
         CollectIntervalInput = collectIntervalInput,
         SellIntervalInput = sellIntervalInput,
         AuroraIntervalInput = auroraIntervalInput,
-        SoonLbl = soonLbl,
         MinimizedPanel = mini,
         MiniHeader = miniHeader,
         MiniExpand = miniExpand,
