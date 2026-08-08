@@ -161,7 +161,7 @@ return function(config)
     tabBuyBtn.Size = UDim2.new(1, -16, 0, 34)
     tabBuyBtn.Position = UDim2.new(0, 8, 0, 160)
     tabBuyBtn.BackgroundColor3 = theme.panel2 or Color3.fromRGB(40, 40, 52)
-    tabBuyBtn.Text = "SOON"
+    tabBuyBtn.Text = "Buy"
     tabBuyBtn.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
     tabBuyBtn.Font = Enum.Font.GothamBold
     tabBuyBtn.TextSize = 12
@@ -466,7 +466,7 @@ return function(config)
     buyTitle.Parent = buyTab
 
     local buyCard = Instance.new("Frame")
-    buyCard.Size = UDim2.new(1, -24, 0, 120)
+    buyCard.Size = UDim2.new(1, -24, 0, 220)
     buyCard.Position = UDim2.new(0, 12, 0, 60)
     buyCard.BackgroundColor3 = theme.panel or Color3.fromRGB(24, 24, 32)
     buyCard.BorderSizePixel = 0
@@ -477,27 +477,135 @@ return function(config)
     buyCardStroke.Color = theme.panel2 or Color3.fromRGB(40, 40, 52)
     buyCardStroke.Thickness = 1
 
-    local buySoon = Instance.new("TextLabel")
-    buySoon.Size = UDim2.new(1, -24, 0, 22)
-    buySoon.Position = UDim2.new(0, 12, 0, 28)
-    buySoon.BackgroundTransparency = 1
-    buySoon.Text = "SOON"
-    buySoon.TextColor3 = theme.accent or Color3.fromRGB(80, 180, 255)
-    buySoon.Font = Enum.Font.GothamBold
-    buySoon.TextSize = 24
-    buySoon.TextXAlignment = Enum.TextXAlignment.Center
-    buySoon.Parent = buyCard
+    local buyPad = Instance.new("UIPadding")
+    buyPad.PaddingTop = UDim.new(0, 10)
+    buyPad.PaddingBottom = UDim.new(0, 10)
+    buyPad.PaddingLeft = UDim.new(0, 10)
+    buyPad.PaddingRight = UDim.new(0, 10)
+    buyPad.Parent = buyCard
 
-    local buyDesc = Instance.new("TextLabel")
-    buyDesc.Size = UDim2.new(1, -24, 0, 16)
-    buyDesc.Position = UDim2.new(0, 12, 0, 64)
-    buyDesc.BackgroundTransparency = 1
-    buyDesc.Text = "Buy controls will land here next."
-    buyDesc.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
-    buyDesc.Font = Enum.Font.Gotham
-    buyDesc.TextSize = 10
-    buyDesc.TextXAlignment = Enum.TextXAlignment.Center
-    buyDesc.Parent = buyCard
+    local buyRows = Instance.new("Frame")
+    buyRows.Size = UDim2.new(1, 0, 1, 0)
+    buyRows.BackgroundTransparency = 1
+    buyRows.Parent = buyCard
+
+    local buyList = Instance.new("UIListLayout")
+    buyList.Padding = UDim.new(0, 8)
+    buyList.SortOrder = Enum.SortOrder.LayoutOrder
+    buyList.Parent = buyRows
+
+    local buyInfo = Instance.new("TextLabel")
+    buyInfo.Size = UDim2.new(1, 0, 0, 30)
+    buyInfo.BackgroundTransparency = 1
+    buyInfo.LayoutOrder = 1
+    buyInfo.Text = "Buys selected seed every interval. If stock value is missing, it still attempts to buy."
+    buyInfo.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
+    buyInfo.Font = Enum.Font.Gotham
+    buyInfo.TextSize = 10
+    buyInfo.TextWrapped = true
+    buyInfo.TextXAlignment = Enum.TextXAlignment.Left
+    buyInfo.TextYAlignment = Enum.TextYAlignment.Top
+    buyInfo.Parent = buyRows
+
+    local buySeedRow = Instance.new("Frame")
+    buySeedRow.Size = UDim2.new(1, 0, 0, 28)
+    buySeedRow.BackgroundTransparency = 1
+    buySeedRow.LayoutOrder = 2
+    buySeedRow.Parent = buyRows
+
+    local buySeedLbl = Instance.new("TextLabel")
+    buySeedLbl.Size = UDim2.new(1, -92, 1, 0)
+    buySeedLbl.BackgroundTransparency = 1
+    buySeedLbl.Text = "Flower/Seed Id"
+    buySeedLbl.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
+    buySeedLbl.Font = Enum.Font.Gotham
+    buySeedLbl.TextSize = 10
+    buySeedLbl.TextXAlignment = Enum.TextXAlignment.Left
+    buySeedLbl.Parent = buySeedRow
+
+    local buySeedInput = Instance.new("TextBox")
+    buySeedInput.Size = UDim2.new(0, 80, 1, 0)
+    buySeedInput.Position = UDim2.new(1, -80, 0, 0)
+    buySeedInput.BackgroundColor3 = theme.bg2 or Color3.fromRGB(22, 22, 30)
+    buySeedInput.TextColor3 = theme.text or Color3.new(1, 1, 1)
+    buySeedInput.PlaceholderText = "Bamboo"
+    buySeedInput.PlaceholderColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
+    buySeedInput.ClearTextOnFocus = false
+    buySeedInput.Font = Enum.Font.Code
+    buySeedInput.Text = "Bamboo"
+    buySeedInput.TextSize = 11
+    buySeedInput.TextXAlignment = Enum.TextXAlignment.Center
+    buySeedInput.BorderSizePixel = 0
+    buySeedInput.Parent = buySeedRow
+    Instance.new("UICorner", buySeedInput).CornerRadius = UDim.new(0, 6)
+
+    local buyIntervalRow = Instance.new("Frame")
+    buyIntervalRow.Size = UDim2.new(1, 0, 0, 28)
+    buyIntervalRow.BackgroundTransparency = 1
+    buyIntervalRow.LayoutOrder = 3
+    buyIntervalRow.Parent = buyRows
+
+    local buyIntervalLbl = Instance.new("TextLabel")
+    buyIntervalLbl.Size = UDim2.new(1, -92, 1, 0)
+    buyIntervalLbl.BackgroundTransparency = 1
+    buyIntervalLbl.Text = "Buy interval (s)"
+    buyIntervalLbl.TextColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
+    buyIntervalLbl.Font = Enum.Font.Gotham
+    buyIntervalLbl.TextSize = 10
+    buyIntervalLbl.TextXAlignment = Enum.TextXAlignment.Left
+    buyIntervalLbl.Parent = buyIntervalRow
+
+    local buySeedIntervalInput = Instance.new("TextBox")
+    buySeedIntervalInput.Size = UDim2.new(0, 80, 1, 0)
+    buySeedIntervalInput.Position = UDim2.new(1, -80, 0, 0)
+    buySeedIntervalInput.BackgroundColor3 = theme.bg2 or Color3.fromRGB(22, 22, 30)
+    buySeedIntervalInput.TextColor3 = theme.text or Color3.new(1, 1, 1)
+    buySeedIntervalInput.PlaceholderText = "120"
+    buySeedIntervalInput.PlaceholderColor3 = theme.dim or Color3.fromRGB(130, 130, 145)
+    buySeedIntervalInput.ClearTextOnFocus = false
+    buySeedIntervalInput.Font = Enum.Font.Code
+    buySeedIntervalInput.Text = "120"
+    buySeedIntervalInput.TextSize = 11
+    buySeedIntervalInput.TextXAlignment = Enum.TextXAlignment.Center
+    buySeedIntervalInput.BorderSizePixel = 0
+    buySeedIntervalInput.Parent = buyIntervalRow
+    Instance.new("UICorner", buySeedIntervalInput).CornerRadius = UDim.new(0, 6)
+
+    local buyButtonShell = Instance.new("Frame")
+    buyButtonShell.Size = UDim2.new(1, 0, 0, 34)
+    buyButtonShell.BackgroundColor3 = theme.panel2 or Color3.fromRGB(40, 40, 52)
+    buyButtonShell.BorderSizePixel = 0
+    buyButtonShell.LayoutOrder = 4
+    buyButtonShell.Parent = buyRows
+    Instance.new("UICorner", buyButtonShell).CornerRadius = UDim.new(0, 9)
+
+    local buyButtonAccent = Instance.new("Frame")
+    buyButtonAccent.Size = UDim2.new(0, 4, 1, -10)
+    buyButtonAccent.Position = UDim2.new(0, 8, 0.5, 0)
+    buyButtonAccent.AnchorPoint = Vector2.new(0, 0.5)
+    buyButtonAccent.BackgroundColor3 = theme.danger or Color3.fromRGB(180, 60, 60)
+    buyButtonAccent.BorderSizePixel = 0
+    buyButtonAccent.Parent = buyButtonShell
+    Instance.new("UICorner", buyButtonAccent).CornerRadius = UDim.new(1, 0)
+
+    local buySeedButton = Instance.new("TextButton")
+    buySeedButton.Size = UDim2.new(1, 0, 1, 0)
+    buySeedButton.BackgroundTransparency = 1
+    buySeedButton.AutoButtonColor = false
+    buySeedButton.Text = "Buy Seed: OFF"
+    buySeedButton.TextColor3 = theme.text or Color3.new(1, 1, 1)
+    buySeedButton.Font = Enum.Font.GothamBold
+    buySeedButton.TextSize = 11
+    buySeedButton.TextXAlignment = Enum.TextXAlignment.Left
+    buySeedButton.BorderSizePixel = 0
+    buySeedButton.ClipsDescendants = true
+    buySeedButton.Parent = buyButtonShell
+
+    local buySeedButtonPadding = Instance.new("UIPadding")
+    buySeedButtonPadding.PaddingLeft = UDim.new(0, 24)
+    buySeedButtonPadding.PaddingRight = UDim.new(0, 12)
+    buySeedButtonPadding.PaddingTop = UDim.new(0, 1)
+    buySeedButtonPadding.Parent = buySeedButton
 
     local mini = Instance.new("Frame")
     mini.Name = "MinimizedPanel"
@@ -645,9 +753,12 @@ return function(config)
         CollectButton = collectButton,
         SellButton = sellButton,
         DepositAuroraButton = depositAuroraButton,
+        BuySeedButton = buySeedButton,
         CollectIntervalInput = collectIntervalInput,
         SellIntervalInput = sellIntervalInput,
         AuroraIntervalInput = auroraIntervalInput,
+        BuySeedIntervalInput = buySeedIntervalInput,
+        BuySeedInput = buySeedInput,
         MinimizedPanel = mini,
         MiniHeader = miniHeader,
         MiniExpand = miniExpand,
